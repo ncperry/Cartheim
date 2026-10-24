@@ -10,7 +10,7 @@ namespace Cartheim.Core
         private readonly HashSet<string> built = new HashSet<string>();
 
         // The workbench goes in first; everything else is built onto it.
-        public bool CanAdd(string piece) => piece == Workbench || built.Contains(Workbench);
+        public bool CanAdd(string piece) => !built.Contains(piece) && (piece == Workbench || built.Contains(Workbench));
 
         public void Add(string piece) => built.Add(piece);
     }

@@ -25,5 +25,14 @@ namespace Cartheim.Core.Tests
 
             Assert.True(cart.CanAdd("forge"));
         }
+
+        [Fact]
+        public void A_piece_cannot_be_built_in_twice()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+
+            Assert.False(cart.CanAdd("piece_workbench"));
+        }
     }
 }
