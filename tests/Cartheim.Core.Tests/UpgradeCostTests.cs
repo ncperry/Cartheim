@@ -31,5 +31,16 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(new ItemCount("IronNails", 5), UpgradeCost.For(forgeBellows).Last());
         }
+
+        [Fact]
+        public void A_piece_made_with_a_material_from_a_later_biome_takes_iron_nails()
+        {
+            var butchersTable = new[]
+            {
+                new ItemCount("ElderBark", 2), new ItemCount("RoundLog", 4), new ItemCount("FineWood", 4), new ItemCount("Silver", 2),
+            };
+
+            Assert.Equal(new ItemCount("IronNails", 5), UpgradeCost.For(butchersTable).Last());
+        }
     }
 }

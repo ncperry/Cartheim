@@ -6,12 +6,13 @@ namespace Cartheim.Core
     // What building a piece into the cart takes: the piece's own recipe plus the nails to fix it on.
     public static class UpgradeCost
     {
-        // Materials first found in the swamp or later; a piece made with any of them is held on with iron nails.
-        private static readonly HashSet<string> SwampOrLater = new HashSet<string> { "Iron", "Chain" };
+        // Materials found no later than the Black Forest. Anything else, including materials a game update adds,
+        // counts as swamp or later, so the piece is held on with iron nails.
+        private static readonly HashSet<string> BlackForestOrEarlier = new HashSet<string> { "Wood" };
 
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
         {
-            var nails = recipe.Any(i => SwampOrLater.Contains(i.Prefab)) ? "IronNails" : "BronzeNails";
+            var nails = recipe.All(i => BlackForestOrEarlier.Contains(i.Prefab)) ? "BronzeNails" : "IronNails";
             return recipe.Append(new ItemCount(nails, 5)).ToList();
         }
     }
