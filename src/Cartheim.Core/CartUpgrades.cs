@@ -87,7 +87,7 @@ namespace Cartheim.Core
         // A hearth built in is a fire of the cart's own: it lights the cauldron and warms a rest without a campfire nearby.
         public bool HasHearth => Has(Hearth);
 
-        public int ExtraComfort(int hearthComfort, int nearbyFireComfort) => 0;
+        public int ExtraComfort(int hearthComfort, int nearbyFireComfort) => RoofLevel;
 
         public int RoofLevel => Level(ThatchRoof) + built.Count(b => b.extends == ShingleRoof);
 

@@ -13,5 +13,16 @@ namespace Cartheim.Core.Tests
         {
             Assert.Equal(0, new CartUpgrades().ExtraComfort(HearthComfort, nearbyFireComfort: 0));
         }
+
+        [Fact]
+        public void Each_roof_level_adds_one_comfort()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add(CartUpgrades.ThatchRoof);
+            cart.Add(CartUpgrades.ShingleRoof, extends: CartUpgrades.ThatchRoof);
+
+            Assert.Equal(2, cart.ExtraComfort(HearthComfort, nearbyFireComfort: 0));
+        }
     }
 }
