@@ -15,6 +15,14 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_chopping_block_takes_bronze_nails()
+        {
+            var choppingBlock = new[] { new ItemCount("Wood", 10), new ItemCount("Flint", 10) };
+
+            Assert.Equal(new ItemCount("BronzeNails", 5), UpgradeCost.For(choppingBlock).Last());
+        }
+
+        [Fact]
         public void A_piece_made_with_iron_takes_iron_nails()
         {
             var toolShelf = new[] { new ItemCount("Iron", 4), new ItemCount("Wood", 10) };
