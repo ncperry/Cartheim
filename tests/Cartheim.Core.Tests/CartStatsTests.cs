@@ -41,6 +41,22 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_bare_cart_has_no_fire_of_its_own()
+        {
+            Assert.False(new CartUpgrades().HasHearth);
+        }
+
+        [Fact]
+        public void A_hearth_gives_the_cart_its_own_fire()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("hearth");
+
+            Assert.True(cart.HasHearth);
+        }
+
+        [Fact]
         public void A_bare_cart_has_no_roof()
         {
             Assert.Equal(0, new CartUpgrades().RoofLevel);

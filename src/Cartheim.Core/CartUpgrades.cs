@@ -8,6 +8,7 @@ namespace Cartheim.Core
     {
         private const string Workbench = "piece_workbench";
         private const string Forge = "forge";
+        private const string Hearth = "hearth";
 
         // A cart holds one chest, whichever kind.
         private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private", "piece_chest_grausten" };
@@ -64,6 +65,9 @@ namespace Cartheim.Core
 
         // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
         // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
+        // A hearth built in is a fire of the cart's own: it lights the cauldron and warms a rest without a campfire nearby.
+        public bool HasHearth => Has(Hearth);
+
         public int RoofLevel => Level(ThatchRoof) + built.Count(b => b.extends == ShingleRoof);
 
         public float Fullness => System.Math.Min(1f, (float)built.Count / UpgradesThatLookFull);
