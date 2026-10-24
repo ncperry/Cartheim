@@ -52,6 +52,8 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
+        public float Fullness => 0f;
+
         public float Armor => ArmorPerForgeLevel * Level(Forge);
 
         private bool Has(string piece) => built.Any(b => b.piece == piece);
