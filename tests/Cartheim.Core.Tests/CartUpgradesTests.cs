@@ -67,6 +67,7 @@ namespace Cartheim.Core.Tests
         [Theory]
         [InlineData("piece_chest_blackmetal")]
         [InlineData("piece_chest_private")]
+        [InlineData("piece_chest_grausten")]
         public void Every_kind_of_chest_counts_as_the_one_chest(string chest)
         {
             var cart = new CartUpgrades();

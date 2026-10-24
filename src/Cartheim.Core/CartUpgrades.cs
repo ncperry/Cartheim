@@ -12,7 +12,7 @@ namespace Cartheim.Core
         // A cart holds one chest, whichever kind.
         public static bool IsChest(string piece) => Chests.Contains(piece);
 
-        private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private" };
+        private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private", "piece_chest_grausten" };
 
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;
