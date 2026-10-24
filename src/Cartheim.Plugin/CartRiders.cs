@@ -4,18 +4,20 @@ using UnityEngine;
 
 namespace Cartheim.Plugin
 {
-    // The chest built into a cart is a real chest of that kind, hidden and carried along with the cart. Being real, the game
-    // itself keeps its size, its contents, one player at a time, and a personal chest's "only its builder" rule.
-    internal static class CartChest
+    // Pieces built into a cart that keep working as themselves (chests, beds, rugs, lights, the wisp torch) are real pieces
+    // of that kind, hidden and carried along with the cart. Being real, the game itself keeps a chest's contents and its
+    // "only its builder" rule, a bed's owner and spawn point, a rug's comfort and a lantern's light.
+    internal static class CartRiders
     {
-        // The cart remembers each container it carries under its own key.
-        public static string KeyFor(string piece) => "cartheim_chest_" + piece;
         public const string CartKey = "cartheim_cart";
 
-        // Where the chest rides: inside the cart's bed.
+        // The cart remembers each piece it carries under its own key.
+        public static string KeyFor(string piece) => "cartheim_chest_" + piece;
+
+        // Where the pieces ride: inside the cart's bed.
         private static readonly Vector3 Offset = Vector3.up * 0.5f;
 
-        // Builds the chest for the local player, who becomes its creator (the only one who can open a personal chest).
+        // Builds the piece for the local player, who becomes its creator (the only one who can open a personal chest).
         public static ZDOID Build(string piece, Transform cart, ZDOID cartId)
         {
             var prefab = GamePieces.Prefab(piece);
@@ -28,43 +30,67 @@ namespace Cartheim.Plugin
             return nview.GetZDO().m_uid;
         }
 
-        // Nothing of the chest shows or can be hit; it is reached only through the cart. Its WearNTear goes too, so the chest
-        // never breaks for lack of support while it floats in the cart.
-        public static void Hide(GameObject chest)
+        // Nothing of the piece shows or can be hit; it is reached only through the cart. Its light still shines and a wisp
+        // torch still clears mist. Its WearNTear goes, so it never breaks for lack of support while it floats in the cart, and
+        // a fire in it (sconce, jack-o-turnip) burns without fuel.
+        public static void Hide(GameObject piece)
         {
-            foreach (var renderer in chest.GetComponentsInChildren<Renderer>(true))
+            foreach (var renderer in piece.GetComponentsInChildren<Renderer>(true))
                 renderer.enabled = false;
-            foreach (var collider in chest.GetComponentsInChildren<Collider>(true))
+            foreach (var collider in piece.GetComponentsInChildren<Collider>(true))
                 collider.enabled = false;
-            var wear = chest.GetComponent<WearNTear>();
+            var wear = piece.GetComponent<WearNTear>();
             if (wear)
                 Object.Destroy(wear);
+            foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
+                fire.m_infiniteFuel = true;
+            if (!piece.GetComponent<CartRider>())
+                piece.AddComponent<CartRider>();
         }
 
-        // Every player moves the chest along with their own view of the cart, so the game's "too far from the chest" check
-        // follows the cart; its owner also moves it in the save data, so it loads wherever the cart is.
-        public static void Follow(Container chest, Transform cart)
+        // Lights and mist-clearing follow the mod switch; the piece itself stays, so nothing is lost while it is off.
+        public static void SetWorking(GameObject piece, bool on)
         {
-            chest.transform.SetPositionAndRotation(cart.position + Offset, cart.rotation);
-            var nview = chest.GetComponent<ZNetView>();
+            foreach (var light in piece.GetComponentsInChildren<Light>(true))
+                light.enabled = on;
+            foreach (var field in piece.GetComponentsInChildren<ParticleSystemForceField>(true))
+                field.enabled = on;
+        }
+
+        // Every player moves the piece along with their own view of the cart, so the game's "too far" checks follow the cart;
+        // its owner also moves it in the save data, so it loads wherever the cart is.
+        public static void Follow(GameObject piece, Transform cart)
+        {
+            piece.transform.SetPositionAndRotation(cart.position + Offset, cart.rotation);
+            var nview = piece.GetComponent<ZNetView>();
             if (nview && nview.IsValid() && nview.IsOwner())
-                nview.GetZDO().SetPosition(chest.transform.position);
+                nview.GetZDO().SetPosition(piece.transform.position);
         }
 
-        // Spills the chest's contents and removes it without dropping its own materials (the cart's refund returns those).
-        public static void Break(Container chest, Vector3 at)
+        // Spills a container's contents and removes the piece without dropping its own materials (the cart's refund returns
+        // those).
+        public static void Break(GameObject piece, Vector3 at)
         {
-            var nview = chest.GetComponent<ZNetView>();
-            var items = chest.GetInventory().GetAllItems().ToList();
-            Debug.Log($"[Cartheim] Cart chest {nview?.GetZDO()?.m_uid} breaks; dropping {string.Join(", ", items.Select(i => $"{i.m_stack} {i.m_dropPrefab?.name}"))}");
-            foreach (var item in items)
-                ItemDrop.DropItem(item, 0, at + Vector3.up * 0.5f + Random.insideUnitSphere * 0.5f, Quaternion.Euler(0f, Random.Range(0, 360), 0f));
-            chest.GetInventory().RemoveAll();
+            var nview = piece.GetComponent<ZNetView>();
+            var container = piece.GetComponent<Container>();
+            if (container)
+            {
+                var items = container.GetInventory().GetAllItems().ToList();
+                Debug.Log($"[Cartheim] Cart's {piece.name} breaks; dropping {string.Join(", ", items.Select(i => $"{i.m_stack} {i.m_dropPrefab?.name}"))}");
+                foreach (var item in items)
+                    ItemDrop.DropItem(item, 0, at + Vector3.up * 0.5f + Random.insideUnitSphere * 0.5f, Quaternion.Euler(0f, Random.Range(0, 360), 0f));
+                container.GetInventory().RemoveAll();
+            }
             if (nview && nview.IsValid())
             {
                 nview.ClaimOwnership();
-                ZNetScene.instance.Destroy(chest.gameObject);
+                ZNetScene.instance.Destroy(piece);
             }
         }
+    }
+
+    // Marks a piece as one riding hidden in a cart.
+    internal class CartRider : MonoBehaviour
+    {
     }
 }

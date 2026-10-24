@@ -16,15 +16,19 @@ namespace Cartheim.Plugin
         // Close enough to use a cart station from anywhere beside the cart.
         private const float UseDistance = 5f;
 
+        // How far a cart bed may have moved since the last frame for the spawn point to still follow it.
+        private const float SpawnPointDrift = 3f;
+
         public static readonly List<CartBase> All = new List<CartBase>();
 
         private ZNetView _nview;
         private WearNTear _wear;
         private float _ownHealth;
         private readonly Dictionary<string, CraftingStation> _stations = new Dictionary<string, CraftingStation>();
-        // The containers built into the cart (its chest, barrel, wardrobe), by piece, once loaded.
-        private readonly Dictionary<string, Container> _containers = new Dictionary<string, Container>();
+        // The pieces riding hidden in the cart (chest, bed, rug, light...), by piece, once loaded.
+        private readonly Dictionary<string, GameObject> _riders = new Dictionary<string, GameObject>();
         private GameObject _hearth;
+        private GameObject _wisp;
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -68,6 +72,8 @@ namespace Cartheim.Plugin
                     Destroy(station.gameObject);
             if (_hearth)
                 Destroy(_hearth);
+            if (_wisp)
+                Destroy(_wisp);
         }
 
         // What the cart offers right now: nothing while the mod is switched off.
@@ -82,33 +88,41 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} destroyed; dropping {string.Join(", ", refund)}");
             foreach (var item in refund)
                 GamePieces.Drop(item, transform.position);
-            foreach (var container in _containers.Values.Where(c => c))
-                CartChest.Break(container, transform.position);
+            foreach (var rider in _riders.Values.Where(r => r).ToList())
+                CartRiders.Break(rider, transform.position);
         }
 
         // The containers built into the cart, in panel order, while the mod is on and they are loaded.
         public List<Container> Containers =>
             Plugin.Enabled.Value
-                ? GamePieces.Containers.Where(p => _containers.TryGetValue(p, out var c) && c).Select(p => _containers[p]).ToList()
+                ? GamePieces.Containers.Select(Rider).Where(r => r).Select(r => r.GetComponent<Container>()).Where(c => c).ToList()
                 : new List<Container>();
 
-        public void BuildContainer(string piece)
+        // The bed built into the cart, while the mod is on and it is loaded.
+        public Bed Bed => Plugin.Enabled.Value ? GamePieces.Beds.Select(Rider).Where(r => r).Select(r => r.GetComponent<Bed>()).FirstOrDefault(b => b) : null;
+
+        private GameObject Rider(string piece) => _riders.TryGetValue(piece, out var r) && r ? r : null;
+
+        public void BuildRider(string piece)
         {
-            var id = CartChest.Build(piece, transform, _nview.GetZDO().m_uid);
+            var id = CartRiders.Build(piece, transform, _nview.GetZDO().m_uid);
             _nview.InvokeRPC(ChestRpc, piece, id);
         }
 
         private void RPC_SetChest(long sender, string piece, ZDOID chest)
         {
             if (_nview.IsOwner())
-                _nview.GetZDO().Set(CartChest.KeyFor(piece), chest);
+                _nview.GetZDO().Set(CartRiders.KeyFor(piece), chest);
         }
 
         private void Update()
         {
-            foreach (var container in _containers.Values)
-                if (container)
-                    CartChest.Follow(container, transform);
+            foreach (var rider in _riders.Values)
+                if (rider)
+                    CartRiders.Follow(rider, transform);
+            KeepSpawnPointOnBed();
+            if (_wisp)
+                CartWisp.Float(_wisp, transform);
         }
 
         public CraftingStation Station(string piece) => _stations.TryGetValue(piece, out var s) ? s : null;
@@ -141,10 +155,21 @@ namespace Cartheim.Plugin
             if (!_nview || !_nview.IsValid())
                 return;
             Upgrades = Load();
-            FindContainers();
+            FindRiders();
             var on = Plugin.Enabled.Value;
+            foreach (var rider in _riders.Values)
+                if (rider)
+                    CartRiders.SetWorking(rider, on);
             if (_wear)
                 _wear.m_health = on ? Upgrades.Health(_ownHealth) : _ownHealth;
+            var wantWisp = on && Upgrades.Has(GamePieces.WispTorch);
+            if (wantWisp && !_wisp)
+                _wisp = CartWisp.Make(transform);
+            else if (!wantWisp && _wisp)
+            {
+                Destroy(_wisp);
+                _wisp = null;
+            }
             var wantHearth = on && Upgrades.HasHearth;
             if (wantHearth && !_hearth)
                 _hearth = CartHearth.Light(transform);
@@ -167,18 +192,34 @@ namespace Cartheim.Plugin
             }
         }
 
-        private void FindContainers()
+        // A bed that is the local player's spawn point moves it along with the cart, so they wake up wherever the cart went.
+        // Only while this player has the cart loaded: if it travels while they are far away, the game won't find the bed.
+        private void KeepSpawnPointOnBed()
         {
-            foreach (var piece in GamePieces.Containers)
+            var bed = Bed;
+            var profile = Game.instance ? Game.instance.GetPlayerProfile() : null;
+            if (!bed || profile == null || !profile.HaveCustomSpawnPoint())
+                return;
+            if (bed.GetComponent<ZNetView>()?.GetZDO()?.GetLong(ZDOVars.s_owner) != profile.GetPlayerID())
+                return;
+            var spawn = bed.GetSpawnPoint();
+            var distance = Vector3.Distance(profile.GetCustomSpawnPoint(), spawn);
+            if (distance > 0.1f && distance < SpawnPointDrift)
+                profile.SetCustomSpawnPoint(spawn);
+        }
+
+        private void FindRiders()
+        {
+            foreach (var piece in GamePieces.Riders)
             {
-                if (_containers.TryGetValue(piece, out var known) && known)
+                if (_riders.TryGetValue(piece, out var known) && known)
                     continue;
-                var id = _nview.GetZDO().GetZDOID(CartChest.KeyFor(piece));
+                var id = _nview.GetZDO().GetZDOID(CartRiders.KeyFor(piece));
                 var go = id == ZDOID.None ? null : ZNetScene.instance.FindInstance(id);
                 if (!go)
                     continue;
-                CartChest.Hide(go);
-                _containers[piece] = go.GetComponent<Container>();
+                CartRiders.Hide(go);
+                _riders[piece] = go;
                 Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} carries {piece} {id}");
             }
         }

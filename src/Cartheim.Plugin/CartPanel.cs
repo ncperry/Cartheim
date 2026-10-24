@@ -79,7 +79,8 @@ namespace Cartheim.Plugin
 
             var stations = _cart.Stations.ToList();
             var containers = _cart.Containers;
-            if (stations.Count > 0 || containers.Count > 0)
+            var bed = _cart.Bed;
+            if (stations.Count > 0 || containers.Count > 0 || bed)
             {
                 PanelWidgets.Header(list, "Stations", Width - 90);
                 foreach (var piece in stations)
@@ -90,6 +91,13 @@ namespace Cartheim.Plugin
                     PanelWidgets.Size(PanelWidgets.Label(row, GamePieces.DisplayName(piece), Vector2.zero, 16, Color.white, NameWidth, TextAnchor.MiddleLeft), NameWidth);
                     PanelWidgets.Size(PanelWidgets.Label(row, $"Level {level}", Vector2.zero, 16, Color.white, CostWidth, TextAnchor.MiddleLeft), CostWidth);
                     PanelWidgets.Size(PanelWidgets.Button(row, "Use", Vector2.zero, ButtonWidth, () => Use(station)), ButtonWidth);
+                }
+                if (bed)
+                {
+                    var row = PanelWidgets.Row(list);
+                    PanelWidgets.Size(PanelWidgets.Label(row, Localization.instance.Localize(bed.GetComponent<Piece>().m_name), Vector2.zero, 16, Color.white, NameWidth, TextAnchor.MiddleLeft), NameWidth);
+                    PanelWidgets.Size(PanelWidgets.Label(row, "First use sets your spawn point, then sleep", Vector2.zero, 14, Color.white, CostWidth, TextAnchor.MiddleLeft), CostWidth);
+                    PanelWidgets.Size(PanelWidgets.Button(row, "Use", Vector2.zero, ButtonWidth, () => UseBed(bed)), ButtonWidth);
                 }
                 foreach (var chest in containers)
                 {
@@ -137,10 +145,20 @@ namespace Cartheim.Plugin
             if (!player.NoCostCheat())
                 GamePieces.Take(player, cost);
             _cart.Add(piece, extends);
-            if (GamePieces.Containers.Contains(piece))
-                _cart.BuildContainer(piece);
+            if (GamePieces.Riders.Contains(piece))
+                _cart.BuildRider(piece);
             _status.text = $"Built {GamePieces.DisplayName(piece)} into the cart";
             Redraw();
+        }
+
+        // The bed's own use: the first time it becomes the player's spawn point, after that they lie down to sleep.
+        private void UseBed(Bed bed)
+        {
+            var player = Player.m_localPlayer;
+            if (!bed || !player)
+                return;
+            Close();
+            bed.Interact(player, false, false);
         }
 
         private void OpenChest(Container chest)

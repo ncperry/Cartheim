@@ -29,6 +29,27 @@ namespace Cartheim.Plugin
 
         public static IEnumerable<string> Containers => Chests.Concat(ExtraContainers);
 
+        public static readonly string[] Beds = { "bed", "piece_bed02", "ashwood_bed" };
+
+        public static readonly string[] Rugs =
+        {
+            "rug_deer", "rug_Bjorn", "rug_wolf", "rug_fur", "rug_straw", "rug_hare", "rug_asksvin", "rug_seal", "rug_moose",
+            "jute_carpet", "jute_carpet_blue",
+        };
+
+        public static readonly string[] Furniture = Beds.Concat(Rugs).Append("piece_bathtub").ToArray();
+
+        public static readonly string[] Lights =
+        {
+            "piece_FairylightGarland", "piece_walltorch", "piece_dvergr_lantern", "piece_dvergr_lantern_pole", "piece_Lavalantern",
+            "piece_hoodedlantern", "piece_jackoturnip", "piece_snowlantern",
+        };
+
+        public const string WispTorch = "piece_groundtorch_mist";
+
+        // Every piece that rides hidden in the cart as itself.
+        public static readonly string[] Riders = Containers.Concat(Furniture).Concat(Lights).Append(WispTorch).ToArray();
+
         // A cart roof is no single piece: it is built from this many of the game's roof pieces of its kind.
         public const int RoofPiecesPerRoof = 5;
 
@@ -50,6 +71,9 @@ namespace Cartheim.Plugin
             yield return ("Roof (each over the last)", Roofs);
             yield return ("Chest (one per cart)", Chests);
             yield return ("More storage", ExtraContainers);
+            yield return ("Furniture (one bed, one rug)", Furniture);
+            yield return ("Light (one per cart)", Lights);
+            yield return ("Wisp", new[] { WispTorch });
         }
 
         // Every hammer piece that is a crafting station or extends one, as the game has them.

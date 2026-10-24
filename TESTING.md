@@ -70,3 +70,24 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] Standing right next to the cart's hearth doesn't set you on fire.
 - [ ] A cart cauldron works with the hearth built in and no campfire around.
 - [ ] Cartheim off: the hearth goes out, the roof stops keeping you dry. On again: both back.
+
+## Step 7: furniture, sleeping and rest
+
+- [ ] The Cart panel has "Furniture (one bed, one rug)": Bed, Dragon Bed, Ashwood Bed, every rug/carpet, and the Hot Tub.
+      After one bed, the other beds show "Locked"; same for rugs.
+- [ ] With a bed built in, the Cart panel lists it with a Use button. First Use: "Spawn point set" (no roof needed).
+- [ ] At night, with the cart's hearth (or a campfire within 5 m) and no enemies around, Use again: you lie down and the night skips.
+      With no fire: "needs a fire". With enemies about: "enemies nearby".
+- [ ] Die after pulling the cart somewhere new: you respawn at the cart, not where the cart was when you set the spawn.
+      (Known gap: if someone else moves the cart while you are far away, the game can't find the bed and sends you home.)
+- [ ] Standing within 5 m of a cart that has a fire near it (hearth or campfire), and no enemies about: the Resting effect
+      appears and turns into Rested. No roof needed.
+- [ ] Rested's comfort counts the cart's bed, rug and hot tub, +2 for its hearth (+1 if a campfire is also there), +1 per roof level.
+- [ ] Cartheim off: the panel doesn't open, so no sleeping; no resting by the cart; the cart's furniture gives no comfort.
+
+## Step 8: lights and the wisp
+
+- [ ] The Cart panel has "Light (one per cart)": Fey Lights, Sconce and every lantern. After one, the rest show "Locked".
+- [ ] A built-in light makes the cart glow in that light's colour (Fey Lights blue, Sconce orange); the sconce needs no fuel.
+- [ ] "Wisp": Wisp Torch. Built: a wisp circles about 2 m above the cart, and the Mistlands mist clears around it.
+- [ ] Cartheim off: the glow and the wisp go; on again, they're back.

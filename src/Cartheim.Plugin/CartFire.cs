@@ -16,6 +16,20 @@ namespace Cartheim.Plugin
         // Within range of a cart with a roof: kept out of the rain.
         public static bool UnderCartRoof(Vector3 point) => NearCart(point, cart => cart.HasRoof);
 
+        // Beside a cart that has a fire near it (its own hearth, or a fire within range): a place to rest, roof or no roof.
+        public static bool RestingByCart(Vector3 point) => NearCart(point, cart => Plugin.Enabled.Value && Near(cart.transform.position));
+
+        // The nearest cart within range of the point, if any.
+        public static CartBase CartNear(Vector3 point)
+        {
+            CartBase nearest = null;
+            foreach (var cart in CartBase.All)
+                if (cart && Vector3.Distance(cart.transform.position, point) <= Range &&
+                    (!nearest || Vector3.Distance(cart.transform.position, point) < Vector3.Distance(nearest.transform.position, point)))
+                    nearest = cart;
+            return nearest;
+        }
+
         private static bool NearCart(Vector3 point, System.Func<CartBase, bool> has)
         {
             foreach (var cart in CartBase.All)
