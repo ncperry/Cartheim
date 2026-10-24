@@ -17,5 +17,7 @@ namespace Cartheim.Core
             (extends == null || built.Contains(extends));
 
         public void Add(string piece) => built.Add(piece);
+
+        public float Health(float ownHealth) => ownHealth;
     }
 }
