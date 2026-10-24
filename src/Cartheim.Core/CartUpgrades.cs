@@ -7,8 +7,10 @@ namespace Cartheim.Core
     public class CartUpgrades
     {
         private const string Workbench = "piece_workbench";
+        private const string Forge = "forge";
 
         public const float HealthPerWorkbenchLevel = 100f;
+        public const float ArmorPerForgeLevel = 5f;
 
         private readonly HashSet<string> built = new HashSet<string>();
 
@@ -30,7 +32,7 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
-        public float Armor => 0f;
+        public float Armor => ArmorPerForgeLevel * Level(Forge);
 
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
         private int Level(string station) =>

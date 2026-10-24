@@ -35,5 +35,16 @@ namespace Cartheim.Core.Tests
         {
             Assert.Equal(0f, new CartUpgrades().Armor);
         }
+
+        [Fact]
+        public void Each_forge_level_adds_five_armor()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("forge");
+            cart.Add("forge_ext1", extends: "forge");
+
+            Assert.Equal(10f, cart.Armor);
+        }
     }
 }
