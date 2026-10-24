@@ -34,5 +34,14 @@ namespace Cartheim.Core.Tests
 
             Assert.False(cart.CanAdd("piece_workbench"));
         }
+
+        [Fact]
+        public void An_extension_needs_its_station_built_in_first()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+
+            Assert.False(cart.CanAdd("forge_ext1", extends: "forge"));
+        }
     }
 }

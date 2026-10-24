@@ -9,8 +9,12 @@ namespace Cartheim.Core
 
         private readonly HashSet<string> built = new HashSet<string>();
 
-        // The workbench goes in first; everything else is built onto it.
-        public bool CanAdd(string piece) => !built.Contains(piece) && (piece == Workbench || built.Contains(Workbench));
+        // The workbench goes in first; everything else is built onto it, and an extension (forge cooler, tanning rack)
+        // onto the station it extends.
+        public bool CanAdd(string piece, string extends = null) =>
+            !built.Contains(piece) &&
+            (piece == Workbench || built.Contains(Workbench)) &&
+            (extends == null || built.Contains(extends));
 
         public void Add(string piece) => built.Add(piece);
     }
