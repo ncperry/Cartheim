@@ -8,8 +8,40 @@ namespace Cartheim.Plugin
     // What the game says about the pieces a cart can be upgraded with: their names, recipes and which station each extends.
     internal static class GamePieces
     {
-        // In panel order.
-        public static readonly string[] Upgrades = { "piece_workbench" };
+        // What can be built into a cart, in the hammer's order (each station followed by its extensions). Read from the game
+        // once it has loaded, so new stations from a game update show up by themselves.
+        public static IReadOnlyList<string> Upgrades
+        {
+            get
+            {
+                if (_upgrades == null || _upgrades.Count == 0)
+                    _upgrades = StationPieces();
+                return _upgrades;
+            }
+        }
+        private static List<string> _upgrades;
+
+        // Every hammer piece that is a crafting station or extends one, as the game has them.
+        public static List<string> StationPieces()
+        {
+            var hammer = ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>();
+            var table = hammer ? hammer.m_itemData.m_shared.m_buildPieces : null;
+            if (!table)
+                return new List<string>();
+            return table.m_pieces.Where(p => p && (p.GetComponent<CraftingStation>() || p.GetComponent<StationExtension>()))
+                .Select(p => p.name).ToList();
+        }
+
+        // What the cart would charge for each station piece, for checking the nail tiers against the game's real recipes.
+        public static void LogStationPieces()
+        {
+            foreach (var piece in StationPieces())
+                Debug.Log($"[Cartheim] Station piece {piece} ({DisplayName(piece)}), extends {Extends(piece) ?? "nothing"}: " +
+                          string.Join(", ", UpgradeCost.For(Recipe(piece))));
+            var cart = Prefab("Cart");
+            if (cart)
+                Debug.Log($"[Cartheim] Cart prefab components: {string.Join(", ", cart.GetComponents<Component>().Select(c => c.GetType().Name))}");
+        }
 
         public static GameObject Prefab(string piece) => ZNetScene.instance ? ZNetScene.instance.GetPrefab(piece) : null;
 

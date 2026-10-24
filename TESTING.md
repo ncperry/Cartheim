@@ -23,3 +23,15 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] Destroy a cart that has a workbench built in: alongside the cart's own wood and nails and its contents,
       10 Wood + 5 Bronze nails drop. The log says `destroyed; dropping 10 Wood, 5 BronzeNails`.
 - [ ] Same again with Cartheim switched off in the Mods tab: the materials still drop.
+
+## Step 2: every crafting station
+
+- [ ] The Cart panel lists all stations and their extensions in the hammer's order (workbench + 4, cauldron + 6, forge + 6,
+      artisan table + press, black forge + 5, galdr table + 4, food preparation table, mead ketill, stonecutter).
+      Extensions show "Locked" until their station is in; everything but the workbench shows "Locked" until the workbench is in.
+- [ ] Chopping block costs 10 Wood + 10 Flint + 5 Bronze nails; the cart workbench is then level 2 (panel, and the crafting screen).
+- [ ] Forge in the cart: Use opens forge crafting at the cart, no roof needed. Each forge upgrade raises its level.
+- [ ] Hit a cart that has a forge (e.g. with a club): the log shows `Cart armor 5: hit X -> Y` with Y lower than X.
+- [ ] Each workbench level adds 100 cart health (the health bar drains more slowly as you hit it).
+- [ ] Cauldron in the cart: Use says it needs fire with no fire near; light a campfire within 5 m of the cart and it works.
+- [ ] Destroying a cart with several stations drops the materials of all of them.

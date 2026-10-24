@@ -16,6 +16,7 @@ namespace Cartheim.Plugin
 
         private readonly CartPanel _panel = new CartPanel();
         private Harmony _harmony;
+        private bool _loggedPieces;
 
         private void Awake()
         {
@@ -35,6 +36,11 @@ namespace Cartheim.Plugin
 
         private void Update()
         {
+            if (!_loggedPieces && ZNetScene.instance && ObjectDB.instance && Player.m_localPlayer)
+            {
+                _loggedPieces = true;
+                GamePieces.LogStationPieces();
+            }
             // Stays true for the frame in which Esc closes the panel, so that same press doesn't open the game menu.
             MenuBlockPatch.PanelOpen = _panel.IsOpen;
             _panel.Update();

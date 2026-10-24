@@ -128,7 +128,7 @@ namespace Cartheim.Plugin
             foreach (var field in typeof(CraftingStation).GetFields(BindingFlags.Public | BindingFlags.Instance))
                 field.SetValue(station, field.GetValue(original));
             station.m_craftRequireRoof = false;
-            station.m_craftRequireFire = false;
+            // A station that needs fire (the cauldron) gets it from a fire near the cart instead; see CartPatches.
             station.m_useDistance = UseDistance;
             station.m_roofCheckPoint = holder.transform;
             station.m_connectionPoint = null;
