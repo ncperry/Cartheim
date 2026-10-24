@@ -32,5 +32,14 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(UpgradeState.Locked, new CartUpgrades().StateOf("forge", null, forgeCost, carried));
         }
+
+        [Fact]
+        public void A_workbench_already_in_the_cart_shows_as_built()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+
+            Assert.Equal(UpgradeState.Built, cart.StateOf("piece_workbench", null, WorkbenchCost, new Dictionary<string, int>()));
+        }
     }
 }

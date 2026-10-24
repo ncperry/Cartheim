@@ -25,6 +25,7 @@ namespace Cartheim.Core
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
 
         public UpgradeState StateOf(string piece, string extends, IEnumerable<ItemCount> cost, IReadOnlyDictionary<string, int> carried) =>
+            Has(piece) ? UpgradeState.Built :
             !CanAdd(piece, extends) ? UpgradeState.Locked :
             cost.All(c => carried.TryGetValue(c.Prefab, out var have) && have >= c.Count) ? UpgradeState.Ready : UpgradeState.CannotAfford;
 
