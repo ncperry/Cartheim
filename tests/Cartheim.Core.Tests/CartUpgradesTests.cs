@@ -90,6 +90,16 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_cart_takes_only_one_light()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_FairylightGarland");
+
+            Assert.False(cart.CanAdd("piece_walltorch"));
+        }
+
+        [Fact]
         public void A_bare_cart_saves_as_nothing()
         {
             Assert.Equal("", new CartUpgrades().Save());
