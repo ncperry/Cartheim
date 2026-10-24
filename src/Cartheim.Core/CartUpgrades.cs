@@ -20,8 +20,17 @@ namespace Cartheim.Core
             "piece_hoodedlantern", "piece_jackoturnip", "piece_snowlantern",
         };
 
+        // One bed to sleep in (and respawn at), one rug: only the best of each counts for comfort anyway.
+        private static readonly HashSet<string> Beds = new HashSet<string> { "bed", "piece_bed02", "ashwood_bed" };
+
+        private static readonly HashSet<string> Rugs = new HashSet<string>
+        {
+            "rug_deer", "rug_Bjorn", "rug_wolf", "rug_fur", "rug_straw", "rug_hare", "rug_asksvin", "rug_seal", "rug_moose",
+            "jute_carpet", "jute_carpet_blue",
+        };
+
         // Kinds of piece a cart holds only one of.
-        private static readonly HashSet<string>[] OneOfEach = { Chests, Lights };
+        private static readonly HashSet<string>[] OneOfEach = { Chests, Lights, Beds, Rugs };
 
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;

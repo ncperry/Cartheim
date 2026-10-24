@@ -115,6 +115,20 @@ namespace Cartheim.Core.Tests
             Assert.False(cart.CanAdd("piece_FairylightGarland"));
         }
 
+        [Theory]
+        [InlineData("bed", "piece_bed02")]
+        [InlineData("ashwood_bed", "bed")]
+        [InlineData("rug_deer", "rug_wolf")]
+        [InlineData("jute_carpet", "rug_moose")]
+        public void A_cart_takes_one_bed_and_one_rug(string built, string another)
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add(built);
+
+            Assert.False(cart.CanAdd(another));
+        }
+
         [Fact]
         public void A_bare_cart_saves_as_nothing()
         {
