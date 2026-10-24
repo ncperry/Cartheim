@@ -91,3 +91,15 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] A built-in light makes the cart glow in that light's colour (Fey Lights blue, Sconce orange); the sconce needs no fuel.
 - [ ] "Wisp": Wisp Torch. Built: a wisp circles about 2 m above the cart, and the Mistlands mist clears around it.
 - [ ] Cartheim off: the glow and the wisp go; on again, they're back.
+
+## Step 9: no spawns near the cart
+
+- [ ] Park a bare cart at night somewhere enemies usually spawn (Black Forest, Swamp): nothing spawns within ~20 m of it.
+      Enemies spawned further away can still walk in, as with a workbench.
+- [ ] Cartheim off: spawns near the cart resume.
+
+## Step 10: the Mods switch, all together
+
+- [ ] With Cartheim off, none of the above works (no panel, stations, tabs, roof shelter, hearth, rest, comfort, glow, wisp,
+      spawn block, extra health/armor, laden fix, upgrade looks), and nothing is lost: switched on, it all comes back.
+- [ ] With Cartheim off, destroying a cart still drops its contents, every container's contents and every upgrade's materials.

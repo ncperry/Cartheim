@@ -29,6 +29,7 @@ namespace Cartheim.Plugin
         private readonly Dictionary<string, GameObject> _riders = new Dictionary<string, GameObject>();
         private GameObject _hearth;
         private GameObject _wisp;
+        private GameObject _baseArea;
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -74,6 +75,8 @@ namespace Cartheim.Plugin
                 Destroy(_hearth);
             if (_wisp)
                 Destroy(_wisp);
+            if (_baseArea)
+                Destroy(_baseArea);
         }
 
         // What the cart offers right now: nothing while the mod is switched off.
@@ -162,6 +165,13 @@ namespace Cartheim.Plugin
                     CartRiders.SetWorking(rider, on);
             if (_wear)
                 _wear.m_health = on ? Upgrades.Health(_ownHealth) : _ownHealth;
+            if (on && !_baseArea)
+                _baseArea = CartBaseArea.Make(transform);
+            else if (!on && _baseArea)
+            {
+                Destroy(_baseArea);
+                _baseArea = null;
+            }
             var wantWisp = on && Upgrades.Has(GamePieces.WispTorch);
             if (wantWisp && !_wisp)
                 _wisp = CartWisp.Make(transform);
