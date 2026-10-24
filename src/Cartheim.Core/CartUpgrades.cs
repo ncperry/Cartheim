@@ -9,6 +9,9 @@ namespace Cartheim.Core
         private const string Workbench = "piece_workbench";
         private const string Forge = "forge";
 
+        // A cart holds one chest, whichever kind.
+        private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest" };
+
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;
         // How many upgrades make a cart look as full as one with every slot filled.
@@ -22,7 +25,8 @@ namespace Cartheim.Core
         public bool CanAdd(string piece, string extends = null) =>
             !Has(piece) &&
             (piece == Workbench || Has(Workbench)) &&
-            (extends == null || Has(extends));
+            (extends == null || Has(extends)) &&
+            !(Chests.Contains(piece) && built.Any(b => Chests.Contains(b.piece)));
 
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
 

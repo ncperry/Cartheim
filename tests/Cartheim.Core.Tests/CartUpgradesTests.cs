@@ -55,6 +55,16 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_cart_takes_only_one_chest()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_chest_wood");
+
+            Assert.False(cart.CanAdd("piece_chest"));
+        }
+
+        [Fact]
         public void A_bare_cart_saves_as_nothing()
         {
             Assert.Equal("", new CartUpgrades().Save());
