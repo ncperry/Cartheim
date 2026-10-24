@@ -1,0 +1,11 @@
+<Project>
+  <!-- Merge the core rules into one DLL: ScriptEngine hot reload and shipping both want a single file. -->
+  <Target Name="ILRepacker" AfterTargets="Build">
+    <ItemGroup>
+      <InputAssemblies Include="$(TargetPath)" />
+      <InputAssemblies Include="$(TargetDir)Cartheim.Core.dll" />
+    </ItemGroup>
+    <ILRepack Parallel="true" Internalize="true" DebugInfo="true" TargetKind="Dll" InputAssemblies="@(InputAssemblies)" OutputFile="$(TargetPath)"
+              LibraryPath="$(Managed);$(ValheimDir)\BepInEx\core;$(ValheimDir)\BepInEx\plugins" />
+  </Target>
+</Project>

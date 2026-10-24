@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Thin adapter between Valheim and the cart rules. Compiles against the installed game,
+       so a Valheim update that renames something breaks the build instead of failing silently in game. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>Cartheim</AssemblyName>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">D:\Steam\steamapps\common\Valheim</ValheimDir>
+    <Managed>$(ValheimDir)\valheim_Data\Managed</Managed>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Cartheim.Core\Cartheim.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(ValheimDir)\BepInEx\core\BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(ValheimDir)\BepInEx\core\0Harmony.dll" Private="false" />
+    <Reference Include="assembly_valheim" HintPath="$(Managed)\assembly_valheim.dll" Private="false" />
+    <Reference Include="assembly_guiutils" HintPath="$(Managed)\assembly_guiutils.dll" Private="false" />
+    <Reference Include="assembly_utils" HintPath="$(Managed)\assembly_utils.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(Managed)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(Managed)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.PhysicsModule" HintPath="$(Managed)\UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ParticleSystemModule" HintPath="$(Managed)\UnityEngine.ParticleSystemModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(Managed)\UnityEngine.UI.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="$(Managed)\UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(Managed)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(Managed)\UnityEngine.TextRenderingModule.dll" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.48">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <!-- ScriptEngine watches BepInEx\scripts and hot-reloads the merged DLL, so a build shows up in a running game. -->
+  <Target Name="CopyToScripts" AfterTargets="ILRepacker">
+    <!-- ScriptEngine refuses to load a DLL without its matching .pdb. -->
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ValheimDir)\BepInEx\scripts" />
+  </Target>
+</Project>
