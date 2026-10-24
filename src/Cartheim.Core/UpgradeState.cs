@@ -4,5 +4,6 @@ namespace Cartheim.Core
     public enum UpgradeState
     {
         Ready,
+        CannotAfford,
     }
 }

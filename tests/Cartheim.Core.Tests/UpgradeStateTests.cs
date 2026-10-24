@@ -15,5 +15,13 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(UpgradeState.Ready, new CartUpgrades().StateOf("piece_workbench", null, WorkbenchCost, carried));
         }
+
+        [Fact]
+        public void A_workbench_short_of_nails_cannot_be_afforded()
+        {
+            var carried = new Dictionary<string, int> { ["Wood"] = 10, ["BronzeNails"] = 4 };
+
+            Assert.Equal(UpgradeState.CannotAfford, new CartUpgrades().StateOf("piece_workbench", null, WorkbenchCost, carried));
+        }
     }
 }

@@ -25,7 +25,7 @@ namespace Cartheim.Core
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
 
         public UpgradeState StateOf(string piece, string extends, IEnumerable<ItemCount> cost, IReadOnlyDictionary<string, int> carried) =>
-            UpgradeState.Ready;
+            cost.All(c => carried.TryGetValue(c.Prefab, out var have) && have >= c.Count) ? UpgradeState.Ready : UpgradeState.CannotAfford;
 
         // One piece per line, as saved on the cart; an extension as "piece>station".
         public string Save() =>
