@@ -38,6 +38,32 @@ namespace Cartheim.Plugin
             __result += Localization.instance.Localize("\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Cart");
         }
 
+        private static readonly System.Reflection.MethodInfo SetMass = AccessTools.Method(typeof(Vagon), "SetMass");
+
+        // A full cart pulls like an empty one: its mass never grows with what it carries.
+        [HarmonyPatch(typeof(Vagon), "UpdateMass"), HarmonyPrefix]
+        private static bool KeepEmptyMass(Vagon __instance, ZNetView ___m_nview)
+        {
+            if (!Plugin.Enabled.Value)
+                return true;
+            if (___m_nview && ___m_nview.IsValid() && ___m_nview.IsOwner())
+                SetMass.Invoke(__instance, new object[] { __instance.m_baseMass });
+            return false;
+        }
+
+        // The cart's load (the sacks and crates on it) shows how much is built into it, not how many slots are filled.
+        [HarmonyPatch(typeof(Vagon), "UpdateLoadVisualization"), HarmonyPrefix]
+        private static bool ShowUpgradesAsLoad(Vagon __instance)
+        {
+            var cart = __instance.GetComponent<CartBase>();
+            if (!Plugin.Enabled.Value || !cart)
+                return true;
+            var fullness = cart.Upgrades.Fullness;
+            foreach (var load in __instance.m_loadVis)
+                load.m_gameobject.SetActive(fullness > 0f && fullness >= load.m_minPercentage);
+            return false;
+        }
+
         private static readonly AccessTools.FieldRef<CraftingStation, bool> HaveFire =
             AccessTools.FieldRefAccess<CraftingStation, bool>("m_haveFire");
 

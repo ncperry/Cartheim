@@ -35,3 +35,9 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] Each workbench level adds 100 cart health (the health bar drains more slowly as you hit it).
 - [ ] Cauldron in the cart: Use says it needs fire with no fire near; light a campfire within 5 m of the cart and it works.
 - [ ] Destroying a cart with several stations drops the materials of all of them.
+
+## Step 4: handling and looks
+
+- [ ] A cart crammed with stone pulls as easily as an empty one (Cartheim on); switch Cartheim off and within ~5 s it's heavy again.
+- [ ] A bare cart looks empty even when full of items; each upgrade makes it look fuller (10 upgrades = as full as it gets).
+      Switch Cartheim off and it looks as full as its contents again.
