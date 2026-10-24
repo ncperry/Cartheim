@@ -53,5 +53,11 @@ namespace Cartheim.Core.Tests
 
             Assert.True(cart.CanAdd("forge_ext1", extends: "forge"));
         }
+
+        [Fact]
+        public void A_bare_cart_saves_as_nothing()
+        {
+            Assert.Equal("", new CartUpgrades().Save());
+        }
     }
 }

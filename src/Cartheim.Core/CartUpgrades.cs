@@ -30,6 +30,8 @@ namespace Cartheim.Core
             if (extends != null) extensions.Add((piece, extends));
         }
 
+        public string Save() => "";
+
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
         public float Armor => ArmorPerForgeLevel * Level(Forge);
