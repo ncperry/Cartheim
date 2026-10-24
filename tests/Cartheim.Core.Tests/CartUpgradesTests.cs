@@ -77,6 +77,18 @@ namespace Cartheim.Core.Tests
             Assert.False(cart.CanAdd("piece_chest_wood"));
         }
 
+        [Theory]
+        [InlineData("piece_chest_barrel")]
+        [InlineData("piece_chest_warderobe")]
+        public void A_barrel_or_wardrobe_goes_in_alongside_the_chest(string container)
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_chest_wood");
+
+            Assert.True(cart.CanAdd(container));
+        }
+
         [Fact]
         public void A_bare_cart_saves_as_nothing()
         {
