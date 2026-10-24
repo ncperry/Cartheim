@@ -18,6 +18,8 @@ namespace Cartheim.Core
 
         public void Add(string piece) => built.Add(piece);
 
-        public float Health(float ownHealth) => ownHealth;
+        public const float HealthPerWorkbenchLevel = 100f;
+
+        public float Health(float ownHealth) => ownHealth + (built.Contains(Workbench) ? HealthPerWorkbenchLevel : 0f);
     }
 }
