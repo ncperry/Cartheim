@@ -41,3 +41,18 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] A cart crammed with stone pulls as easily as an empty one (Cartheim on); switch Cartheim off and within ~5 s it's heavy again.
 - [ ] A bare cart looks empty even when full of items; each upgrade makes it look fuller (10 upgrades = as full as it gets).
       Switch Cartheim off and it looks as full as its contents again.
+
+## Step 5: the cart's chest
+
+- [ ] The Cart panel has a "Chest (one per cart)" section: Chest, Reinforced Chest, Black Metal Chest, Personal Chest,
+      each costing its normal recipe plus nails. After building one, the others show "Locked".
+- [ ] Building one shows no chest anywhere on or near the cart (it rides hidden inside it). The log says `Built piece_chest_... into cart`.
+- [ ] Open the cart's storage: "Cart" and "Chest" tabs appear above the storage window. Chest shows the chest's slots
+      (10 / 24 / 32 / 6 by kind); Cart goes back. Items stay put on each page.
+- [ ] The Cart panel also lists the chest with an Open button.
+- [ ] Pull the cart a long way, then open the chest again: it is still there with its items.
+- [ ] Log out and back in: chest and items still there.
+- [ ] Personal chest: another player (or another character of yours) gets "can't open" on the Chest tab but can still use the Cart page.
+- [ ] Destroy the cart: the chest's items spill out along with the cart's own items and every upgrade's materials (chest recipe + nails included).
+- [ ] Mods tab → Cartheim off: no tabs, no Open button; switch back on and the chest and its items are back.
+- [ ] Two players: one has the chest page open, the other gets "in use" (vanilla behaviour) rather than both editing it.

@@ -11,6 +11,7 @@ namespace Cartheim.Plugin
     {
         private const string SaveKey = "cartheim_upgrades";
         private const string AddRpc = "Cartheim_Add";
+        private const string ChestRpc = "Cartheim_SetChest";
 
         // Close enough to use a cart station from anywhere beside the cart.
         private const float UseDistance = 5f;
@@ -21,6 +22,7 @@ namespace Cartheim.Plugin
         private WearNTear _wear;
         private float _ownHealth;
         private readonly Dictionary<string, CraftingStation> _stations = new Dictionary<string, CraftingStation>();
+        private Container _chest;
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -37,7 +39,9 @@ namespace Cartheim.Plugin
             }
             // An old copy from before a hot reload may not have let go of it yet.
             _nview.Unregister(AddRpc);
+            _nview.Unregister(ChestRpc);
             _nview.Register<string, string>(AddRpc, RPC_Add);
+            _nview.Register<ZDOID>(ChestRpc, RPC_SetChest);
             All.Add(this);
             InvokeRepeating(nameof(Refresh), 0.5f, 1f);
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO()?.m_uid} ready; health {_ownHealth}, has WearNTear {(bool)_wear}");
@@ -49,6 +53,8 @@ namespace Cartheim.Plugin
             // A hot reload makes a new CartBase on the same cart, which registers the same RPC again.
             if (_nview)
                 _nview.Unregister(AddRpc);
+            if (_nview)
+                _nview.Unregister(ChestRpc);
             if (_wear)
             {
                 _wear.m_onDestroyed -= DropRefund;
@@ -68,6 +74,29 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} destroyed; dropping {string.Join(", ", refund)}");
             foreach (var item in refund)
                 GamePieces.Drop(item, transform.position);
+            if (_chest)
+                CartChest.Break(_chest, transform.position);
+        }
+
+        // The chest built into the cart, while the mod is on and the chest is loaded.
+        public Container Chest => Plugin.Enabled.Value && _chest ? _chest : null;
+
+        public void BuildChest(string piece)
+        {
+            var id = CartChest.Build(piece, transform, _nview.GetZDO().m_uid);
+            _nview.InvokeRPC(ChestRpc, id);
+        }
+
+        private void RPC_SetChest(long sender, ZDOID chest)
+        {
+            if (_nview.IsOwner())
+                _nview.GetZDO().Set(CartChest.ChestKey, chest);
+        }
+
+        private void Update()
+        {
+            if (_chest)
+                CartChest.Follow(_chest, transform);
         }
 
         public CraftingStation Station(string piece) => _stations.TryGetValue(piece, out var s) ? s : null;
@@ -100,10 +129,11 @@ namespace Cartheim.Plugin
             if (!_nview || !_nview.IsValid())
                 return;
             Upgrades = Load();
+            FindChest();
             var on = Plugin.Enabled.Value;
             if (_wear)
                 _wear.m_health = on ? Upgrades.Health(_ownHealth) : _ownHealth;
-            foreach (var piece in GamePieces.Upgrades)
+            foreach (var piece in GamePieces.Stations)
             {
                 var wanted = on && Upgrades.Level(piece) > 0 && GamePieces.Prefab(piece)?.GetComponent<CraftingStation>();
                 if (wanted && !_stations.ContainsKey(piece))
@@ -115,6 +145,19 @@ namespace Cartheim.Plugin
                         Destroy(station.gameObject);
                 }
             }
+        }
+
+        private void FindChest()
+        {
+            if (_chest)
+                return;
+            var id = _nview.GetZDO().GetZDOID(CartChest.ChestKey);
+            var go = id == ZDOID.None ? null : ZNetScene.instance.FindInstance(id);
+            if (!go)
+                return;
+            CartChest.Hide(go);
+            _chest = go.GetComponent<Container>();
+            Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} carries chest {id}");
         }
 
         // A copy of the real station's crafting settings, riding on the cart. It has no model, collider or area marker of its

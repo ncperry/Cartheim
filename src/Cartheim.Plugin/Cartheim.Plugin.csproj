@@ -18,6 +18,7 @@
     <Reference Include="Jotunn" HintPath="$(ValheimDir)\BepInEx\plugins\Jotunn.dll" Private="false" />
     <Reference Include="assembly_valheim" HintPath="$(Managed)\assembly_valheim.dll" Private="false" />
     <Reference Include="assembly_guiutils" HintPath="$(Managed)\assembly_guiutils.dll" Private="false" />
+    <Reference Include="Splatform" HintPath="$(Managed)\Splatform.dll" Private="false" />
     <Reference Include="assembly_utils" HintPath="$(Managed)\assembly_utils.dll" Private="false" />
     <Reference Include="UnityEngine" HintPath="$(Managed)\UnityEngine.dll" Private="false" />
     <Reference Include="UnityEngine.CoreModule" HintPath="$(Managed)\UnityEngine.CoreModule.dll" Private="false" />

@@ -10,16 +10,25 @@ namespace Cartheim.Plugin
     {
         // What can be built into a cart, in the hammer's order (each station followed by its extensions). Read from the game
         // once it has loaded, so new stations from a game update show up by themselves.
-        public static IReadOnlyList<string> Upgrades
+        public static IReadOnlyList<string> Stations
         {
             get
             {
-                if (_upgrades == null || _upgrades.Count == 0)
-                    _upgrades = StationPieces();
-                return _upgrades;
+                if (_stations == null || _stations.Count == 0)
+                    _stations = StationPieces();
+                return _stations;
             }
         }
-        private static List<string> _upgrades;
+        private static List<string> _stations;
+
+        public static readonly string[] Chests = { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private" };
+
+        // The upgrade panel's sections, in order.
+        public static IEnumerable<(string title, IReadOnlyList<string> pieces)> Sections()
+        {
+            yield return ("Crafting", Stations);
+            yield return ("Chest (one per cart)", Chests);
+        }
 
         // Every hammer piece that is a crafting station or extends one, as the game has them.
         public static List<string> StationPieces()

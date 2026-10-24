@@ -15,6 +15,7 @@ namespace Cartheim.Plugin
         public static ConfigEntry<bool> Enabled;
 
         private readonly CartPanel _panel = new CartPanel();
+        private readonly ChestTabs _chestTabs = new ChestTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
 
@@ -44,12 +45,14 @@ namespace Cartheim.Plugin
             // Stays true for the frame in which Esc closes the panel, so that same press doesn't open the game menu.
             MenuBlockPatch.PanelOpen = _panel.IsOpen;
             _panel.Update();
+            _chestTabs.Update();
         }
 
         private void OnDestroy()
         {
             _harmony?.UnpatchSelf();
             _panel.Destroy();
+            _chestTabs.Destroy();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);
         }
