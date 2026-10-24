@@ -12,31 +12,21 @@ namespace Cartheim.Core
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;
 
-        private readonly HashSet<string> built = new HashSet<string>();
-
-        // Each built extension, keyed by the station it extends.
-        private readonly List<(string piece, string extends)> extensions = new List<(string, string)>();
+        // Each built piece, with the station it extends (null for a piece that extends nothing), in build order.
+        private readonly List<(string piece, string extends)> built = new List<(string, string)>();
 
         // The workbench goes in first; everything else is built onto it, and an extension (forge cooler, tanning rack)
         // onto the station it extends.
         public bool CanAdd(string piece, string extends = null) =>
-            !built.Contains(piece) &&
-            (piece == Workbench || built.Contains(Workbench)) &&
-            (extends == null || built.Contains(extends));
+            !Has(piece) &&
+            (piece == Workbench || Has(Workbench)) &&
+            (extends == null || Has(extends));
 
-        public void Add(string piece, string extends = null)
-        {
-            built.Add(piece);
-            if (extends != null) extensions.Add((piece, extends));
-        }
+        public void Add(string piece, string extends = null) => built.Add((piece, extends));
 
         // One piece per line, as saved on the cart; an extension as "piece>station".
         public string Save() =>
-            string.Join("\n", built.Select(piece =>
-            {
-                var extension = extensions.FirstOrDefault(e => e.piece == piece);
-                return extension.extends == null ? piece : piece + ">" + extension.extends;
-            }));
+            string.Join("\n", built.Select(b => b.extends == null ? b.piece : b.piece + ">" + b.extends));
 
         public static CartUpgrades Load(string saved)
         {
@@ -53,8 +43,10 @@ namespace Cartheim.Core
 
         public float Armor => ArmorPerForgeLevel * Level(Forge);
 
+        private bool Has(string piece) => built.Any(b => b.piece == piece);
+
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
         private int Level(string station) =>
-            built.Contains(station) ? 1 + extensions.Count(e => e.extends == station) : 0;
+            Has(station) ? 1 + built.Count(b => b.extends == station) : 0;
     }
 }
