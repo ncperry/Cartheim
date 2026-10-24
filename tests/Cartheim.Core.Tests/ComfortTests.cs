@@ -34,5 +34,16 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(HearthComfort, cart.ExtraComfort(HearthComfort, nearbyFireComfort: 0));
         }
+
+        // The game counts only the best fire nearby; the campfire's 1 is already counted, so the hearth adds the difference.
+        [Fact]
+        public void A_hearth_beside_a_campfire_adds_only_what_it_beats_it_by()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("hearth");
+
+            Assert.Equal(1, cart.ExtraComfort(HearthComfort, nearbyFireComfort: 1));
+        }
     }
 }
