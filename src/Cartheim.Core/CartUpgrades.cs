@@ -51,7 +51,7 @@ namespace Cartheim.Core
         private bool Has(string piece) => built.Any(b => b.piece == piece);
 
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
-        private int Level(string station) =>
+        public int Level(string station) =>
             Has(station) ? 1 + built.Count(b => b.extends == station) : 0;
     }
 }
