@@ -21,13 +21,20 @@ namespace Cartheim.Plugin
         }
         private static List<string> _stations;
 
-        public static readonly string[] Chests = { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private" };
+        public static readonly string[] Chests =
+            { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private", "piece_chest_grausten" };
+
+        // Further containers that go in alongside the chest, one of each.
+        public static readonly string[] ExtraContainers = { "piece_chest_barrel", "piece_chest_warderobe" };
+
+        public static IEnumerable<string> Containers => Chests.Concat(ExtraContainers);
 
         // The upgrade panel's sections, in order.
         public static IEnumerable<(string title, IReadOnlyList<string> pieces)> Sections()
         {
             yield return ("Crafting", Stations);
             yield return ("Chest (one per cart)", Chests);
+            yield return ("More storage", ExtraContainers);
         }
 
         // Every hammer piece that is a crafting station or extends one, as the game has them.

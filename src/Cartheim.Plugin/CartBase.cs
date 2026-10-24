@@ -22,7 +22,8 @@ namespace Cartheim.Plugin
         private WearNTear _wear;
         private float _ownHealth;
         private readonly Dictionary<string, CraftingStation> _stations = new Dictionary<string, CraftingStation>();
-        private Container _chest;
+        // The containers built into the cart (its chest, barrel, wardrobe), by piece, once loaded.
+        private readonly Dictionary<string, Container> _containers = new Dictionary<string, Container>();
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -41,7 +42,7 @@ namespace Cartheim.Plugin
             _nview.Unregister(AddRpc);
             _nview.Unregister(ChestRpc);
             _nview.Register<string, string>(AddRpc, RPC_Add);
-            _nview.Register<ZDOID>(ChestRpc, RPC_SetChest);
+            _nview.Register<string, ZDOID>(ChestRpc, RPC_SetChest);
             All.Add(this);
             InvokeRepeating(nameof(Refresh), 0.5f, 1f);
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO()?.m_uid} ready; health {_ownHealth}, has WearNTear {(bool)_wear}");
@@ -74,29 +75,33 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} destroyed; dropping {string.Join(", ", refund)}");
             foreach (var item in refund)
                 GamePieces.Drop(item, transform.position);
-            if (_chest)
-                CartChest.Break(_chest, transform.position);
+            foreach (var container in _containers.Values.Where(c => c))
+                CartChest.Break(container, transform.position);
         }
 
-        // The chest built into the cart, while the mod is on and the chest is loaded.
-        public Container Chest => Plugin.Enabled.Value && _chest ? _chest : null;
+        // The containers built into the cart, in panel order, while the mod is on and they are loaded.
+        public List<Container> Containers =>
+            Plugin.Enabled.Value
+                ? GamePieces.Containers.Where(p => _containers.TryGetValue(p, out var c) && c).Select(p => _containers[p]).ToList()
+                : new List<Container>();
 
-        public void BuildChest(string piece)
+        public void BuildContainer(string piece)
         {
             var id = CartChest.Build(piece, transform, _nview.GetZDO().m_uid);
-            _nview.InvokeRPC(ChestRpc, id);
+            _nview.InvokeRPC(ChestRpc, piece, id);
         }
 
-        private void RPC_SetChest(long sender, ZDOID chest)
+        private void RPC_SetChest(long sender, string piece, ZDOID chest)
         {
             if (_nview.IsOwner())
-                _nview.GetZDO().Set(CartChest.ChestKey, chest);
+                _nview.GetZDO().Set(CartChest.KeyFor(piece), chest);
         }
 
         private void Update()
         {
-            if (_chest)
-                CartChest.Follow(_chest, transform);
+            foreach (var container in _containers.Values)
+                if (container)
+                    CartChest.Follow(container, transform);
         }
 
         public CraftingStation Station(string piece) => _stations.TryGetValue(piece, out var s) ? s : null;
@@ -129,7 +134,7 @@ namespace Cartheim.Plugin
             if (!_nview || !_nview.IsValid())
                 return;
             Upgrades = Load();
-            FindChest();
+            FindContainers();
             var on = Plugin.Enabled.Value;
             if (_wear)
                 _wear.m_health = on ? Upgrades.Health(_ownHealth) : _ownHealth;
@@ -147,17 +152,20 @@ namespace Cartheim.Plugin
             }
         }
 
-        private void FindChest()
+        private void FindContainers()
         {
-            if (_chest)
-                return;
-            var id = _nview.GetZDO().GetZDOID(CartChest.ChestKey);
-            var go = id == ZDOID.None ? null : ZNetScene.instance.FindInstance(id);
-            if (!go)
-                return;
-            CartChest.Hide(go);
-            _chest = go.GetComponent<Container>();
-            Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} carries chest {id}");
+            foreach (var piece in GamePieces.Containers)
+            {
+                if (_containers.TryGetValue(piece, out var known) && known)
+                    continue;
+                var id = _nview.GetZDO().GetZDOID(CartChest.KeyFor(piece));
+                var go = id == ZDOID.None ? null : ZNetScene.instance.FindInstance(id);
+                if (!go)
+                    continue;
+                CartChest.Hide(go);
+                _containers[piece] = go.GetComponent<Container>();
+                Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} carries {piece} {id}");
+            }
         }
 
         // A copy of the real station's crafting settings, riding on the cart. It has no model, collider or area marker of its

@@ -8,7 +8,8 @@ namespace Cartheim.Plugin
     // itself keeps its size, its contents, one player at a time, and a personal chest's "only its builder" rule.
     internal static class CartChest
     {
-        public const string ChestKey = "cartheim_chest";
+        // The cart remembers each container it carries under its own key.
+        public static string KeyFor(string piece) => "cartheim_chest_" + piece;
         public const string CartKey = "cartheim_cart";
 
         // Where the chest rides: inside the cart's bed.

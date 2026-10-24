@@ -78,7 +78,8 @@ namespace Cartheim.Plugin
             PanelWidgets.Clear(list);
 
             var stations = _cart.Stations.ToList();
-            if (stations.Count > 0 || _cart.Chest)
+            var containers = _cart.Containers;
+            if (stations.Count > 0 || containers.Count > 0)
             {
                 PanelWidgets.Header(list, "Stations", Width - 90);
                 foreach (var piece in stations)
@@ -90,10 +91,9 @@ namespace Cartheim.Plugin
                     PanelWidgets.Size(PanelWidgets.Label(row, $"Level {level}", Vector2.zero, 16, Color.white, CostWidth, TextAnchor.MiddleLeft), CostWidth);
                     PanelWidgets.Size(PanelWidgets.Button(row, "Use", Vector2.zero, ButtonWidth, () => Use(station)), ButtonWidth);
                 }
-                if (_cart.Chest)
+                foreach (var chest in containers)
                 {
                     var row = PanelWidgets.Row(list);
-                    var chest = _cart.Chest;
                     PanelWidgets.Size(PanelWidgets.Label(row, Localization.instance.Localize(chest.m_name), Vector2.zero, 16, Color.white, NameWidth, TextAnchor.MiddleLeft), NameWidth);
                     PanelWidgets.Size(PanelWidgets.Label(row, $"{chest.m_width * chest.m_height} slots", Vector2.zero, 16, Color.white, CostWidth, TextAnchor.MiddleLeft), CostWidth);
                     PanelWidgets.Size(PanelWidgets.Button(row, "Open", Vector2.zero, ButtonWidth, () => OpenChest(chest)), ButtonWidth);
@@ -137,8 +137,8 @@ namespace Cartheim.Plugin
             if (!player.NoCostCheat())
                 GamePieces.Take(player, cost);
             _cart.Add(piece, extends);
-            if (CartUpgrades.IsChest(piece))
-                _cart.BuildChest(piece);
+            if (GamePieces.Containers.Contains(piece))
+                _cart.BuildContainer(piece);
             _status.text = $"Built {GamePieces.DisplayName(piece)} into the cart";
             Redraw();
         }

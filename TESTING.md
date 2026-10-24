@@ -45,10 +45,12 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 ## Step 5: the cart's chest
 
 - [ ] The Cart panel has a "Chest (one per cart)" section: Chest, Reinforced Chest, Black Metal Chest, Personal Chest,
-      each costing its normal recipe plus nails. After building one, the others show "Locked".
+      Grausten Chest, each costing its normal recipe plus nails. After building one, the others show "Locked".
+- [ ] A "More storage" section offers the Barrel (12 slots) and Wardrobe (50 slots), one of each, alongside the chest.
+      With all three built the tabs read Cart / Chest / Barrel / Wardrobe.
 - [ ] Building one shows no chest anywhere on or near the cart (it rides hidden inside it). The log says `Built piece_chest_... into cart`.
 - [ ] Open the cart's storage: "Cart" and "Chest" tabs appear above the storage window. Chest shows the chest's slots
-      (10 / 24 / 32 / 6 by kind); Cart goes back. Items stay put on each page.
+      (10 / 24 / 32 / 6 / 40 for chest / reinforced / black metal / personal / grausten); Cart goes back. Items stay put on each page.
 - [ ] The Cart panel also lists the chest with an Open button.
 - [ ] Pull the cart a long way, then open the chest again: it is still there with its items.
 - [ ] Log out and back in: chest and items still there.
