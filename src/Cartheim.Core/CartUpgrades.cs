@@ -30,7 +30,16 @@ namespace Cartheim.Core
             if (extends != null) extensions.Add((piece, extends));
         }
 
-        public string Save() => "";
+        // One piece per line, as saved on the cart.
+        public string Save() => string.Join("\n", built);
+
+        public static CartUpgrades Load(string saved)
+        {
+            var cart = new CartUpgrades();
+            foreach (var piece in saved.Split(new[] { '\n' }, System.StringSplitOptions.RemoveEmptyEntries))
+                cart.Add(piece);
+            return cart;
+        }
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 

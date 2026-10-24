@@ -59,5 +59,14 @@ namespace Cartheim.Core.Tests
         {
             Assert.Equal("", new CartUpgrades().Save());
         }
+
+        [Fact]
+        public void A_saved_cart_loads_back_with_the_same_pieces()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+
+            Assert.False(CartUpgrades.Load(cart.Save()).CanAdd("piece_workbench"));
+        }
     }
 }
