@@ -16,6 +16,9 @@ namespace Cartheim.Core
         // A cart has one light to glow with.
         private static readonly HashSet<string> Lights = new HashSet<string> { "piece_FairylightGarland", "piece_walltorch" };
 
+        // Kinds of piece a cart holds only one of.
+        private static readonly HashSet<string>[] OneOfEach = { Chests, Lights };
+
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;
         // How many upgrades make a cart look as full as one with every slot filled.
@@ -30,8 +33,7 @@ namespace Cartheim.Core
             !Has(piece) &&
             (piece == Workbench || Has(Workbench)) &&
             (extends == null || Has(extends)) &&
-            !(Chests.Contains(piece) && built.Any(b => Chests.Contains(b.piece))) &&
-            !(Lights.Contains(piece) && built.Any(b => Lights.Contains(b.piece)));
+            !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
 
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
 
