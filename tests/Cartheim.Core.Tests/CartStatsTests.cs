@@ -31,6 +31,16 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void Workbench_upgrades_still_count_after_the_cart_is_saved_and_loaded()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_workbench_ext1", extends: "piece_workbench");
+
+            Assert.Equal(600f, CartUpgrades.Load(cart.Save()).Health(400f));
+        }
+
+        [Fact]
         public void A_bare_cart_has_no_armor()
         {
             Assert.Equal(0f, new CartUpgrades().Armor);

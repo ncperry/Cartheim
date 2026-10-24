@@ -30,14 +30,22 @@ namespace Cartheim.Core
             if (extends != null) extensions.Add((piece, extends));
         }
 
-        // One piece per line, as saved on the cart.
-        public string Save() => string.Join("\n", built);
+        // One piece per line, as saved on the cart; an extension as "piece>station".
+        public string Save() =>
+            string.Join("\n", built.Select(piece =>
+            {
+                var extension = extensions.FirstOrDefault(e => e.piece == piece);
+                return extension.extends == null ? piece : piece + ">" + extension.extends;
+            }));
 
         public static CartUpgrades Load(string saved)
         {
             var cart = new CartUpgrades();
-            foreach (var piece in saved.Split(new[] { '\n' }, System.StringSplitOptions.RemoveEmptyEntries))
-                cart.Add(piece);
+            foreach (var line in saved.Split(new[] { '\n' }, System.StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split('>');
+                cart.Add(parts[0], parts.Length > 1 ? parts[1] : null);
+            }
             return cart;
         }
 
