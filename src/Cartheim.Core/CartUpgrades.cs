@@ -14,7 +14,11 @@ namespace Cartheim.Core
         private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private", "piece_chest_grausten" };
 
         // A cart has one light to glow with.
-        private static readonly HashSet<string> Lights = new HashSet<string> { "piece_FairylightGarland", "piece_walltorch" };
+        private static readonly HashSet<string> Lights = new HashSet<string>
+        {
+            "piece_FairylightGarland", "piece_walltorch", "piece_dvergr_lantern", "piece_dvergr_lantern_pole", "piece_Lavalantern",
+            "piece_hoodedlantern", "piece_jackoturnip", "piece_snowlantern",
+        };
 
         // Kinds of piece a cart holds only one of.
         private static readonly HashSet<string>[] OneOfEach = { Chests, Lights };

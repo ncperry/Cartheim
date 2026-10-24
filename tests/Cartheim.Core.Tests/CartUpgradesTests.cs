@@ -99,6 +99,22 @@ namespace Cartheim.Core.Tests
             Assert.False(cart.CanAdd("piece_walltorch"));
         }
 
+        [Theory]
+        [InlineData("piece_dvergr_lantern")]
+        [InlineData("piece_dvergr_lantern_pole")]
+        [InlineData("piece_Lavalantern")]
+        [InlineData("piece_hoodedlantern")]
+        [InlineData("piece_jackoturnip")]
+        [InlineData("piece_snowlantern")]
+        public void Every_lantern_counts_as_the_one_light(string lantern)
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add(lantern);
+
+            Assert.False(cart.CanAdd("piece_FairylightGarland"));
+        }
+
         [Fact]
         public void A_bare_cart_saves_as_nothing()
         {
