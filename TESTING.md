@@ -15,3 +15,11 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] Esc closes the Cart panel without opening the game menu.
 - [ ] Log out and back in: the cart still has its workbench.
 - [ ] Mods tab → switch Cartheim off: no Cart line on hover, Shift+E does nothing special, and the cart is no longer a workbench. Switch on: it is again.
+
+## Step 3: a destroyed cart gives everything back
+
+- [ ] The first time a cart loads, the log says `[Cartheim] Cart ... ready; health ..., has WearNTear True`.
+      (If it says False, carts break some other way and the refund isn't hooked up: tell Claude.)
+- [ ] Destroy a cart that has a workbench built in: alongside the cart's own wood and nails and its contents,
+      10 Wood + 5 Bronze nails drop. The log says `destroyed; dropping 10 Wood, 5 BronzeNails`.
+- [ ] Same again with Cartheim switched off in the Mods tab: the materials still drop.
