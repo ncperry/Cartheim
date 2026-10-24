@@ -29,10 +29,25 @@ namespace Cartheim.Plugin
 
         public static IEnumerable<string> Containers => Chests.Concat(ExtraContainers);
 
+        // A cart roof is no single piece: it is built from this many of the game's roof pieces of its kind.
+        public const int RoofPiecesPerRoof = 5;
+
+        public static readonly string[] Roofs = { CartUpgrades.ThatchRoof, CartUpgrades.ShingleRoof, CartUpgrades.GraustenRoof };
+
+        // The game piece each cart roof is made of, and the roof it is built over.
+        private static readonly Dictionary<string, (string piece, string over)> RoofMadeOf = new Dictionary<string, (string, string)>
+        {
+            [CartUpgrades.ThatchRoof] = ("wood_roof", null),
+            [CartUpgrades.ShingleRoof] = ("darkwood_roof", CartUpgrades.ThatchRoof),
+            [CartUpgrades.GraustenRoof] = ("piece_grausten_roof_45", CartUpgrades.ShingleRoof),
+        };
+
         // The upgrade panel's sections, in order.
         public static IEnumerable<(string title, IReadOnlyList<string> pieces)> Sections()
         {
             yield return ("Crafting", Stations);
+            yield return ("Fire", new[] { "hearth" });
+            yield return ("Roof (each over the last)", Roofs);
             yield return ("Chest (one per cart)", Chests);
             yield return ("More storage", ExtraContainers);
         }
@@ -72,6 +87,13 @@ namespace Cartheim.Plugin
                               (light ? $", light {light.color} range {light.range}" : "") +
                               $": {string.Join(", ", Recipe(p.name))}");
                 }
+            var hearth = Prefab("hearth");
+            if (hearth)
+                foreach (var t in hearth.GetComponentsInChildren<Transform>(true))
+                    Debug.Log($"[Cartheim] hearth part {t.name} (parent {t.parent?.name}) at {t.localPosition}: {string.Join(", ", t.GetComponents<Component>().Select(c => c is EffectArea a ? $"EffectArea {a.m_type}" : c.GetType().Name))}");
+            var fireplace = hearth ? hearth.GetComponent<Fireplace>() : null;
+            if (fireplace)
+                Debug.Log($"[Cartheim] hearth enabledObject {fireplace.m_enabledObject?.name}, high {fireplace.m_enabledObjectHigh?.name}, low {fireplace.m_enabledObjectLow?.name}");
             var cart = Prefab("Cart");
             if (cart)
                 Debug.Log($"[Cartheim] Cart prefab components: {string.Join(", ", cart.GetComponents<Component>().Select(c => c.GetType().Name))}");
@@ -81,6 +103,8 @@ namespace Cartheim.Plugin
 
         public static string DisplayName(string piece)
         {
+            if (RoofMadeOf.TryGetValue(piece, out var roof))
+                return DisplayName(roof.piece).Split(' ')[0] + " roof";
             var p = Prefab(piece)?.GetComponent<Piece>();
             return p ? Localization.instance.Localize(p.m_name) : piece;
         }
@@ -88,6 +112,8 @@ namespace Cartheim.Plugin
         // The piece's own recipe as prefab names, as the hammer would charge it.
         public static List<ItemCount> Recipe(string piece)
         {
+            if (RoofMadeOf.TryGetValue(piece, out var roof))
+                return Recipe(roof.piece).Select(c => new ItemCount(c.Prefab, c.Count * RoofPiecesPerRoof)).ToList();
             var p = Prefab(piece)?.GetComponent<Piece>();
             if (!p)
                 return new List<ItemCount>();
@@ -98,6 +124,8 @@ namespace Cartheim.Plugin
         // The station a piece extends (the forge for a forge cooler), or null for a piece that extends nothing.
         public static string Extends(string piece)
         {
+            if (RoofMadeOf.TryGetValue(piece, out var roof))
+                return roof.over;
             var extension = Prefab(piece)?.GetComponent<StationExtension>();
             return extension && extension.m_craftingStation ? extension.m_craftingStation.gameObject.name : null;
         }

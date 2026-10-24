@@ -58,3 +58,15 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] Destroy the cart: the chest's items spill out along with the cart's own items and every upgrade's materials (chest recipe + nails included).
 - [ ] Mods tab → Cartheim off: no tabs, no Open button; switch back on and the chest and its items are back.
 - [ ] Two players: one has the chest page open, the other gets "in use" (vanilla behaviour) rather than both editing it.
+
+## Step 6: roof and hearth
+
+- [ ] The Cart panel has a "Roof" section: Thatch roof (10 Wood + 5 Bronze nails), Shingle roof (10 Wood + 5 Tar + 5 Iron nails),
+      Grausten roof (25 Grausten + 5 Iron nails). Shingle is Locked until thatch is in, grausten until shingle is.
+- [ ] In the rain, standing within 5 m of a roofed cart: no Wet status, and the Shelter status shows. Step away: you get wet.
+- [ ] A campfire within 5 m of a roofed cart burns full in the rain (no small damp flame, doesn't go out).
+- [ ] The Cart panel has a "Fire" section with Hearth (15 Stone + 5 Bronze nails). Built: flames, light and smoke appear
+      in the cart's bed, and stay lit with no firewood.
+- [ ] Standing right next to the cart's hearth doesn't set you on fire.
+- [ ] A cart cauldron works with the hearth built in and no campfire around.
+- [ ] Cartheim off: the hearth goes out, the roof stops keeping you dry. On again: both back.

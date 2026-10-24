@@ -76,6 +76,26 @@ namespace Cartheim.Plugin
                 HaveFire(__instance) = CartFire.Near(marker.Cart.transform.position);
         }
 
+        // Near a roofed cart the player is under a roof: no rain soaks them, and the game counts them as sheltered.
+        [HarmonyPatch(typeof(Player), "UpdateCover"), HarmonyPostfix]
+        private static void ShelterUnderCartRoof(Player __instance, ref bool ___m_underRoof, ref float ___m_coverPercentage)
+        {
+            if (__instance != Player.m_localPlayer || ___m_underRoof && ___m_coverPercentage >= 0.8f)
+                return;
+            if (!CartFire.UnderCartRoof(__instance.transform.position))
+                return;
+            ___m_underRoof = true;
+            ___m_coverPercentage = 1f;
+        }
+
+        // A fire near a roofed cart stays dry, so rain and wind don't put it out.
+        [HarmonyPatch(typeof(Fireplace), "CheckWet"), HarmonyPostfix]
+        private static void KeepFireDryUnderCartRoof(Fireplace __instance, ref bool ___m_wet)
+        {
+            if (___m_wet && CartFire.UnderCartRoof(__instance.transform.position))
+                ___m_wet = false;
+        }
+
         // Forge levels built into a cart soften every hit on it, the way armor softens hits on a player.
         [HarmonyPatch(typeof(WearNTear), "RPC_Damage"), HarmonyPrefix]
         private static void CartArmor(WearNTear __instance, HitData hit)

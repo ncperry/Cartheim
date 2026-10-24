@@ -24,6 +24,7 @@ namespace Cartheim.Plugin
         private readonly Dictionary<string, CraftingStation> _stations = new Dictionary<string, CraftingStation>();
         // The containers built into the cart (its chest, barrel, wardrobe), by piece, once loaded.
         private readonly Dictionary<string, Container> _containers = new Dictionary<string, Container>();
+        private GameObject _hearth;
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -65,7 +66,13 @@ namespace Cartheim.Plugin
             foreach (var station in _stations.Values)
                 if (station)
                     Destroy(station.gameObject);
+            if (_hearth)
+                Destroy(_hearth);
         }
+
+        // What the cart offers right now: nothing while the mod is switched off.
+        public bool HasLitHearth => Plugin.Enabled.Value && _hearth;
+        public bool HasRoof => Plugin.Enabled.Value && Upgrades.RoofLevel > 0;
 
         private void DropRefund()
         {
@@ -138,6 +145,14 @@ namespace Cartheim.Plugin
             var on = Plugin.Enabled.Value;
             if (_wear)
                 _wear.m_health = on ? Upgrades.Health(_ownHealth) : _ownHealth;
+            var wantHearth = on && Upgrades.HasHearth;
+            if (wantHearth && !_hearth)
+                _hearth = CartHearth.Light(transform);
+            else if (!wantHearth && _hearth)
+            {
+                Destroy(_hearth);
+                _hearth = null;
+            }
             foreach (var piece in GamePieces.Stations)
             {
                 var wanted = on && Upgrades.Level(piece) > 0 && GamePieces.Prefab(piece)?.GetComponent<CraftingStation>();
