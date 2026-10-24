@@ -41,6 +41,12 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_bare_cart_has_no_roof()
+        {
+            Assert.Equal(0, new CartUpgrades().RoofLevel);
+        }
+
+        [Fact]
         public void A_bare_cart_looks_empty()
         {
             Assert.Equal(0f, new CartUpgrades().Fullness);
