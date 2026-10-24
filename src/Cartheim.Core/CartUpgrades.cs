@@ -54,7 +54,7 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
-        public float Fullness => (float)built.Count / UpgradesThatLookFull;
+        public float Fullness => System.Math.Min(1f, (float)built.Count / UpgradesThatLookFull);
 
         public float Armor => ArmorPerForgeLevel * Level(Forge);
 

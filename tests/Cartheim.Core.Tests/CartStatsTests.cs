@@ -57,6 +57,16 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_cart_never_looks_more_than_full()
+        {
+            var cart = new CartUpgrades();
+            for (var i = 0; i < 12; i++)
+                cart.Add("piece" + i);
+
+            Assert.Equal(1f, cart.Fullness);
+        }
+
+        [Fact]
         public void A_bare_cart_has_no_armor()
         {
             Assert.Equal(0f, new CartUpgrades().Armor);
