@@ -44,7 +44,8 @@ namespace Cartheim.Core
             return cart;
         }
 
-        public IReadOnlyList<ItemCount> Refund(System.Func<string, IEnumerable<ItemCount>> recipeOf) => new List<ItemCount>();
+        public IReadOnlyList<ItemCount> Refund(System.Func<string, IEnumerable<ItemCount>> recipeOf) =>
+            built.SelectMany(b => UpgradeCost.For(recipeOf(b.piece))).ToList();
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
