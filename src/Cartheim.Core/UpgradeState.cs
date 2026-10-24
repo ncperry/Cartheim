@@ -5,5 +5,6 @@ namespace Cartheim.Core
     {
         Ready,
         CannotAfford,
+        Locked,
     }
 }

@@ -23,5 +23,14 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(UpgradeState.CannotAfford, new CartUpgrades().StateOf("piece_workbench", null, WorkbenchCost, carried));
         }
+
+        [Fact]
+        public void A_forge_is_locked_until_the_cart_has_a_workbench()
+        {
+            var forgeCost = new[] { new ItemCount("Copper", 6), new ItemCount("BronzeNails", 5) };
+            var carried = new Dictionary<string, int> { ["Copper"] = 6, ["BronzeNails"] = 5 };
+
+            Assert.Equal(UpgradeState.Locked, new CartUpgrades().StateOf("forge", null, forgeCost, carried));
+        }
     }
 }
