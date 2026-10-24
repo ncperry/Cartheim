@@ -15,6 +15,7 @@
   <ItemGroup>
     <Reference Include="BepInEx" HintPath="$(ValheimDir)\BepInEx\core\BepInEx.dll" Private="false" />
     <Reference Include="0Harmony" HintPath="$(ValheimDir)\BepInEx\core\0Harmony.dll" Private="false" />
+    <Reference Include="Jotunn" HintPath="$(ValheimDir)\BepInEx\plugins\Jotunn.dll" Private="false" />
     <Reference Include="assembly_valheim" HintPath="$(Managed)\assembly_valheim.dll" Private="false" />
     <Reference Include="assembly_guiutils" HintPath="$(Managed)\assembly_guiutils.dll" Private="false" />
     <Reference Include="assembly_utils" HintPath="$(Managed)\assembly_utils.dll" Private="false" />
