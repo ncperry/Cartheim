@@ -26,5 +26,17 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(new[] { new ItemCount("Wood", 10), new ItemCount("BronzeNails", 5) }, cart.Refund(piece => Recipes[piece]));
         }
+
+        [Fact]
+        public void Several_upgrades_refund_each_material_as_one_total()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_workbench_ext1", extends: "piece_workbench");
+
+            Assert.Equal(
+                new[] { new ItemCount("Wood", 20), new ItemCount("BronzeNails", 10), new ItemCount("Flint", 10) },
+                cart.Refund(piece => Recipes[piece]));
+        }
     }
 }
