@@ -44,6 +44,8 @@ namespace Cartheim.Core
             return cart;
         }
 
+        public IReadOnlyList<ItemCount> Refund(System.Func<string, IEnumerable<ItemCount>> recipeOf) => new List<ItemCount>();
+
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
         public float Armor => ArmorPerForgeLevel * Level(Forge);
