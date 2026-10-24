@@ -11,6 +11,8 @@ namespace Cartheim.Core
 
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;
+        // How many upgrades make a cart look as full as one with every slot filled.
+        public const int UpgradesThatLookFull = 10;
 
         // Each built piece, with the station it extends (null for a piece that extends nothing), in build order.
         private readonly List<(string piece, string extends)> built = new List<(string, string)>();
@@ -52,7 +54,7 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
-        public float Fullness => 0f;
+        public float Fullness => (float)built.Count / UpgradesThatLookFull;
 
         public float Armor => ArmorPerForgeLevel * Level(Forge);
 

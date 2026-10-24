@@ -47,6 +47,16 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void Each_upgrade_makes_the_cart_look_a_tenth_fuller()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_workbench_ext1", extends: "piece_workbench");
+
+            Assert.Equal(0.2f, cart.Fullness, 3);
+        }
+
+        [Fact]
         public void A_bare_cart_has_no_armor()
         {
             Assert.Equal(0f, new CartUpgrades().Armor);
