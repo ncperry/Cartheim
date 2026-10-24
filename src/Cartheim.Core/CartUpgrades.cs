@@ -97,7 +97,7 @@ namespace Cartheim.Core
 
         public float Armor => ArmorPerForgeLevel * Level(Forge);
 
-        private bool Has(string piece) => built.Any(b => b.piece == piece);
+        public bool Has(string piece) => built.Any(b => b.piece == piece);
 
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
         public int Level(string station) =>
