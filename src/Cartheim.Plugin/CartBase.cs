@@ -29,7 +29,12 @@ namespace Cartheim.Plugin
             _nview = GetComponent<ZNetView>();
             _wear = GetComponent<WearNTear>();
             if (_wear)
+            {
                 _ownHealth = _wear.m_health;
+                // Runs on the cart's owner as it breaks, before the cart is gone. Not gated on the mod switch: what was paid
+                // for comes back either way.
+                _wear.m_onDestroyed += DropRefund;
+            }
             // An old copy from before a hot reload may not have let go of it yet.
             _nview.Unregister(AddRpc);
             _nview.Register<string, string>(AddRpc, RPC_Add);
@@ -44,9 +49,25 @@ namespace Cartheim.Plugin
             // A hot reload makes a new CartBase on the same cart, which registers the same RPC again.
             if (_nview)
                 _nview.Unregister(AddRpc);
+            if (_wear)
+            {
+                _wear.m_onDestroyed -= DropRefund;
+                // Leave the next copy (after a hot reload) the cart's own health to start from.
+                _wear.m_health = _ownHealth;
+            }
             foreach (var station in _stations.Values)
                 if (station)
                     Destroy(station.gameObject);
+        }
+
+        private void DropRefund()
+        {
+            if (!_nview || !_nview.IsValid() || !_nview.IsOwner())
+                return;
+            var refund = Load().Refund(GamePieces.Recipe);
+            Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} destroyed; dropping {string.Join(", ", refund)}");
+            foreach (var item in refund)
+                GamePieces.Drop(item, transform.position);
         }
 
         public CraftingStation Station(string piece) => _stations.TryGetValue(piece, out var s) ? s : null;

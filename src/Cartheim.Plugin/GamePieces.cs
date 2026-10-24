@@ -56,6 +56,26 @@ namespace Cartheim.Plugin
             return carried;
         }
 
+        // Drops the items on the ground around a point, in full stacks, the way a broken chest spills its contents.
+        public static void Drop(ItemCount items, Vector3 around)
+        {
+            var prefab = ObjectDB.instance?.GetItemPrefab(items.Prefab);
+            var item = prefab ? prefab.GetComponent<ItemDrop>() : null;
+            if (!item)
+            {
+                Debug.LogWarning($"[Cartheim] No item {items.Prefab} to drop");
+                return;
+            }
+            var maxStack = Mathf.Max(1, item.m_itemData.m_shared.m_maxStackSize);
+            for (var left = items.Count; left > 0; left -= maxStack)
+            {
+                var position = around + Vector3.up * 0.5f + Random.insideUnitSphere * 0.5f;
+                var drop = Object.Instantiate(prefab, position, Quaternion.Euler(0f, Random.Range(0, 360), 0f)).GetComponent<ItemDrop>();
+                ItemDrop.OnCreateNew(drop);
+                drop.SetStack(Mathf.Min(left, maxStack));
+            }
+        }
+
         public static void Take(Player player, IEnumerable<ItemCount> cost)
         {
             foreach (var c in cost)
