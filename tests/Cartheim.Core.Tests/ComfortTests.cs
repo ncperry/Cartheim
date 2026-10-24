@@ -24,5 +24,15 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(2, cart.ExtraComfort(HearthComfort, nearbyFireComfort: 0));
         }
+
+        [Fact]
+        public void A_hearth_with_no_other_fire_near_gives_its_comfort()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("hearth");
+
+            Assert.Equal(HearthComfort, cart.ExtraComfort(HearthComfort, nearbyFireComfort: 0));
+        }
     }
 }
