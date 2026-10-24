@@ -30,6 +30,8 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
+        public float Armor => 0f;
+
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
         private int Level(string station) =>
             built.Contains(station) ? 1 + extensions.Count(e => e.extends == station) : 0;

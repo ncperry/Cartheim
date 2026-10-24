@@ -29,5 +29,11 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(600f, cart.Health(400f));
         }
+
+        [Fact]
+        public void A_bare_cart_has_no_armor()
+        {
+            Assert.Equal(0f, new CartUpgrades().Armor);
+        }
     }
 }
