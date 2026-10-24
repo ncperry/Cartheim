@@ -19,5 +19,15 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(500f, cart.Health(400f));
         }
+
+        [Fact]
+        public void Each_workbench_upgrade_adds_another_hundred_health()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_workbench_ext1", extends: "piece_workbench");
+
+            Assert.Equal(600f, cart.Health(400f));
+        }
     }
 }
