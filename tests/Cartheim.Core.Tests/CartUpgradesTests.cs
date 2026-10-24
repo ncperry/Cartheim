@@ -10,5 +10,11 @@ namespace Cartheim.Core.Tests
         {
             Assert.True(new CartUpgrades().CanAdd("piece_workbench"));
         }
+
+        [Fact]
+        public void A_bare_cart_cannot_take_a_forge()
+        {
+            Assert.False(new CartUpgrades().CanAdd("forge"));
+        }
     }
 }
