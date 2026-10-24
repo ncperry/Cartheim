@@ -1,3 +1,4 @@
+using System.Linq;
 using Cartheim.Core;
 using Xunit;
 
@@ -21,6 +22,14 @@ namespace Cartheim.Core.Tests
             Assert.Equal(
                 new[] { new ItemCount("Iron", 4), new ItemCount("Wood", 10), new ItemCount("IronNails", 5) },
                 UpgradeCost.For(toolShelf));
+        }
+
+        [Fact]
+        public void A_piece_made_with_chains_takes_iron_nails()
+        {
+            var forgeBellows = new[] { new ItemCount("Wood", 5), new ItemCount("Chain", 5), new ItemCount("DeerHide", 5) };
+
+            Assert.Equal(new ItemCount("IronNails", 5), UpgradeCost.For(forgeBellows).Last());
         }
     }
 }
