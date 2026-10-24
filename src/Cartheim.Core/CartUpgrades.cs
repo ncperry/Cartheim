@@ -62,9 +62,11 @@ namespace Cartheim.Core
 
         public const string ThatchRoof = "cartheim_roof_thatch";
         public const string ShingleRoof = "cartheim_roof_shingle";
+        public const string GraustenRoof = "cartheim_roof_grausten";
 
         // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
-        public int RoofLevel => Level(ThatchRoof);
+        // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
+        public int RoofLevel => Level(ThatchRoof) + built.Count(b => b.extends == ShingleRoof);
 
         public float Fullness => System.Math.Min(1f, (float)built.Count / UpgradesThatLookFull);
 
