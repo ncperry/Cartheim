@@ -8,7 +8,10 @@ namespace Cartheim.Core
     {
         // Materials found no later than the Black Forest. Anything else, including materials a game update adds,
         // counts as swamp or later, so the piece is held on with iron nails.
-        private static readonly HashSet<string> BlackForestOrEarlier = new HashSet<string> { "Wood", "Flint", "LeatherScraps", "DeerHide", "FineWood", "Bronze", "Stone", "Coal", "Copper", "Tin", "Resin" };
+        private static readonly HashSet<string> BlackForestOrEarlier = new HashSet<string>
+        {
+            "Wood", "FineWood", "Stone", "Flint", "Resin", "Coal", "LeatherScraps", "DeerHide", "Copper", "Tin", "Bronze",
+        };
 
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
         {
