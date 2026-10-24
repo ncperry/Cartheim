@@ -60,7 +60,11 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
-        public int RoofLevel => 0;
+        public const string ThatchRoof = "cartheim_roof_thatch";
+        public const string ShingleRoof = "cartheim_roof_shingle";
+
+        // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
+        public int RoofLevel => Level(ThatchRoof);
 
         public float Fullness => System.Math.Min(1f, (float)built.Count / UpgradesThatLookFull);
 

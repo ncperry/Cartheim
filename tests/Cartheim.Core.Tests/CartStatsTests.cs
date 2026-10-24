@@ -47,6 +47,17 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_shingle_roof_over_the_thatch_makes_roof_level_two()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add(CartUpgrades.ThatchRoof);
+            cart.Add(CartUpgrades.ShingleRoof, extends: CartUpgrades.ThatchRoof);
+
+            Assert.Equal(2, cart.RoofLevel);
+        }
+
+        [Fact]
         public void A_bare_cart_looks_empty()
         {
             Assert.Equal(0f, new CartUpgrades().Fullness);
