@@ -10,7 +10,7 @@ namespace Cartheim.Core
         private const string Forge = "forge";
 
         // A cart holds one chest, whichever kind.
-        private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest" };
+        private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private" };
 
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;

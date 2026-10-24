@@ -64,6 +64,18 @@ namespace Cartheim.Core.Tests
             Assert.False(cart.CanAdd("piece_chest"));
         }
 
+        [Theory]
+        [InlineData("piece_chest_blackmetal")]
+        [InlineData("piece_chest_private")]
+        public void Every_kind_of_chest_counts_as_the_one_chest(string chest)
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add(chest);
+
+            Assert.False(cart.CanAdd("piece_chest_wood"));
+        }
+
         [Fact]
         public void A_bare_cart_saves_as_nothing()
         {

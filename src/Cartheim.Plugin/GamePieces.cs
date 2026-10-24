@@ -38,6 +38,24 @@ namespace Cartheim.Plugin
             foreach (var piece in StationPieces())
                 Debug.Log($"[Cartheim] Station piece {piece} ({DisplayName(piece)}), extends {Extends(piece) ?? "nothing"}: " +
                           string.Join(", ", UpgradeCost.For(Recipe(piece))));
+            var hammer = ObjectDB.instance.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>();
+            var table = hammer ? hammer.m_itemData.m_shared.m_buildPieces : null;
+            if (table)
+                foreach (var p in table.m_pieces.Where(p => p))
+                {
+                    var piece = p.GetComponent<Piece>();
+                    var container = p.GetComponent<Container>();
+                    var bed = p.GetComponent<Bed>();
+                    var light = p.GetComponentInChildren<Light>(true);
+                    var fire = p.GetComponent<Fireplace>();
+                    if (!container && !bed && (!piece || piece.m_comfort <= 0) && !light && !fire && !p.name.Contains("roof"))
+                        continue;
+                    Debug.Log($"[Cartheim] Hammer piece {p.name} ({DisplayName(p.name)}): comfort {piece?.m_comfort} group {piece?.m_comfortGroup}" +
+                              (container ? $", chest {container.m_width}x{container.m_height} {container.m_privacy}" : "") +
+                              (bed ? ", bed" : "") + (fire ? $", fire (infinite fuel {fire.m_infiniteFuel})" : "") +
+                              (light ? $", light {light.color} range {light.range}" : "") +
+                              $": {string.Join(", ", Recipe(p.name))}");
+                }
             var cart = Prefab("Cart");
             if (cart)
                 Debug.Log($"[Cartheim] Cart prefab components: {string.Join(", ", cart.GetComponents<Component>().Select(c => c.GetType().Name))}");
