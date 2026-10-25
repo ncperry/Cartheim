@@ -36,9 +36,14 @@ namespace Cartheim.Plugin
             return nview.GetZDO().m_uid;
         }
 
+        // Fires that burn their fuel as anywhere else (the sconce, fed resin through its look on the cart); the others burn
+        // without.
+        private static readonly System.Collections.Generic.HashSet<string> NeedsFuel = new System.Collections.Generic.HashSet<string> { "piece_walltorch" };
+
         // Nothing of the piece shows or can be hit; it is reached only through the cart. Its light still shines and a wisp
         // torch still clears mist. Its WearNTear goes, so it never breaks for lack of support while it floats in the cart, and
-        // a fire in it (sconce, jack-o-turnip) burns without fuel.
+        // a fire in it (a jack-o-turnip) burns without fuel, but for the sconce, which takes resin as anywhere.
+
         public static void Hide(GameObject piece)
         {
             foreach (var renderer in piece.GetComponentsInChildren<Renderer>(true))
@@ -49,7 +54,7 @@ namespace Cartheim.Plugin
             if (wear)
                 Object.Destroy(wear);
             foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
-                fire.m_infiniteFuel = true;
+                fire.m_infiniteFuel = !NeedsFuel.Contains(Utils.GetPrefabName(piece));
             // A beehive's bees still show, buzzing about the cart.
             var hive = piece.GetComponent<Beehive>();
             // A light's flame (a sconce's) still burns, on the piece's model on the cart.

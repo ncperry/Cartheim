@@ -27,6 +27,8 @@ namespace Cartheim.Plugin
 
         private Beehive Hive => GamePieces.BeehiveSlots.Contains(_piece) ? _cart.BeehiveIn(_piece) : null;
 
+        private Fireplace Fire => _cart.FireIn(_piece);
+
         public string GetHoverText()
         {
             if (!_cart || !Plugin.Enabled.Value)
@@ -38,6 +40,9 @@ namespace Cartheim.Plugin
             var hive = Hive;
             if (hive)
                 return hive.GetHoverText() + Localization.instance.Localize(cartKey);
+            var fire = Fire;
+            if (fire)
+                return fire.GetHoverText() + Localization.instance.Localize(cartKey);
             if (_piece == Cartheim.Core.SteamEngine.Engine)
                 return Localization.instance.Localize(
                     $"Steam engine{(_cart.EngineBurning ? "" : " (cold)")}\n( $piece_fire_fuel {Mathf.Ceil(_cart.Coal)}/{Cartheim.Core.SteamEngine.MaxCoal} )\n" +
@@ -67,6 +72,10 @@ namespace Cartheim.Plugin
                 _lastCoal = Time.time;
                 return _cart.AddCoal(Player.m_localPlayer);
             }
+            // Holding E keeps feeding a fire, as anywhere.
+            var fire = Fire;
+            if (fire && !alt)
+                return fire.Interact(user, hold, false);
             if (hold)
                 return false;
             if (alt)
@@ -89,6 +98,11 @@ namespace Cartheim.Plugin
             return true;
         }
 
-        public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
+        // Resin from the hotbar goes into the sconce, as it would at any sconce.
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item)
+        {
+            var fire = _cart && Plugin.Enabled.Value ? Fire : null;
+            return fire && fire.UseItem(user, item);
+        }
     }
 }

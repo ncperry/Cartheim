@@ -66,7 +66,11 @@ namespace Cartheim.Plugin
             {
                 if (piece == Sconce)
                 {
-                    SconceOnBackPost(bed, Model(Sconce, Root.transform));
+                    var sconce = Model(Sconce, Root.transform);
+                    SconceOnBackPost(bed, sconce);
+                    // Fed with resin like any sconce: hovered and used as the real one riding hidden with it.
+                    if (sconce)
+                        Hover(sconce, cart, Sconce, vagon.gameObject.layer);
                     continue;
                 }
                 if (piece == FeyLights)

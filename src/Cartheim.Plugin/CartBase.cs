@@ -295,6 +295,13 @@ namespace Cartheim.Plugin
             return _looks.Anchors.TryGetValue(slot, out var anchor) || _looks.Anchors.TryGetValue(GamePieces.PieceIn(slot), out anchor) ? anchor : null;
         }
 
+        // The fire riding as a piece (the sconce), while the mod is on and it is loaded.
+        public Fireplace FireIn(string piece)
+        {
+            var rider = Plugin.Enabled.Value ? Rider(piece) : null;
+            return rider ? rider.GetComponentInChildren<Fireplace>() : null;
+        }
+
         // The beehive riding in a slot, while the mod is on and it is loaded.
         public Beehive BeehiveIn(string slot)
         {
