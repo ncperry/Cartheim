@@ -30,5 +30,16 @@ namespace Cartheim.Core.Tests
 
             Assert.False(cart.CanAdd("piece_beehive"));
         }
+
+        [Fact]
+        public void With_one_beehive_built_the_second_is_still_to_build()
+        {
+            var cart = Workbench();
+            cart.Add("piece_beehive");
+            var cost = new[] { new ItemCount("Wood", 10) };
+            var carried = new System.Collections.Generic.Dictionary<string, int> { ["Wood"] = 10 };
+
+            Assert.Equal(UpgradeState.Ready, cart.StateOf("piece_beehive", null, cost, carried));
+        }
     }
 }

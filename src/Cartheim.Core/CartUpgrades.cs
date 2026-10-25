@@ -46,7 +46,7 @@ namespace Cartheim.Core
         // The workbench goes in first; everything else is built onto it, and an extension (forge cooler, tanning rack)
         // onto the station it extends.
         public bool CanAdd(string piece, string extends = null) =>
-            (piece == Beehive ? Count(Beehive) < MaxBeehives : !Has(piece)) &&
+            Count(piece) < MaxOf(piece) &&
             (piece == Workbench || Has(Workbench)) &&
             (extends == null || Has(extends)) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
@@ -54,7 +54,7 @@ namespace Cartheim.Core
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
 
         public UpgradeState StateOf(string piece, string extends, IEnumerable<ItemCount> cost, IReadOnlyDictionary<string, int> carried) =>
-            Has(piece) ? UpgradeState.Built :
+            Count(piece) >= MaxOf(piece) ? UpgradeState.Built :
             !CanAdd(piece, extends) ? UpgradeState.Locked :
             cost.All(c => carried.TryGetValue(c.Prefab, out var have) && have >= c.Count) ? UpgradeState.Ready : UpgradeState.CannotAfford;
 
@@ -103,6 +103,9 @@ namespace Cartheim.Core
         public bool Has(string piece) => built.Any(b => b.piece == piece);
 
         public int Count(string piece) => built.Count(b => b.piece == piece);
+
+        // How many of a piece a cart takes: one of everything but beehives.
+        private static int MaxOf(string piece) => piece == Beehive ? MaxBeehives : 1;
 
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
         public int Level(string station) =>
