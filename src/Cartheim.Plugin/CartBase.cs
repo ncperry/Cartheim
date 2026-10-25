@@ -198,7 +198,7 @@ namespace Cartheim.Plugin
         public bool TentUp => HasTent && _nview && _nview.IsValid() && _nview.GetZDO().GetBool(TentKey);
 
         // Where a player getting up should stand: under the pitched tent.
-        public Vector3? TentFloor => _tent ? _tent.transform.position : (Vector3?)null;
+        public Vector3? TentFloor => _tent ? TentAssets.Middle(_tent) : (Vector3?)null;
 
         // Whether a point (a player, a fire) is under the cart's pitched tent.
         public bool Shelters(Vector3 point) => _tent && TentAssets.Under(_tent, point, Plugin.TentMaxRise.Value);
@@ -220,7 +220,7 @@ namespace Cartheim.Plugin
                 player.Message(MessageHud.MessageType.Center, "Unhitch the cart first");
                 return;
             }
-            if (!TentAssets.Spot(transform, out var at, out _, out var heights))
+            if (!_vagon || !TentAssets.Spot(transform, CartLooks.BedOf(_vagon), out var at, out _, out var heights))
             {
                 player.Message(MessageHud.MessageType.Center, "There's no tent to pitch");
                 return;
@@ -471,8 +471,8 @@ namespace Cartheim.Plugin
                 _wisp = null;
             }
             var wantTent = on && TentUp;
-            if (wantTent && !_tent && TentAssets.Spot(transform, out var tentAt, out var tentFacing, out _))
-                _tent = TentAssets.Pitch(tentAt, tentFacing);
+            if (wantTent && !_tent && _vagon && TentAssets.Spot(transform, CartLooks.BedOf(_vagon), out var tentAt, out var tentFacing, out _))
+                _tent = TentAssets.Pitch(tentAt, tentFacing, CartLooks.BedOf(_vagon));
             else if (!wantTent && _tent)
             {
                 Destroy(_tent);

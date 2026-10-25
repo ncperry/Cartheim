@@ -147,7 +147,7 @@ namespace Cartheim.Plugin
         }
 
         // The cart's bed, in the cart's own space: where the game stacks its load (crates and sacks) when it is full.
-        private static Bounds BedOf(Vagon vagon)
+        internal static Bounds BedOf(Vagon vagon)
         {
             var meshes = vagon.m_loadVis.Where(l => l.m_gameobject).SelectMany(l => l.m_gameobject.GetComponentsInChildren<MeshFilter>(true));
             return BoundsOf(meshes, vagon.transform) ?? new Bounds(new Vector3(0f, 0.8f, 0f), new Vector3(1.4f, 0.7f, 1.9f));

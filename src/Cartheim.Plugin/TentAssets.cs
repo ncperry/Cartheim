@@ -5,18 +5,23 @@ using UnityEngine;
 
 namespace Cartheim.Plugin
 {
-    // The cloth tent from Haldor's camp, pitched beside a cart: a copy of its mesh, materials and collider (so it stands
-    // solid, and the game's own cover checks see a roof). The camp is a location, which the game loads only when it
-    // places one; its prefab is loaded here once and held while the game runs, since the tent's mesh belongs to it.
+    // The cloth tent from Haldor's camp, pitched against the side of a cart: a copy of its mesh, materials and collider (so
+    // it stands solid, and the game's own cover checks see a roof). The camp is a location, which the game loads only when
+    // it places one; its prefab is loaded here once and held while the game runs, since the tent's mesh belongs to it.
     internal static class TentAssets
     {
         private const string Camp = "Vendor_BlackForest";
         private const string TentPart = "TraderTent";
 
-        // Haldor's tent is big (8 m by 7); a cart's is this much of it.
-        private const float Scale = 0.6f;
-        // How far the tent's near wall stands from the cart's middle: clear of the workbench hanging off that side.
-        private const float FromCart = 1.3f;
+        // Haldor's tent leans on two poles whose feet stand at these points of its mesh (x, z), its cloth hanging out to one
+        // side of them. Pitched by a cart, those two feet stand at the cart's two roof posts on its left side, so the cart
+        // is the tent's front.
+        private static readonly Vector3 BackPole = new Vector3(4.3f, 0f, 0f);
+        private static readonly Vector3 FrontPole = new Vector3(7.85f, 0f, 1.85f);
+
+        // Squeezed along the cart so its poles meet the cart's posts; this much of Haldor's size out from the cart, and up.
+        private const float Across = 0.6f;
+        private const float Up = 0.7f;
         // Ground is sampled this many times along each side of where the tent would stand.
         private const int Samples = 4;
 
@@ -53,9 +58,45 @@ namespace Cartheim.Plugin
             _tent = null;
         }
 
-        // Where the tent would stand beside the cart: its floor's middle, turned with its long side along the cart, and
-        // the ground heights under it.
-        public static bool Spot(Transform cart, out Vector3 position, out Quaternion rotation, out float[] heights)
+        // The tent's mesh turned so its two poles' line runs along the cart (back pole first) and its cloth hangs out to
+        // the cart's left, its back pole's foot at the origin.
+        private static Quaternion MeshTurn
+        {
+            get
+            {
+                var along = FrontPole - BackPole;
+                along.y = 0f;
+                return Quaternion.Inverse(Quaternion.LookRotation(along.normalized, Vector3.up));
+            }
+        }
+
+        // How much to squeeze the tent along the cart, so its poles are as far apart as the cart's posts.
+        private static Vector3 Squeeze(Bounds bed)
+        {
+            var poles = Vector3.Distance(new Vector3(BackPole.x, 0f, BackPole.z), new Vector3(FrontPole.x, 0f, FrontPole.z));
+            return new Vector3(Across, Up, bed.size.z / poles);
+        }
+
+        // The space the pitched tent covers, in the space of its root (at the back pole's foot, facing along the cart).
+        private static Bounds Footprint(Mesh mesh, Bounds bed)
+        {
+            var squeeze = Squeeze(bed);
+            var turn = MeshTurn;
+            var b = mesh.bounds;
+            var corners = new List<Vector3>();
+            foreach (var x in new[] { b.min.x, b.max.x })
+            foreach (var y in new[] { b.min.y, b.max.y })
+            foreach (var z in new[] { b.min.z, b.max.z })
+                corners.Add(Vector3.Scale(turn * (new Vector3(x, y, z) - BackPole), squeeze));
+            var footprint = new Bounds(corners[0], Vector3.zero);
+            foreach (var corner in corners)
+                footprint.Encapsulate(corner);
+            return footprint;
+        }
+
+        // Where the tent would stand by the cart: its root at the foot of the cart's back left post, facing along the cart,
+        // and the ground heights under the tent.
+        public static bool Spot(Transform cart, Bounds bed, out Vector3 position, out Quaternion rotation, out float[] heights)
         {
             position = Vector3.zero;
             rotation = Quaternion.identity;
@@ -63,59 +104,74 @@ namespace Cartheim.Plugin
             var tent = Tent();
             if (!tent || !ZoneSystem.instance)
                 return false;
-            var size = tent.sharedMesh.bounds.size * Scale;
             var forward = Vector3.ProjectOnPlane(cart.forward, Vector3.up).normalized;
-            var left = Vector3.Cross(forward, Vector3.up).normalized;
-            // The tent's long side (its x) runs along the cart.
-            rotation = Quaternion.LookRotation(left, Vector3.up);
-            var middle = cart.position + left * (FromCart + size.z / 2f);
+            rotation = Quaternion.LookRotation(forward, Vector3.up);
+            var post = cart.TransformPoint(new Vector3(bed.min.x, bed.min.y, bed.min.z));
+            var footprint = Footprint(tent.sharedMesh, bed);
             var samples = new List<float>();
             for (var i = 0; i < Samples; i++)
             for (var j = 0; j < Samples; j++)
             {
-                var along = (i / (Samples - 1f) - 0.5f) * size.x;
-                var across = (j / (Samples - 1f) - 0.5f) * size.z;
-                samples.Add(ZoneSystem.instance.GetGroundHeight(middle + forward * along + left * across));
+                var local = new Vector3(Mathf.Lerp(footprint.min.x, footprint.max.x, i / (Samples - 1f)), 0f,
+                    Mathf.Lerp(footprint.min.z, footprint.max.z, j / (Samples - 1f)));
+                samples.Add(ZoneSystem.instance.GetGroundHeight(post + rotation * local));
             }
             heights = samples.ToArray();
-            position = new Vector3(middle.x, Cartheim.Core.Tent.GroundLevel(heights), middle.z);
+            position = new Vector3(post.x, Cartheim.Core.Tent.GroundLevel(heights), post.z);
             return true;
         }
 
-        // The tent standing at a spot: its floor's middle there.
-        public static GameObject Pitch(Vector3 position, Quaternion rotation)
+        // The tent standing at a spot (from Spot).
+        public static GameObject Pitch(Vector3 position, Quaternion rotation, Bounds bed)
         {
             var tent = Tent();
             if (!tent)
                 return null;
             var root = new GameObject("Cartheim tent");
             root.transform.SetPositionAndRotation(position, rotation);
+            // Squeezed in the cart's directions, then the mesh turned within that.
+            var squeeze = new GameObject("squeeze").transform;
+            squeeze.SetParent(root.transform, false);
+            squeeze.localScale = Squeeze(bed);
             var model = new GameObject("model", typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
             model.layer = tent.gameObject.layer;
-            model.transform.SetParent(root.transform, false);
-            model.transform.localScale = Vector3.one * Scale;
-            var bounds = tent.sharedMesh.bounds;
-            // Its floor's middle at the root.
-            model.transform.localPosition = -new Vector3(bounds.center.x, bounds.min.y, bounds.center.z) * Scale;
+            model.transform.SetParent(squeeze, false);
+            model.transform.localRotation = MeshTurn;
+            model.transform.localPosition = -(MeshTurn * BackPole);
             model.GetComponent<MeshFilter>().sharedMesh = tent.sharedMesh;
             model.GetComponent<MeshRenderer>().sharedMaterials = tent.GetComponent<MeshRenderer>().sharedMaterials;
             model.GetComponent<MeshCollider>().sharedMesh = tent.GetComponent<MeshCollider>() is MeshCollider collider && collider.sharedMesh
                 ? collider.sharedMesh
                 : tent.sharedMesh;
-            Debug.Log($"[Cartheim] Tent pitched at {position}, {bounds.size * Scale} big");
+            var footprint = Footprint(tent.sharedMesh, bed);
+            root.AddComponent<TentShape>().Footprint = footprint;
+            Debug.Log($"[Cartheim] Tent pitched at {position}, covering {footprint.min} to {footprint.max} from the cart's back left post");
             return root;
+        }
+
+        // The middle of the tent's floor, where a player getting up stands.
+        public static Vector3 Middle(GameObject tent)
+        {
+            var footprint = tent.GetComponent<TentShape>().Footprint;
+            return tent.transform.TransformPoint(new Vector3(footprint.center.x, 0f, footprint.center.z));
         }
 
         // Whether a point (a player's feet, a fire) is under a pitched tent. Its floor follows the ground's average, so a
         // point on lower ground than that still counts.
         public static bool Under(GameObject tent, Vector3 point, float maxRise)
         {
-            var mesh = Tent();
-            if (!tent || !mesh)
+            var shape = tent ? tent.GetComponent<TentShape>() : null;
+            if (!shape)
                 return false;
-            var size = mesh.sharedMesh.bounds.size * Scale;
-            var local = tent.transform.InverseTransformPoint(point);
-            return Cartheim.Core.Tent.Under(local.x, local.y + maxRise, local.z, size.x / 2f, size.z / 2f, size.y + maxRise);
+            var footprint = shape.Footprint;
+            var local = tent.transform.InverseTransformPoint(point) - new Vector3(footprint.center.x, 0f, footprint.center.z);
+            return Cartheim.Core.Tent.Under(local.x, local.y + maxRise, local.z, footprint.extents.x, footprint.extents.z, footprint.max.y + maxRise);
         }
+    }
+
+    // What a pitched tent covers, in its own space.
+    internal class TentShape : MonoBehaviour
+    {
+        public Bounds Footprint;
     }
 }
