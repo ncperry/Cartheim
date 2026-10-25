@@ -29,6 +29,8 @@ namespace Cartheim.Plugin
 
         private Fireplace Fire => _cart.FireIn(_piece);
 
+        private Fermenter Fermenter => _piece == GamePieces.Fermenter ? _cart.Fermenter : null;
+
         public string GetHoverText()
         {
             if (!_cart || !Plugin.Enabled.Value)
@@ -43,6 +45,9 @@ namespace Cartheim.Plugin
             var fire = Fire;
             if (fire)
                 return fire.GetHoverText() + Localization.instance.Localize(cartKey);
+            var fermenter = Fermenter;
+            if (fermenter)
+                return fermenter.GetHoverText() + Localization.instance.Localize(cartKey);
             if (_piece == Cartheim.Core.SteamEngine.Engine)
                 return Localization.instance.Localize(
                     $"Steam engine{(_cart.EngineBurning ? "" : " (cold)")}\n( $piece_fire_fuel {Mathf.Ceil(_cart.Coal)}/{Cartheim.Core.SteamEngine.MaxCoal} )\n" +
@@ -83,6 +88,9 @@ namespace Cartheim.Plugin
             var bed = Bed;
             if (bed)
                 return bed.Interact(user, false, false);
+            var fermenter = Fermenter;
+            if (fermenter)
+                return fermenter.Interact(user, false, false);
             var hive = Hive;
             if (hive)
                 return hive.Interact(user, false, false);
@@ -101,8 +109,14 @@ namespace Cartheim.Plugin
         // Resin from the hotbar goes into the sconce, as it would at any sconce.
         public bool UseItem(Humanoid user, ItemDrop.ItemData item)
         {
-            var fire = _cart && Plugin.Enabled.Value ? Fire : null;
-            return fire && fire.UseItem(user, item);
+            if (!_cart || !Plugin.Enabled.Value)
+                return false;
+            var fire = Fire;
+            if (fire)
+                return fire.UseItem(user, item);
+            // And a mead base into the fermenter.
+            var fermenter = Fermenter;
+            return fermenter && fermenter.UseItem(user, item);
         }
     }
 }

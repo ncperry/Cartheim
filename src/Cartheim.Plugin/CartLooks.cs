@@ -18,6 +18,10 @@ namespace Cartheim.Plugin
         private const float RidgeOverlap = 0.12f;
         private const string CrossPiece = "wood_wall_roof_top";
         private const string Cauldron = "piece_cauldron";
+        private const string MeadKetill = "piece_MeadCauldron";
+        // The fermenter shows as small as a growler.
+        private const float GrowlerWidth = 0.2f;
+        private const float GrowlerHeight = 0.3f;
         private const string FeyLights = "piece_FairylightGarland";
         private const string Sconce = "piece_walltorch";
         private const string BeamPiece = "wood_beam";
@@ -34,7 +38,7 @@ namespace Cartheim.Plugin
         {
             var shown = new List<string>();
             foreach (var piece in GamePieces.Beds.Concat(new[] { GamePieces.WorkbenchPiece, "forge", Cauldron })
-                         .Concat(GamePieces.Chests).Append("piece_chest_barrel"))
+                         .Concat(GamePieces.Chests).Append("piece_chest_barrel").Append(MeadKetill).Append(GamePieces.Fermenter))
                 if (upgrades.Has(piece))
                     shown.Add(piece);
             if (upgrades.Has(SteamEngine.Engine))
@@ -108,10 +112,21 @@ namespace Cartheim.Plugin
                 else if (piece == SteamEngine.Engine)
                     // Across from the cauldron, on the workbench's side, just ahead of it towards the cart's handles.
                     Stand(model, new Vector3(bed.min.x - 0.3f, floor, bed.max.z - 0.1f), 0.5f, 0.5f, 0.9f);
+                else if (piece == MeadKetill)
+                    // Behind the forge, mirroring the cauldron ahead of it: the brewing goes together.
+                    Stand(model, new Vector3(bed.max.x + 0.3f, floor, bed.min.z + 0.1f), 0.45f, 0.45f, 0.6f);
+                else if (piece == GamePieces.Fermenter)
+                    // A growler standing on the chest, or where the chest would be.
+                    Stand(model, _chestTop ?? new Vector3(cx - w / 4f, floor, bed.min.z - 0.1f), GrowlerWidth, GrowlerWidth, GrowlerHeight);
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))
+                {
                     Stand(model, new Vector3(cx - w / 4f, floor, bed.min.z - 0.1f), w / 2f, 0.6f, 0.6f);
+                    var top = BoundsOf(model.GetComponentsInChildren<MeshFilter>(), Root.transform);
+                    if (top != null)
+                        _chestTop = new Vector3(top.Value.center.x, top.Value.max.y, top.Value.center.z);
+                }
                 else
                     Stand(model, new Vector3(cx + w / 4f, floor, bed.min.z - 0.1f), w / 2.5f, 0.6f, 0.7f);
                 Anchors[piece] = model.transform.GetChild(0);
@@ -172,6 +187,9 @@ namespace Cartheim.Plugin
             model.transform.localScale = new Vector3(bed.size.x / width, 1f, bed.size.z / length);
         }
 
+
+        // The middle of the chest's lid, once the chest stands in the cart.
+        private Vector3? _chestTop;
 
         // The top of the roof, down its middle, once a roof is built.
         private Vector3? _ridge;

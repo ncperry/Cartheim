@@ -47,6 +47,9 @@ namespace Cartheim.Plugin
 
         public const string WispTorch = "piece_groundtorch_mist";
 
+        // A fermenter rides as itself, keeping its brew; it ferments under the cart's roof.
+        public const string Fermenter = "fermenter";
+
         // Up to two beehives ride in a cart; the second rides in its own slot, "piece_beehive#2".
         public static readonly string[] BeehiveSlots = { CartUpgrades.Beehive, CartUpgrades.Beehive + "#2" };
 
@@ -57,7 +60,7 @@ namespace Cartheim.Plugin
         public static IEnumerable<string> SlotsFor(string piece) => piece == CartUpgrades.Beehive ? BeehiveSlots : new[] { piece };
 
         // Every piece that rides hidden in the cart as itself.
-        public static readonly string[] Riders = Containers.Concat(Furniture).Concat(Lights).Append(WispTorch).Concat(BeehiveSlots).ToArray();
+        public static readonly string[] Riders = Containers.Concat(Furniture).Concat(Lights).Append(WispTorch).Concat(BeehiveSlots).Append(Fermenter).ToArray();
 
         // A cart roof is no single piece: it is built from this many of the game's roof pieces of its kind.
         public const int RoofPiecesPerRoof = 5;
@@ -98,6 +101,7 @@ namespace Cartheim.Plugin
             yield return ("Lights", Lights);
             yield return ("Wisp", new[] { WispTorch });
             yield return ("Bees (up to two hives)", new[] { CartUpgrades.Beehive });
+            yield return ("Brewing", new[] { Fermenter });
         }
 
         // Every hammer piece that is a crafting station or extends one, as the game has them.

@@ -134,6 +134,29 @@ namespace Cartheim.Plugin
             __result += cart.Upgrades.ExtraComfort(hearth ? hearth.m_comfort : 0, bestFire, cart.EngineBurning);
         }
 
+        private static readonly AccessTools.FieldRef<Fermenter, bool> Exposed = AccessTools.FieldRefAccess<Fermenter, bool>("m_exposed");
+        private static readonly AccessTools.FieldRef<Fermenter, bool> HasRoof = AccessTools.FieldRefAccess<Fermenter, bool>("m_hasRoof");
+        private static readonly System.Reflection.MethodInfo ResetFermentation =
+            AccessTools.Method(typeof(Fermenter), "ResetFermentationTimer") ?? throw new System.MissingMethodException("Fermenter", "ResetFermentationTimer");
+
+        // A cart's fermenter is under cover when the cart has a roof (the cart's roof is only looks, so the game's own cover
+        // check finds the sky). Without one it waits, as any fermenter in the open does.
+        [HarmonyPatch(typeof(Fermenter), "UpdateCover"), HarmonyPrefix]
+        private static bool CoveredByCartRoof(Fermenter __instance)
+        {
+            if (!IsCartPiece(__instance))
+                return true;
+            var cart = CartFire.CartNear(__instance.transform.position);
+            var covered = cart && cart.HasRoof;
+            Exposed(__instance) = !covered;
+            HasRoof(__instance) = covered;
+            // As the game does: in the open, brewing starts over.
+            var nview = __instance.GetComponent<ZNetView>();
+            if (!covered && nview && nview.IsValid() && nview.IsOwner())
+                ResetFermentation.Invoke(__instance, null);
+            return false;
+        }
+
         // A cart's bees are always happy: any biome, and the cart never crowds them.
         [HarmonyPatch(typeof(Beehive), "CheckBiome"), HarmonyPrefix]
         private static bool CartBeesLikeAnyBiome(Beehive __instance, ref bool __result) => HappyCartBees(__instance, ref __result);
