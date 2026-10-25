@@ -43,6 +43,7 @@ namespace Cartheim.Core
             Count(piece) < MaxOf(piece) &&
             (piece == Workbench || Has(Workbench)) &&
             (extends == null || Has(extends)) &&
+            (piece != SteamEngine.Engine || SteamEngine.Needs.All(Has)) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
 
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
@@ -80,13 +81,13 @@ namespace Cartheim.Core
         public const string GraustenRoof = "cartheim_roof_grausten";
 
         // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
-        // Each roof is built over the one before (thatch, then shingle, then grausten), so the roof's level counts them all.
         // A hearth built in is a fire of the cart's own: it lights the cauldron and warms a rest without a campfire nearby.
         public bool HasHearth => Has(Hearth);
 
-        // On top of what the game counts from the pieces around: the roof, and the hearth where it beats the best fire nearby.
-        public int ExtraComfort(int hearthComfort, int nearbyFireComfort) =>
-            RoofLevel + (HasHearth ? System.Math.Max(0, hearthComfort - nearbyFireComfort) : 0);
+        // On top of what the game counts from the pieces around: the roof, and the hearth (or a steam engine with coal burning
+        // in it, which warms like one) where it beats the best fire nearby.
+        public int ExtraComfort(int hearthComfort, int nearbyFireComfort, bool engineBurning = false) =>
+            RoofLevel + (HasHearth || (engineBurning && Has(SteamEngine.Engine)) ? System.Math.Max(0, hearthComfort - nearbyFireComfort) : 0);
 
         public int RoofLevel => Level(ThatchRoof) + built.Count(b => b.extends == ShingleRoof);
 

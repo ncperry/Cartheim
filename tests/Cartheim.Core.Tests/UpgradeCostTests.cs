@@ -115,5 +115,14 @@ namespace Cartheim.Core.Tests
 
             Assert.Contains(new ItemCount("BronzeNails", 5), cost);
         }
+
+        // The steam engine's own recipe already has nails in it: the five to fix it on are added to them.
+        [Fact]
+        public void Nails_already_in_a_recipe_are_added_to_not_listed_twice()
+        {
+            var engine = new[] { new ItemCount("Iron", 10), new ItemCount("IronNails", 5) };
+
+            Assert.Equal(new[] { new ItemCount("Iron", 10), new ItemCount("IronNails", 10) }, UpgradeCost.For(engine));
+        }
     }
 }

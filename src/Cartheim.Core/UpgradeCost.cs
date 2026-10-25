@@ -14,10 +14,16 @@ namespace Cartheim.Core
             "Carrot", "Dandelion", "Feathers", "Mushroom", "RoundLog", "TrophySkeleton",
         };
 
+        private const int Nails = 5;
+
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
         {
-            var nails = recipe.All(i => BlackForestOrEarlier.Contains(i.Prefab)) ? "BronzeNails" : "IronNails";
-            return recipe.Append(new ItemCount(nails, 5)).ToList();
+            var items = recipe.ToList();
+            var nails = items.All(i => BlackForestOrEarlier.Contains(i.Prefab) || i.Prefab == "BronzeNails") ? "BronzeNails" : "IronNails";
+            // Nails already in the recipe (the steam engine's) get the extra ones added to them.
+            if (items.Any(i => i.Prefab == nails))
+                return items.Select(i => i.Prefab == nails ? new ItemCount(nails, i.Count + Nails) : i).ToList();
+            return items.Append(new ItemCount(nails, Nails)).ToList();
         }
     }
 }
