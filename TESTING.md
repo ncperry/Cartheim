@@ -149,3 +149,17 @@ the piece for the hammer, and only while the cart can take them (built and locke
       inventory; Ctrl+click in your inventory moves it into the cart's own storage.
 - [ ] Close the inventory, or walk away: they all close. A second player can then open them.
 - [ ] A personal chest built by someone else doesn't show ("can't open").
+
+## Step 15: the cart as a little camp
+
+- [ ] The bed lies lengthwise down the middle of the cart, on the rug if built; the workbench hangs off one side, the forge
+      off the other; the chest and barrel off the back.
+- [ ] A thatch roof covers the cart on four posts, rising from both sides to a ridge down the middle (shingle and grausten
+      roofs replace it when built).
+- [ ] Hover the workbench: its name and "[E] Use"; E opens the workbench, with the tabs to switch to the forge and Cart.
+      Same for the forge.
+- [ ] Hover the bed: the bed's own text; E claims it, then E (at night, fire near) sleeps, lying on the cart's bed.
+- [ ] Hover the chest or barrel: E opens it.
+- [ ] Shift+E on any of them still opens the cart (crafting with all storage). With the harvest key on Shift+E too,
+      hovering the cart doesn't harvest.
+- [ ] Crafting at a cart station (a hoe at the workbench) finishes and gives the item.

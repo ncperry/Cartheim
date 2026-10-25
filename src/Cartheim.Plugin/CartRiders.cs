@@ -65,9 +65,13 @@ namespace Cartheim.Plugin
 
         // Every player moves the piece along with their own view of the cart, so the game's "too far" checks follow the cart;
         // its owner also moves it in the save data, so it loads wherever the cart is.
-        public static void Follow(GameObject piece, Transform cart)
+        // Where it rides: on its model when the cart shows one (so a bed is slept in where it shows), else in the cart's bed.
+        public static void Follow(GameObject piece, Transform cart, Transform model = null)
         {
-            piece.transform.SetPositionAndRotation(cart.position + Offset, cart.rotation);
+            if (model)
+                piece.transform.SetPositionAndRotation(model.position, model.rotation);
+            else
+                piece.transform.SetPositionAndRotation(cart.position + Offset, cart.rotation);
             var nview = piece.GetComponent<ZNetView>();
             if (nview && nview.IsValid() && nview.IsOwner())
                 nview.GetZDO().SetPosition(piece.transform.position);

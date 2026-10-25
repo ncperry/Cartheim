@@ -30,7 +30,7 @@ namespace Cartheim.Plugin
         private CraftingStation _upgradeStation;
         private Vagon _vagon;
         // The small copies of built pieces standing in the cart, and which pieces they are.
-        private GameObject _looks;
+        private CartLooks _looks;
         private string _looksKey = "";
         private GameObject _hearth;
         private GameObject _wisp;
@@ -77,8 +77,7 @@ namespace Cartheim.Plugin
             foreach (var station in _stations.Values)
                 if (station)
                     Destroy(station.gameObject);
-            if (_looks)
-                Destroy(_looks);
+            _looks?.Destroy();
             if (_upgradeStation)
                 Destroy(_upgradeStation.gameObject);
             if (_hearth)
@@ -94,7 +93,7 @@ namespace Cartheim.Plugin
         public bool HasRoof => Plugin.Enabled.Value && Upgrades.RoofLevel > 0;
 
         // Whether the cart shows any built piece as itself, in place of the game's crates and sacks.
-        public bool HasLooks => Plugin.Enabled.Value && _looks;
+        public bool HasLooks => Plugin.Enabled.Value && _looks != null && _looks.Root;
 
         private void DropRefund()
         {
@@ -141,9 +140,9 @@ namespace Cartheim.Plugin
 
         private void Update()
         {
-            foreach (var rider in _riders.Values)
+            foreach (var (slot, rider) in _riders)
                 if (rider)
-                    CartRiders.Follow(rider, transform);
+                    CartRiders.Follow(rider, transform, _looks != null && _looks.Anchors.TryGetValue(GamePieces.PieceIn(slot), out var anchor) ? anchor : null);
             KeepSpawnPointOnBed();
             if (_wisp)
                 CartWisp.Float(_wisp, transform);
@@ -189,7 +188,7 @@ namespace Cartheim.Plugin
             Upgrades = Load();
             FindRiders();
             var on = Plugin.Enabled.Value;
-            foreach (var rider in _riders.Values)
+            foreach (var (slot, rider) in _riders)
                 if (rider)
                     CartRiders.SetWorking(rider, on);
             if (_wear)
@@ -221,9 +220,8 @@ namespace Cartheim.Plugin
             var looksKey = string.Join(",", wantLooks);
             if (looksKey != _looksKey)
             {
-                if (_looks)
-                    Destroy(_looks);
-                _looks = wantLooks.Count > 0 && _vagon ? CartLooks.Make(_vagon, wantLooks) : null;
+                _looks?.Destroy();
+                _looks = wantLooks.Count > 0 && _vagon ? new CartLooks(this, _vagon, wantLooks) : null;
                 _looksKey = looksKey;
             }
             if (on && !_upgradeStation)
