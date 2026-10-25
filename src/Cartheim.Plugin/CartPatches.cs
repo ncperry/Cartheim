@@ -144,6 +144,27 @@ namespace Cartheim.Plugin
             return own ? own : station.GetComponentInParent<ZNetView>();
         }
 
+        // The pieces standing in the cart's bed (the bed itself) sit inside the cart's own collider, which the player's look
+        // lands on first; looking at the cart where one of its pieces is behind that, hover the piece.
+        [HarmonyPatch(typeof(Player), "FindHoverObject"), HarmonyPostfix]
+        private static void HoverCartPiece(Player __instance, ref GameObject hover)
+        {
+            if (!Plugin.Enabled.Value || !hover || !GameCamera.instance || hover.GetComponent<CartPieceHover>() || !hover.GetComponentInParent<CartBase>())
+                return;
+            var look = GameCamera.instance.transform;
+            GameObject piece = null;
+            var nearest = float.MaxValue;
+            foreach (var hit in Physics.RaycastAll(look.position, look.forward, 50f, ~0, QueryTriggerInteraction.Collide))
+                if (hit.distance < nearest && hit.collider.GetComponent<CartPieceHover>() &&
+                    Vector3.Distance(__instance.m_eye.position, hit.point) < __instance.m_maxInteractDistance)
+                {
+                    nearest = hit.distance;
+                    piece = hit.collider.gameObject;
+                }
+            if (piece)
+                hover = piece;
+        }
+
         // A station riding on a cart has no extensions standing around it: its level is what's built into the cart.
         [HarmonyPatch(typeof(CraftingStation), nameof(CraftingStation.GetExtentionCount)), HarmonyPostfix]
         private static void CartStationLevel(CraftingStation __instance, ref int __result)

@@ -127,36 +127,32 @@ namespace Cartheim.Plugin
             model.transform.localScale = new Vector3(bed.size.x / width, 1f, bed.size.z / length);
         }
 
-        // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides to a ridge down its middle
-        // (each reaching a little past it, so they meet), a wood roof cross filling each gable end, on a post at each corner.
+        // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
+        // in a ridge down its middle, a wood roof cross on the ridge at each end, on a post at each corner. Placed by the
+        // pieces' snap points, as the game fits them together on a house, not by their meshes (thatch hangs past its edges).
         private void Roof(string piece, Bounds bed)
         {
             var eaves = bed.min.y + EavesHeight;
             var halfWidth = bed.size.x / 2f + RoofOverhang;
-            var run = halfWidth + RidgeOverlap;
-            var length = bed.size.z + 2f * RoofOverhang;
-            var rises = RisingDirection(GamePieces.Prefab(piece));
-            var rise = 0f;
+            var slope = Slope.Of(GamePieces.Prefab(piece));
+            // One scale across and up, so the roof keeps its pitch (and the cross matches it); its own along the ridge.
+            var scale = halfWidth / slope.Run;
+            var alongRidge = (bed.size.z + RoofOverhang) / slope.Width;
+            var ridge = new Vector3(bed.center.x, eaves + scale * slope.Rise, bed.center.z);
             foreach (var side in new[] { -1f, 1f })
             {
                 var model = Model(piece, Root.transform);
                 if (!model)
                     return;
                 var holder = model.transform.GetChild(0);
-                // Turned so it rises from this side towards the middle.
-                holder.localRotation = Quaternion.FromToRotation(rises, new Vector3(-side, 0f, 0f));
-                var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), model.transform);
-                if (size == null)
-                    return;
-                var b = size.Value;
-                holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z);
-                var across = run / b.size.x;
-                rise = across * b.size.y;
-                model.transform.localScale = new Vector3(across, across, length / b.size.z);
-                model.transform.localPosition = new Vector3(bed.center.x + side * (halfWidth - run / 2f), eaves, bed.center.z);
+                // Turned so it rises from this side towards the middle, its top edge on the ridge.
+                holder.localRotation = Quaternion.FromToRotation(slope.Rising, new Vector3(-side, 0f, 0f));
+                holder.localPosition = -(holder.localRotation * slope.Top);
+                model.transform.localScale = new Vector3(scale, scale, alongRidge);
+                model.transform.localPosition = ridge;
             }
-            foreach (var end in new[] { bed.min.z, bed.max.z })
-                GableCross(new Vector3(bed.center.x, eaves, end), 2f * halfWidth, rise);
+            foreach (var end in new[] { -1f, 1f })
+                GableCross(ridge + new Vector3(0f, 0f, end * alongRidge * slope.Width / 2f), scale);
             foreach (var x in new[] { bed.min.x, bed.max.x })
                 foreach (var z in new[] { bed.min.z, bed.max.z })
                 {
@@ -172,47 +168,82 @@ namespace Cartheim.Plugin
                     post.transform.localScale = new Vector3(0.6f, (eaves - bed.min.y) / b.size.y, 0.6f);
                     post.transform.localPosition = new Vector3(x, bed.min.y, z);
                 }
-            Debug.Log($"[Cartheim] Cart roof of {piece}, rising along {rises}");
+            Debug.Log($"[Cartheim] Cart roof of {piece}: run {slope.Run}, rise {slope.Rise}, width {slope.Width}, rising along {slope.Rising}; scale {scale:0.00}");
+            LogShape(piece);
+            LogShape(CrossPiece);
         }
 
-        // The wood roof cross, stood across the cart at one end, filling the gable under the roof.
-        private void GableCross(Vector3 bottomMiddle, float width, float height)
+        // The wood roof cross, its logs running on up the two slopes and crossing on the ridge, at the roof's scale.
+        private void GableCross(Vector3 onRidge, float scale)
         {
             var cross = Model(CrossPiece, Root.transform);
             if (!cross)
                 return;
             var holder = cross.transform.GetChild(0);
-            var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), cross.transform);
-            if (size == null)
-                return;
-            // It is a wall: thin one way. Turned so its face looks along the cart.
-            if (size.Value.size.x < size.Value.size.z)
-            {
-                holder.localRotation = Quaternion.Euler(0f, 90f, 0f);
-                size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), cross.transform);
-            }
-            var b = size.Value;
-            holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z);
-            var across = width / b.size.x;
-            cross.transform.localScale = new Vector3(across, height / b.size.y, across);
-            cross.transform.localPosition = bottomMiddle;
+            // In its own space it stands across x, and its logs cross at its middle snap point.
+            holder.localPosition = -CrossingPoint(GamePieces.Prefab(CrossPiece));
+            cross.transform.localScale = Vector3.one * scale;
+            cross.transform.localPosition = onRidge;
         }
 
-        // Which way the roof piece slopes up, in its own space: read from its snap points, which sit at its corners.
-        private static Vector3 RisingDirection(GameObject prefab)
+        // Where the cross's logs cross: the snap point between its ends.
+        private static Vector3 CrossingPoint(GameObject prefab)
         {
-            var points = prefab ? prefab.GetComponentsInChildren<Transform>(true).Where(t => t.CompareTag("snappoint"))
+            var points = SnapPoints(prefab);
+            return points.Count == 0 ? new Vector3(0f, 0.5f, 0f) : points.OrderBy(p => Mathf.Abs(p.x)).First();
+        }
+
+        // Where a piece's meshes and snap points sit around its origin, for fitting the roof cross to the roof.
+        private static void LogShape(string piece)
+        {
+            var prefab = GamePieces.Prefab(piece);
+            if (!prefab)
+                return;
+            var b = BoundsOf(prefab.GetComponentsInChildren<MeshFilter>(true), prefab.transform);
+            var snaps = prefab.GetComponentsInChildren<Transform>(true).Where(t => t.CompareTag("snappoint"))
+                .Select(t => prefab.transform.InverseTransformPoint(t.position).ToString("0.00"));
+            Debug.Log($"[Cartheim] Shape of {piece}: meshes {b?.min:0.00} to {b?.max:0.00}; snap points {string.Join(" ", snaps)}");
+        }
+
+        private static List<Vector3> SnapPoints(GameObject prefab) =>
+            prefab ? prefab.GetComponentsInChildren<Transform>(true).Where(t => t.CompareTag("snappoint"))
                 .Select(t => prefab.transform.InverseTransformPoint(t.position)).ToList() : new List<Vector3>();
-            if (points.Count < 2)
-                return Vector3.forward;
-            var mean = points.Aggregate(Vector3.zero, (a, p) => a + p) / points.Count;
-            float alongX = 0f, alongZ = 0f;
-            foreach (var p in points)
+
+        // A roof piece's slope, read from its snap points, which sit at the corners of its sloping face: which way it
+        // rises, how far across and up, how wide it is along the ridge, and the middle of its top edge.
+        private readonly struct Slope
+        {
+            public Vector3 Rising { get; }
+            public float Run { get; }
+            public float Rise { get; }
+            public float Width { get; }
+            public Vector3 Top { get; }
+
+            private Slope(Vector3 rising, float run, float rise, float width, Vector3 top)
             {
-                alongX += (p.x - mean.x) * (p.y - mean.y);
-                alongZ += (p.z - mean.z) * (p.y - mean.y);
+                Rising = rising;
+                Run = run;
+                Rise = rise;
+                Width = width;
+                Top = top;
             }
-            return Mathf.Abs(alongX) > Mathf.Abs(alongZ) ? new Vector3(Mathf.Sign(alongX), 0f, 0f) : new Vector3(0f, 0f, Mathf.Sign(alongZ));
+
+            public static Slope Of(GameObject prefab)
+            {
+                var points = SnapPoints(prefab);
+                if (points.Count < 4)
+                    return new Slope(Vector3.back, 2f, 1f, 2f, new Vector3(0f, 1f, -1f));
+                var low = points.Min(p => p.y);
+                var high = points.Max(p => p.y);
+                var bottom = points.Where(p => Mathf.Abs(p.y - low) < 0.01f).ToList();
+                var top = points.Where(p => Mathf.Abs(p.y - high) < 0.01f).ToList();
+                var bottomMiddle = bottom.Aggregate(Vector3.zero, (a, p) => a + p) / bottom.Count;
+                var topMiddle = top.Aggregate(Vector3.zero, (a, p) => a + p) / top.Count;
+                var across = topMiddle - bottomMiddle;
+                across.y = 0f;
+                var width = top.Count > 1 ? Vector3.Distance(top[0], top[1]) : 2f;
+                return new Slope(across.normalized, across.magnitude, high - low, width, topMiddle);
+            }
         }
 
         // A box around the model that the player's look can land on, to show the piece's hover text and use it with E. A
