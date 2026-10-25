@@ -108,6 +108,18 @@ namespace Cartheim.Plugin
         // The cart's own storage, with the rows it has to begin with.
         private static readonly ConditionalWeakTable<Inventory, StrongBox<int>> Growing = new ConditionalWeakTable<Inventory, StrongBox<int>>();
 
+        // The game puts most things (materials, food) in the lowest empty slot, bottom row first. With an empty row always
+        // at the bottom, the cart's own storage then filled down its first column, a new row each time; it fills from the
+        // top left instead.
+        [HarmonyPatch(typeof(Inventory), "TopFirst"), HarmonyPrefix]
+        private static bool FillFromTheTop(Inventory __instance, ref bool __result)
+        {
+            if (!Growing.TryGetValue(__instance, out _))
+                return true;
+            __result = true;
+            return false;
+        }
+
         // The game trims a container to fit its items after loading it (whenever the cart's saved data changes); the
         // cart's own storage gets its empty row back.
         [HarmonyPatch(typeof(Container), "UpdateRows"), HarmonyPostfix]
@@ -156,7 +168,8 @@ namespace Cartheim.Plugin
                 if (!Growing.TryGetValue(inventory, out _))
                 {
                     Growing.Add(inventory, new StrongBox<int>(height));
-                    Debug.Log($"[Cartheim] Cart storage grows from {height} rows; has {inventory.GetAllItems().Count} items");
+                    Debug.Log($"[Cartheim] Cart storage grows from {height} rows; {InventoryWidth(inventory)} wide, {InventoryHeight(inventory)} rows, {inventory.GetAllItems().Count} items: " +
+                              string.Join(" ", inventory.GetAllItems().OrderBy(i => i.m_gridPos.y).ThenBy(i => i.m_gridPos.x).Select(i => $"{i.m_dropPrefab?.name}@{i.m_gridPos.x},{i.m_gridPos.y}")));
                 }
                 Grow(inventory);
             }
