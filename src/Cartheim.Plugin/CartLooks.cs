@@ -143,11 +143,12 @@ namespace Cartheim.Plugin
         // The wild beehive's look (as found hanging in trees), small.
         private const string WildHive = "Beehive";
         private const float HiveSize = 0.4f;
-        // How far below the top of the roof the rafters a hive hangs from are.
-        private const float RaftersBelowRidge = 0.15f;
+        // A hive hangs this far below the eaves, and its middle this far behind the back posts' middle: past the post.
+        private const float BelowEaves = 0.1f;
+        private const float BehindPost = 0.3f;
 
-        // A beehive hangs from the roof's rafters, the first at the back, the second at the front; with no roof, it sits
-        // on the cart's floor there.
+        // A beehive hangs off the back of one of the roof's two back posts (the first hive the left, the second the right),
+        // just under the eaves, sticking out behind the cart; with no roof (so no posts), it sits on the floor there.
         private void Hive(string slot, Bounds bed, float floor, CartBase cart, int layer)
         {
             var model = Model(WildHive, Root.transform);
@@ -162,23 +163,26 @@ namespace Cartheim.Plugin
                 return;
             var b = size.Value;
             var fit = Fit.Into(HiveSize, HiveSize, HiveSize, b.size.x, b.size.z, b.size.y);
-            var z = slot.Contains('#') ? bed.max.z - HiveSize : bed.min.z + HiveSize;
+            var x = slot.Contains('#') ? bed.max.x : bed.min.x;
+            var z = bed.min.z - BehindPost;
             if (_ridge.HasValue)
             {
                 // Hung by its top.
                 holder.localPosition = -new Vector3(b.center.x, b.max.y, b.center.z);
-                model.transform.localPosition = new Vector3(bed.center.x, _ridge.Value.y - RaftersBelowRidge, z);
+                model.transform.localPosition = new Vector3(x, bed.min.y + EavesHeight - BelowEaves, z);
             }
             else
             {
                 holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z);
-                model.transform.localPosition = new Vector3(bed.center.x, floor, z);
+                // Inside the back corner, clear of the chest and barrel hanging off the back.
+                model.transform.localPosition = new Vector3(x, floor, bed.min.z + HiveSize);
             }
             model.transform.localScale = Vector3.one * fit.Scale;
             Anchors[slot] = holder;
             Hover(model, cart, slot, layer);
-            Debug.Log($"[Cartheim] Cart hive {slot}: size {b.size}, scale {fit.Scale:0.00}, {(_ridge.HasValue ? "hanging from the rafters" : "on the floor")}");
+            Debug.Log($"[Cartheim] Cart hive {slot}: size {b.size}, scale {fit.Scale:0.00}, {(_ridge.HasValue ? "hanging off a back post" : "on the floor")}");
         }
+
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
         // in a ridge down its middle, a wood roof cross on the ridge at each end, on a post at each corner. Placed by the
         // pieces' snap points, as the game fits them together on a house, not by their meshes (thatch hangs past its edges).
