@@ -320,19 +320,19 @@ namespace Cartheim.Plugin
             if (size == null)
                 return;
             var b = size.Value;
-            var scale = Mathf.Min(1f, SconceSize / Mathf.Max(b.size.x, b.size.y, b.size.z));
-            // A sconce is built against a wall facing its own forward; facing the cart's left, its back is on the post.
-            holder.localRotation = Quaternion.LookRotation(Vector3.left);
-            holder.localPosition = -(holder.localRotation * new Vector3(b.center.x, b.center.y, b.min.z));
-            var top = _ridge.HasValue ? bed.min.y + EavesHeight : bed.max.y + SconceSize;
+            // Full size: its flame belongs to the real sconce riding hidden with this model, which isn't scaled.
+            const float scale = 1f;
+            // Its back (the side its bracket mounts on) against the post, the rest pointing away from the cart.
+            holder.localRotation = Quaternion.LookRotation(Vector3.right);
+            holder.localPosition = -(holder.localRotation * new Vector3(b.center.x, b.center.y, b.max.z));
+            var top = _ridge.HasValue ? bed.min.y + EavesHeight : bed.max.y + SconceBelowEaves;
             model.transform.localPosition = new Vector3(bed.min.x - PostHalfWidth, top - SconceBelowEaves, bed.min.z);
             model.transform.localScale = Vector3.one * scale;
             Anchors[Sconce] = holder;
             Debug.Log($"[Cartheim] Sconce on the back post: size {b.size}, scale {scale:0.00}");
         }
 
-        private const float SconceSize = 0.5f;
-        private const float SconceBelowEaves = 0.35f;
+        private const float SconceBelowEaves = 0.6f;
         // Half a roof post's thickness, so a sconce sits on its face.
         private const float PostHalfWidth = 0.08f;
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
