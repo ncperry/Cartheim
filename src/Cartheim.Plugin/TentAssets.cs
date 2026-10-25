@@ -13,15 +13,16 @@ namespace Cartheim.Plugin
         private const string Camp = "Vendor_BlackForest";
         private const string TentPart = "TraderTent";
 
-        // Haldor's tent leans on two poles whose feet stand at these points of its mesh (x, z), its cloth hanging out to one
-        // side of them. Pitched by a cart, those two feet stand at the cart's two roof posts on its left side, so the cart
-        // is the tent's front.
-        private static readonly Vector3 BackPole = new Vector3(4.3f, 0f, 0f);
-        private static readonly Vector3 FrontPole = new Vector3(7.85f, 0f, 1.85f);
+        // Haldor's canopy ends (on its mesh's low-x side) in an edge with two boards hanging from it, this far apart along
+        // its z, either side of z = 0; its tall pole stands out at the other side. Pitched by a cart, that edge runs along
+        // the cart's left side, the boards at the cart's corners, and the pole stands out away from the cart.
+        private static readonly Vector3 Edge = new Vector3(0.48f, 0f, 0f);
+        private const float Boards = 3.8f;
 
-        // Squeezed along the cart so its poles meet the cart's posts; this much of Haldor's size out from the cart, and up.
+        // Squeezed along the cart so its boards meet the cart's corners; this much of Haldor's size out from the cart, and
+        // up (so the edge comes level with the cart's eaves).
         private const float Across = 0.6f;
-        private const float Up = 0.7f;
+        private const float Up = 0.8f;
         // Ground is sampled this many times along each side of where the tent would stand.
         private const int Samples = 4;
 
@@ -58,26 +59,15 @@ namespace Cartheim.Plugin
             _tent = null;
         }
 
-        // The tent's mesh turned so its two poles' line runs along the cart (back pole first) and its cloth hangs out to
-        // the cart's left, its back pole's foot at the origin.
-        private static Quaternion MeshTurn
-        {
-            get
-            {
-                var along = FrontPole - BackPole;
-                along.y = 0f;
-                return Quaternion.Inverse(Quaternion.LookRotation(along.normalized, Vector3.up));
-            }
-        }
+        // The tent's mesh turned half round, so its edge faces the cart (to the root's right) and the rest stands out to the
+        // cart's left; the edge's middle at the origin.
+        private static readonly Quaternion MeshTurn = Quaternion.Euler(0f, 180f, 0f);
 
-        // How much to squeeze the tent along the cart, so its poles are as far apart as the cart's posts.
-        private static Vector3 Squeeze(Bounds bed)
-        {
-            var poles = Vector3.Distance(new Vector3(BackPole.x, 0f, BackPole.z), new Vector3(FrontPole.x, 0f, FrontPole.z));
-            return new Vector3(Across, Up, bed.size.z / poles);
-        }
+        // How much to squeeze the tent along the cart, so its boards are as far apart as the cart is long.
+        private static Vector3 Squeeze(Bounds bed) => new Vector3(Across, Up, bed.size.z / Boards);
 
-        // The space the pitched tent covers, in the space of its root (at the back pole's foot, facing along the cart).
+        // The space the pitched tent covers, in the space of its root (at the middle of the cart's left side, facing along
+        // the cart).
         private static Bounds Footprint(Mesh mesh, Bounds bed)
         {
             var squeeze = Squeeze(bed);
@@ -87,14 +77,14 @@ namespace Cartheim.Plugin
             foreach (var x in new[] { b.min.x, b.max.x })
             foreach (var y in new[] { b.min.y, b.max.y })
             foreach (var z in new[] { b.min.z, b.max.z })
-                corners.Add(Vector3.Scale(turn * (new Vector3(x, y, z) - BackPole), squeeze));
+                corners.Add(Vector3.Scale(turn * (new Vector3(x, y, z) - Edge), squeeze));
             var footprint = new Bounds(corners[0], Vector3.zero);
             foreach (var corner in corners)
                 footprint.Encapsulate(corner);
             return footprint;
         }
 
-        // Where the tent would stand by the cart: its root at the foot of the cart's back left post, facing along the cart,
+        // Where the tent would stand by the cart: its root below the middle of the cart's left side, facing along the cart,
         // and the ground heights under the tent.
         public static bool Spot(Transform cart, Bounds bed, out Vector3 position, out Quaternion rotation, out float[] heights)
         {
@@ -106,7 +96,7 @@ namespace Cartheim.Plugin
                 return false;
             var forward = Vector3.ProjectOnPlane(cart.forward, Vector3.up).normalized;
             rotation = Quaternion.LookRotation(forward, Vector3.up);
-            var post = cart.TransformPoint(new Vector3(bed.min.x, bed.min.y, bed.min.z));
+            var post = cart.TransformPoint(new Vector3(bed.min.x, bed.min.y, bed.center.z));
             var footprint = Footprint(tent.sharedMesh, bed);
             var samples = new List<float>();
             for (var i = 0; i < Samples; i++)
@@ -137,7 +127,7 @@ namespace Cartheim.Plugin
             model.layer = tent.gameObject.layer;
             model.transform.SetParent(squeeze, false);
             model.transform.localRotation = MeshTurn;
-            model.transform.localPosition = -(MeshTurn * BackPole);
+            model.transform.localPosition = -(MeshTurn * Edge);
             model.GetComponent<MeshFilter>().sharedMesh = tent.sharedMesh;
             model.GetComponent<MeshRenderer>().sharedMaterials = tent.GetComponent<MeshRenderer>().sharedMaterials;
             model.GetComponent<MeshCollider>().sharedMesh = tent.GetComponent<MeshCollider>() is MeshCollider collider && collider.sharedMesh
@@ -145,7 +135,7 @@ namespace Cartheim.Plugin
                 : tent.sharedMesh;
             var footprint = Footprint(tent.sharedMesh, bed);
             root.AddComponent<TentShape>().Footprint = footprint;
-            Debug.Log($"[Cartheim] Tent pitched at {position}, covering {footprint.min} to {footprint.max} from the cart's back left post");
+            Debug.Log($"[Cartheim] Tent pitched at {position}, covering {footprint.min} to {footprint.max} from the middle of the cart's left side");
             return root;
         }
 
