@@ -6,6 +6,8 @@ namespace Cartheim.Core
     {
         public static (int width, int height) Doubled(int width, int height) => (width, height * 2);
 
-        public static int GrowingRows(int baseRows, int lowestUsedRow) => baseRows;
+        // Storage with no end (the cart's own): never fewer rows than it has to begin with, and always an empty row below
+        // the lowest item, so there's room to put more. lowestUsedRow is -1 when it's empty.
+        public static int GrowingRows(int baseRows, int lowestUsedRow) => System.Math.Max(baseRows, lowestUsedRow + 2);
     }
 }

@@ -18,5 +18,12 @@ namespace Cartheim.Core.Tests
         {
             Assert.Equal(6, StorageSize.GrowingRows(baseRows: 6, lowestUsedRow: -1));
         }
+
+        [Fact]
+        public void Growing_storage_keeps_an_empty_row_below_its_lowest_item()
+        {
+            Assert.Equal(7, StorageSize.GrowingRows(baseRows: 6, lowestUsedRow: 5));
+            Assert.Equal(42, StorageSize.GrowingRows(baseRows: 6, lowestUsedRow: 40));
+        }
     }
 }
