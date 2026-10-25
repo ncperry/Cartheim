@@ -153,7 +153,7 @@ namespace Cartheim.Plugin
                 model.transform.localPosition = ridge;
             }
             foreach (var end in new[] { -1f, 1f })
-                GableCross(ridge + new Vector3(0f, 0f, end * alongRidge * slope.Width / 2f), scale);
+                GableCross(ridge + new Vector3(0f, 0f, end * alongRidge * slope.Width / 2f), halfWidth, scale);
             foreach (var x in new[] { bed.min.x, bed.max.x })
                 foreach (var z in new[] { bed.min.z, bed.max.z })
                 {
@@ -174,24 +174,23 @@ namespace Cartheim.Plugin
             LogShape(CrossPiece);
         }
 
-        // The wood roof cross, its logs running on up the two slopes and crossing on the ridge, at the roof's scale.
-        private void GableCross(Vector3 onRidge, float scale)
+        // The wood roof cross, its logs running along the roof's front (or back) edges, from each eave up the slope and on
+        // past the ridge, crossing on it. Its logs have the roof's pitch, so scaling it evenly keeps them on the edges; it
+        // keeps the roof's own scale through its thickness.
+        private void GableCross(Vector3 onRidge, float halfWidth, float roofScale)
         {
             var cross = Model(CrossPiece, Root.transform);
             if (!cross)
                 return;
             var holder = cross.transform.GetChild(0);
-            // In its own space it stands across x, and its logs cross at its middle snap point.
-            holder.localPosition = -CrossingPoint(GamePieces.Prefab(CrossPiece));
-            cross.transform.localScale = Vector3.one * scale;
+            var points = SnapPoints(GamePieces.Prefab(CrossPiece));
+            // In its own space it stands across x, its logs crossing at its middle snap point and reaching to its ends.
+            var crossing = points.Count == 0 ? new Vector3(0f, 0.5f, 0f) : points.OrderBy(p => Mathf.Abs(p.x)).First();
+            var reach = points.Count == 0 ? 1f : points.Max(p => Mathf.Abs(p.x - crossing.x));
+            holder.localPosition = -crossing;
+            var across = halfWidth / reach;
+            cross.transform.localScale = new Vector3(across, across, roofScale);
             cross.transform.localPosition = onRidge;
-        }
-
-        // Where the cross's logs cross: the snap point between its ends.
-        private static Vector3 CrossingPoint(GameObject prefab)
-        {
-            var points = SnapPoints(prefab);
-            return points.Count == 0 ? new Vector3(0f, 0.5f, 0f) : points.OrderBy(p => Mathf.Abs(p.x)).First();
         }
 
         // Where a piece's meshes and snap points sit around its origin, for fitting the roof cross to the roof.
