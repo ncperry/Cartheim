@@ -108,6 +108,16 @@ namespace Cartheim.Plugin
         // The cart's own storage, with the rows it has to begin with.
         private static readonly ConditionalWeakTable<Inventory, StrongBox<int>> Growing = new ConditionalWeakTable<Inventory, StrongBox<int>>();
 
+        // The game trims a container to fit its items after loading it (whenever the cart's saved data changes); the
+        // cart's own storage gets its empty row back.
+        [HarmonyPatch(typeof(Container), "UpdateRows"), HarmonyPostfix]
+        private static void RegrowAfterLoad(Container __instance)
+        {
+            var inventory = __instance.GetInventory();
+            if (inventory != null)
+                Grow(inventory);
+        }
+
         // After anything goes in or out (and after loading, which places items past the last row as saved), the cart's
         // own storage has just enough rows for its lowest item and an empty row below it.
         [HarmonyPatch(typeof(Inventory), "Changed"), HarmonyPostfix]
