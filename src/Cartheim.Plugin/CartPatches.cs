@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
 
@@ -111,6 +114,34 @@ namespace Cartheim.Plugin
             var before = hit.GetTotalDamage();
             hit.ApplyArmor(cart.Upgrades.Armor);
             Debug.Log($"[Cartheim] Cart armor {cart.Upgrades.Armor}: hit {before:0.#} -> {hit.GetTotalDamage():0.#}");
+        }
+
+        private static readonly MethodInfo GetNetView = AccessTools.Method(typeof(Component), nameof(Component.GetComponent), new System.Type[0]).MakeGenericMethod(typeof(ZNetView));
+
+        // Finishing a craft asks the station's network object whether it was cheated in; a cart station has none of its
+        // own, so it answers with the cart's.
+        [HarmonyPatch(typeof(InventoryGui), "DoCrafting"), HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> CartStationNetView(IEnumerable<CodeInstruction> code)
+        {
+            var replaced = 0;
+            foreach (var instruction in code)
+            {
+                if (instruction.Calls(GetNetView))
+                {
+                    replaced++;
+                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(CartPatches), nameof(NetViewOf)));
+                }
+                else
+                    yield return instruction;
+            }
+            if (replaced == 0)
+                Debug.LogWarning("[Cartheim] Found no station network check in DoCrafting; crafting at a cart may fail");
+        }
+
+        private static ZNetView NetViewOf(Component station)
+        {
+            var own = station.GetComponent<ZNetView>();
+            return own ? own : station.GetComponentInParent<ZNetView>();
         }
 
         // A station riding on a cart has no extensions standing around it: its level is what's built into the cart.
