@@ -165,6 +165,16 @@ namespace Cartheim.Plugin
                 hover = piece;
         }
 
+        // A piece riding in a cart loses its wear and support check as it loads, before its cart has found it: floating in
+        // the cart, the check would break it (a chest spilling what it holds). Its cart hides it within a second.
+        [HarmonyPatch(typeof(WearNTear), "Awake"), HarmonyPostfix]
+        private static void RidersNeedNoSupport(WearNTear __instance)
+        {
+            var zdo = __instance.GetComponent<ZNetView>()?.GetZDO();
+            if (zdo != null && zdo.GetZDOID(CartRiders.CartKey) != ZDOID.None)
+                Object.Destroy(__instance);
+        }
+
         // A station riding on a cart has no extensions standing around it: its level is what's built into the cart.
         [HarmonyPatch(typeof(CraftingStation), nameof(CraftingStation.GetExtentionCount)), HarmonyPostfix]
         private static void CartStationLevel(CraftingStation __instance, ref int __result)
