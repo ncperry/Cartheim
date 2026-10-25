@@ -36,6 +36,7 @@ namespace Cartheim.Plugin
                 return;
             }
             EnsureCreated(gui);
+            PlaceBelowRepair(gui);
             var targets = TargetsOf(cart);
             if (cart != _shownFor || !targets.Select(t => t.target).SequenceEqual(_shown.Select(s => s.target)))
                 Rebuild(cart, targets);
@@ -131,7 +132,7 @@ namespace Cartheim.Plugin
             _column = new GameObject("Cartheim station tabs", typeof(RectTransform));
             var rect = (RectTransform)_column.transform;
             rect.SetParent(gui.m_crafting, false);
-            // Just outside the crafting panel's left edge, from its top down.
+            // Just outside the crafting panel's left edge, from below the repair button down (see PlaceBelowRepair).
             rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(1f, 1f);
             rect.anchoredPosition = new Vector2(-Gap, -Gap);
@@ -145,6 +146,23 @@ namespace Cartheim.Plugin
             }
         }
 
+
+        // The repair button hangs off the crafting panel's top-left corner; the tabs start just below it, wherever the
+        // game (or another mod) has put it.
+        private void PlaceBelowRepair(InventoryGui gui)
+        {
+            var rect = (RectTransform)_column.transform;
+            var top = -Gap;
+            var repair = gui.m_repairPanel as RectTransform ?? (gui.m_repairButton ? (RectTransform)gui.m_repairButton.transform : null);
+            if (repair && repair.gameObject.activeInHierarchy)
+            {
+                var corners = new Vector3[4];
+                repair.GetWorldCorners(corners);
+                var bottom = gui.m_crafting.InverseTransformPoint(corners[0]).y;
+                top = Mathf.Min(top, bottom - gui.m_crafting.rect.yMax - Gap);
+            }
+            rect.anchoredPosition = new Vector2(-Gap, top);
+        }
         private Button Tab(string piece, string name, int index, System.Action onClick)
         {
             var corner = new Vector2(0.5f, 1f);
