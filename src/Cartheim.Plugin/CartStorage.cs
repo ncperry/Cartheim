@@ -50,8 +50,12 @@ namespace Cartheim.Plugin
         }
 
         // A cart whose storage just changed while the player had their inventory open beside it (an Alt+click putting
-        // something into the cart or taking it out): its storage is shown next frame.
+        // something into the cart or taking it out): its storage is shown next frame. Not when the game merely reloads the
+        // storage from the cart's save data, which it does whenever that data changes (as it does while the cart rolls or
+        // settles), so it doesn't pop up just after the inventory opens.
         private static CartBase _changed;
+
+        private static readonly AccessTools.FieldRef<Container, bool> Loading = AccessTools.FieldRefAccess<Container, bool>("m_loading");
 
         [HarmonyPatch(typeof(Inventory), "Changed"), HarmonyPostfix]
         private static void ShowWhenChanged(Inventory __instance)
@@ -59,7 +63,10 @@ namespace Cartheim.Plugin
             if (_cart || !Growing.TryGetValue(__instance, out _) || !InventoryGui.IsVisible() || !InventoryGui.instance ||
                 CurrentContainer(InventoryGui.instance) || !Plugin.Enabled.Value)
                 return;
-            _changed = CartBase.All.FirstOrDefault(c => c && c.GetComponent<Vagon>()?.m_container?.GetInventory() == __instance);
+            var cart = CartBase.All.FirstOrDefault(c => c && c.GetComponent<Vagon>()?.m_container?.GetInventory() == __instance);
+            var storage = cart ? cart.GetComponent<Vagon>().m_container : null;
+            if (storage && !Loading(storage))
+                _changed = cart;
         }
 
         public static void Update()
