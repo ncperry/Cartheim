@@ -23,6 +23,8 @@ namespace Cartheim.Plugin
         private static readonly PropertyInfo RecipeProperty =
             SelectedRecipeField.FieldType.GetProperty("Recipe") ?? throw new System.MissingMemberException("RecipeDataPair", "Recipe");
 
+        private static readonly MethodInfo CloneShared = AccessTools.Method(typeof(object), "MemberwiseClone");
+
         // Each upgrade's recipe, made once, and the other way round.
         private static readonly Dictionary<string, Recipe> Recipes = new Dictionary<string, Recipe>();
         private static readonly Dictionary<Recipe, string> Pieces = new Dictionary<Recipe, string>();
@@ -170,17 +172,19 @@ namespace Cartheim.Plugin
             go.transform.SetParent(_items.transform, false);
             var item = go.AddComponent<ItemDrop>();
             var icon = GamePieces.Icon(piece);
-            item.m_itemData.m_shared = new ItemDrop.ItemData.SharedData
-            {
-                m_name = GamePieces.DisplayName(piece),
-                m_description = Localization.instance.Localize(GamePieces.Description(piece)) + EffectOf(piece),
-                m_icons = icon ? new[] { icon } : new Sprite[0],
-                m_itemType = ItemDrop.ItemData.ItemType.Misc,
-                m_maxStackSize = 1,
-                m_maxQuality = 1,
-                m_weight = 0f,
-                m_teleportable = true,
-            };
+            // A copy of an ordinary item's data, so every field the tooltip reads (attacks, damages...) is filled in.
+            var shared = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(GamePieces.Item("Wood").m_itemData.m_shared, null);
+            shared.m_name = GamePieces.DisplayName(piece);
+            shared.m_description = Localization.instance.Localize(GamePieces.Description(piece)) + EffectOf(piece);
+            shared.m_icons = icon ? new[] { icon } : new Sprite[0];
+            shared.m_itemType = ItemDrop.ItemData.ItemType.Misc;
+            shared.m_maxStackSize = 1;
+            shared.m_maxQuality = 1;
+            shared.m_weight = 0f;
+            shared.m_value = 0;
+            shared.m_teleportable = true;
+            shared.m_dlc = "";
+            item.m_itemData.m_shared = shared;
             item.m_itemData.m_dropPrefab = go;
             return item;
         }
