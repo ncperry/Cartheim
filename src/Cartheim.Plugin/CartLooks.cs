@@ -17,6 +17,7 @@ namespace Cartheim.Plugin
         // How far each half of the roof reaches past the ridge, so the two meet.
         private const float RidgeOverlap = 0.12f;
         private const string CrossPiece = "wood_wall_roof_top";
+        private const string BeamPiece = "wood_beam";
         // The rug lies just above the cart's floor.
         private const float RugLift = 0.02f;
 
@@ -153,7 +154,13 @@ namespace Cartheim.Plugin
                 model.transform.localPosition = ridge;
             }
             foreach (var end in new[] { -1f, 1f })
-                GableCross(ridge + new Vector3(0f, 0f, end * alongRidge * slope.Width / 2f), halfWidth, scale);
+            {
+                var onRidge = ridge + new Vector3(0f, 0f, end * alongRidge * slope.Width / 2f);
+                GableCross(onRidge, scale);
+                // A beam down each edge of this end, eave to ridge, on the same line as the cross's logs.
+                foreach (var side in new[] { -1f, 1f })
+                    Beam(onRidge + new Vector3(side * halfWidth, eaves - ridge.y, 0f), onRidge, scale);
+            }
             foreach (var x in new[] { bed.min.x, bed.max.x })
                 foreach (var z in new[] { bed.min.z, bed.max.z })
                 {
@@ -172,25 +179,43 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Cart roof of {piece}: run {slope.Run}, rise {slope.Rise}, width {slope.Width}, rising along {slope.Rising}; scale {scale:0.00}");
             LogShape(piece);
             LogShape(CrossPiece);
+            LogShape(BeamPiece);
         }
 
-        // The wood roof cross, its logs running along the roof's front (or back) edges, from each eave up the slope and on
-        // past the ridge, crossing on it. Its logs have the roof's pitch, so scaling it evenly keeps them on the edges; it
-        // keeps the roof's own scale through its thickness.
-        private void GableCross(Vector3 onRidge, float halfWidth, float roofScale)
+        // The wood roof cross, its logs running on up the two slopes and crossing on the ridge, at the roof's scale.
+        private void GableCross(Vector3 onRidge, float scale)
         {
             var cross = Model(CrossPiece, Root.transform);
             if (!cross)
                 return;
             var holder = cross.transform.GetChild(0);
+            // In its own space it stands across x, and its logs cross at its middle snap point.
             var points = SnapPoints(GamePieces.Prefab(CrossPiece));
-            // In its own space it stands across x, its logs crossing at its middle snap point and reaching to its ends.
-            var crossing = points.Count == 0 ? new Vector3(0f, 0.5f, 0f) : points.OrderBy(p => Mathf.Abs(p.x)).First();
-            var reach = points.Count == 0 ? 1f : points.Max(p => Mathf.Abs(p.x - crossing.x));
-            holder.localPosition = -crossing;
-            var across = halfWidth / reach;
-            cross.transform.localScale = new Vector3(across, across, roofScale);
+            holder.localPosition = -(points.Count == 0 ? new Vector3(0f, 0.5f, 0f) : points.OrderBy(p => Mathf.Abs(p.x)).First());
+            cross.transform.localScale = Vector3.one * scale;
             cross.transform.localPosition = onRidge;
+        }
+
+        // A wood beam from one point to another, as thick as the roof's scale makes it.
+        private void Beam(Vector3 from, Vector3 to, float scale)
+        {
+            var beam = Model(BeamPiece, Root.transform);
+            if (!beam)
+                return;
+            var holder = beam.transform.GetChild(0);
+            // Its length runs between its two farthest snap points (its ends).
+            var points = SnapPoints(GamePieces.Prefab(BeamPiece));
+            var ends = points.SelectMany(a => points.Select(b => (a, b))).OrderByDescending(p => Vector3.Distance(p.a, p.b)).FirstOrDefault();
+            if (points.Count < 2)
+                ends = (new Vector3(-1f, 0f, 0f), new Vector3(1f, 0f, 0f));
+            var along = ends.b - ends.a;
+            var axis = along.normalized;
+            var lengthwise = new Vector3(Mathf.Abs(axis.x), Mathf.Abs(axis.y), Mathf.Abs(axis.z));
+            var stretch = Vector3.one * scale + lengthwise * (Vector3.Distance(from, to) / along.magnitude - scale);
+            holder.localScale = stretch;
+            holder.localPosition = -Vector3.Scale(stretch, (ends.a + ends.b) / 2f);
+            beam.transform.localRotation = Quaternion.FromToRotation(axis, (to - from).normalized);
+            beam.transform.localPosition = (from + to) / 2f;
         }
 
         // Where a piece's meshes and snap points sit around its origin, for fitting the roof cross to the roof.
