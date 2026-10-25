@@ -52,6 +52,10 @@ namespace Cartheim.Plugin
                 fire.m_infiniteFuel = true;
             // A beehive's bees still show, buzzing about the cart.
             var hive = piece.GetComponent<Beehive>();
+            // A light's flame (a sconce's) still burns, on the piece's model on the cart.
+            if (piece.GetComponentInChildren<Light>(true))
+                foreach (var flame in piece.GetComponentsInChildren<ParticleSystemRenderer>(true))
+                    flame.enabled = true;
             if (hive && hive.m_beeEffect)
                 foreach (var renderer in hive.m_beeEffect.GetComponentsInChildren<Renderer>(true))
                     renderer.enabled = true;

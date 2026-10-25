@@ -19,6 +19,7 @@ namespace Cartheim.Plugin
         private const string CrossPiece = "wood_wall_roof_top";
         private const string Cauldron = "piece_cauldron";
         private const string FeyLights = "piece_FairylightGarland";
+        private const string Sconce = "piece_walltorch";
         private const string BeamPiece = "wood_beam";
         // The rug lies just above the cart's floor.
         private const float RugLift = 0.02f;
@@ -41,6 +42,8 @@ namespace Cartheim.Plugin
             if (roof != null)
                 shown.Add(roof);
             shown.AddRange(GamePieces.Rugs.Where(upgrades.Has));
+            if (upgrades.Has(Sconce))
+                shown.Add(Sconce);
             if (upgrades.Has(FeyLights))
                 shown.Add(FeyLights);
             shown.AddRange(GamePieces.BeehiveSlots.Take(upgrades.Count(CartUpgrades.Beehive)));
@@ -59,6 +62,11 @@ namespace Cartheim.Plugin
             var cz = bed.center.z;
             foreach (var piece in shown)
             {
+                if (piece == Sconce)
+                {
+                    SconceOnBackPost(bed, Model(Sconce, Root.transform));
+                    continue;
+                }
                 if (piece == FeyLights)
                 {
                     FeyLightsAcrossTheFront(bed);
@@ -300,6 +308,33 @@ namespace Cartheim.Plugin
             Anchors[FeyLights] = holder;
             Debug.Log($"[Cartheim] Fey lights across the front: size {b.size}, scale {fit.Scale:0.00}{(fit.Turned ? ", turned" : "")}");
         }
+
+        // The sconce on the outer face of the back post on the workbench's side, near its top, pointing away from the cart.
+        // Its flame (on the hidden sconce riding with this model) burns there.
+        private void SconceOnBackPost(Bounds bed, GameObject model)
+        {
+            if (!model)
+                return;
+            var holder = model.transform.GetChild(0);
+            var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), model.transform);
+            if (size == null)
+                return;
+            var b = size.Value;
+            var scale = Mathf.Min(1f, SconceSize / Mathf.Max(b.size.x, b.size.y, b.size.z));
+            // A sconce is built against a wall facing its own forward; facing the cart's left, its back is on the post.
+            holder.localRotation = Quaternion.LookRotation(Vector3.left);
+            holder.localPosition = -(holder.localRotation * new Vector3(b.center.x, b.center.y, b.min.z));
+            var top = _ridge.HasValue ? bed.min.y + EavesHeight : bed.max.y + SconceSize;
+            model.transform.localPosition = new Vector3(bed.min.x - PostHalfWidth, top - SconceBelowEaves, bed.min.z);
+            model.transform.localScale = Vector3.one * scale;
+            Anchors[Sconce] = holder;
+            Debug.Log($"[Cartheim] Sconce on the back post: size {b.size}, scale {scale:0.00}");
+        }
+
+        private const float SconceSize = 0.5f;
+        private const float SconceBelowEaves = 0.35f;
+        // Half a roof post's thickness, so a sconce sits on its face.
+        private const float PostHalfWidth = 0.08f;
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
         // in a ridge down its middle, a wood roof cross on the ridge at each end, on a post at each corner. Placed by the
         // pieces' snap points, as the game fits them together on a house, not by their meshes (thatch hangs past its edges).
