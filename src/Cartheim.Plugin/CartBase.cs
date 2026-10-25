@@ -43,6 +43,9 @@ namespace Cartheim.Plugin
             _nview = GetComponent<ZNetView>();
             _wear = GetComponent<WearNTear>();
             _vagon = GetComponent<Vagon>();
+            // Already awake before this ran (a hot reload): its storage may not be doubled yet.
+            if (_vagon && _vagon.m_container)
+                CartStorage.Double(_vagon.m_container);
             if (_wear)
             {
                 _ownHealth = _wear.m_health;
@@ -273,6 +276,9 @@ namespace Cartheim.Plugin
                 if (!go)
                     continue;
                 CartRiders.Hide(go);
+                var container = go.GetComponent<Container>();
+                if (container)
+                    CartStorage.Double(container);
                 _riders[piece] = go;
                 Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} carries {piece} {id}");
             }

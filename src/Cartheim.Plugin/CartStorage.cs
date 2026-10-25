@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Cartheim.Core;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
@@ -89,6 +90,43 @@ namespace Cartheim.Plugin
             Shown.Clear();
             Asked.Clear();
             _cart = null;
+        }
+
+        private static readonly AccessTools.FieldRef<Inventory, int> InventoryWidth = AccessTools.FieldRefAccess<Inventory, int>("m_width");
+        private static readonly AccessTools.FieldRef<Inventory, int> InventoryHeight = AccessTools.FieldRefAccess<Inventory, int>("m_height");
+
+        // The cart's own storage, and every container built into it, hold twice the slots. Not tied to the mod switch:
+        // shrinking a full chest back would lose what's in the extra rows.
+        [HarmonyPatch(typeof(Container), "Awake"), HarmonyPrefix]
+        private static void DoubleCartStorage(Container __instance) => Double(__instance);
+
+        // Sized as doubled from the game's own piece, so doing it again (a hot reload, a second load) changes nothing.
+        public static void Double(Container container)
+        {
+            var original = Original(container);
+            if (!original)
+                return;
+            var (width, height) = StorageSize.Doubled(original.m_width, original.m_height);
+            container.m_width = width;
+            container.m_height = height;
+            var inventory = container.GetInventory();
+            if (inventory != null && InventoryHeight(inventory) < height)
+            {
+                InventoryWidth(inventory) = width;
+                InventoryHeight(inventory) = height;
+            }
+        }
+
+        // The game's own container this one was made from, if it is a cart's storage or a container built into a cart.
+        private static Container Original(Container container)
+        {
+            if (container.GetComponentInParent<Vagon>())
+                return GamePieces.Prefab("Cart")?.GetComponentInChildren<Container>(true);
+            var nview = container.GetComponent<ZNetView>();
+            var zdo = nview ? nview.GetZDO() : null;
+            if (zdo == null || zdo.GetZDOID(CartRiders.CartKey) == ZDOID.None)
+                return null;
+            return GamePieces.Prefab(Utils.GetPrefabName(container.gameObject))?.GetComponent<Container>();
         }
 
         // Granted one of the cart's containers: show it in a panel of its own instead of in place of the cart's storage.
