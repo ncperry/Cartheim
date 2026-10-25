@@ -41,5 +41,13 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(UpgradeState.Ready, cart.StateOf("piece_beehive", null, cost, carried));
         }
+
+        [Fact]
+        public void A_beehive_is_held_on_with_bronze_nails()
+        {
+            var cost = UpgradeCost.For(new[] { new ItemCount("Wood", 10), new ItemCount("QueenBee", 1) });
+
+            Assert.Contains(new ItemCount("BronzeNails", 5), cost);
+        }
     }
 }
