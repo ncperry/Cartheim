@@ -144,19 +144,44 @@ namespace Cartheim.Plugin
             return false;
         }
 
-        // Each cost shows how many the player has, counting the cart's, beside how many it takes: "have/need".
+        private const string HaveLabel = "Cartheim have";
+
+        // Each cost shows how many the player has, counting the cart's, small at the top right corner of its icon (the
+        // amount it takes stays below the icon, as the game shows it).
         [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.SetupRequirement)), HarmonyPostfix]
-        private static void ShowHave(Transform elementRoot, Piece.Requirement req, Player player, int quality, int craftMultiplier, bool __result)
+        private static void ShowHave(Transform elementRoot, Piece.Requirement req, Player player, bool __result)
         {
-            if (!__result || !Plugin.Enabled.Value || !req.m_resItem || !player)
+            var icon = elementRoot.Find("res_icon");
+            var label = icon ? icon.Find(HaveLabel)?.GetComponent<TMP_Text>() : null;
+            if (!__result || !Plugin.Enabled.Value || !req.m_resItem || !player || !icon)
+            {
+                if (label)
+                    label.gameObject.SetActive(false);
                 return;
-            var amount = elementRoot.Find("res_amount")?.GetComponent<TMP_Text>();
-            if (!amount)
-                return;
-            var need = req.GetAmount(quality) * craftMultiplier;
-            var have = CountWithCart(player.GetInventory(), req.m_resItem.m_itemData.m_shared.m_name, -1, true);
-            amount.textWrappingMode = TextWrappingModes.NoWrap;
-            amount.text = $"{have}/{need}";
+            }
+            if (!label)
+            {
+                var amount = elementRoot.Find("res_amount")?.GetComponent<TMP_Text>();
+                if (!amount)
+                    return;
+                label = Object.Instantiate(amount, icon, false);
+                label.name = HaveLabel;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.fontSize = amount.fontSize * HaveSize;
+                label.enableAutoSizing = false;
+                label.alignment = TextAlignmentOptions.BottomRight;
+                label.color = Color.white;
+                var rect = label.rectTransform;
+                // Just above the icon's top right corner.
+                rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
+                rect.pivot = new Vector2(1f, 0f);
+                rect.anchoredPosition = Vector2.zero;
+                rect.sizeDelta = new Vector2(60f, 20f);
+            }
+            label.gameObject.SetActive(true);
+            label.text = CountWithCart(player.GetInventory(), req.m_resItem.m_itemData.m_shared.m_name, -1, true).ToString();
         }
+
+        private const float HaveSize = 0.75f;
     }
 }
