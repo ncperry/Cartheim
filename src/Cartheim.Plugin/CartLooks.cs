@@ -17,6 +17,7 @@ namespace Cartheim.Plugin
         // How far each half of the roof reaches past the ridge, so the two meet.
         private const float RidgeOverlap = 0.12f;
         private const string CrossPiece = "wood_wall_roof_top";
+        private const string Cauldron = "piece_cauldron";
         private const string BeamPiece = "wood_beam";
         // The rug lies just above the cart's floor.
         private const float RugLift = 0.02f;
@@ -30,14 +31,15 @@ namespace Cartheim.Plugin
         public static List<string> Shown(CartUpgrades upgrades)
         {
             var shown = new List<string>();
-            foreach (var piece in GamePieces.Beds.Concat(new[] { GamePieces.WorkbenchPiece, "forge" }).Concat(GamePieces.Rugs)
+            foreach (var piece in GamePieces.Beds.Concat(new[] { GamePieces.WorkbenchPiece, "forge", Cauldron })
                          .Concat(GamePieces.Chests).Append("piece_chest_barrel"))
                 if (upgrades.Has(piece))
                     shown.Add(piece);
             var roof = GamePieces.Roofs.LastOrDefault(upgrades.Has);
-            // After the roof: the hives hang from its rafters. Shown by slot, one per hive built.
+            // After the roof: the rug drapes over it, and the hives hang from its posts (shown by slot, one per hive built).
             if (roof != null)
                 shown.Add(roof);
+            shown.AddRange(GamePieces.Rugs.Where(upgrades.Has));
             shown.AddRange(GamePieces.BeehiveSlots.Take(upgrades.Count(CartUpgrades.Beehive)));
             return shown;
         }
@@ -69,13 +71,18 @@ namespace Cartheim.Plugin
                     continue;
                 if (GamePieces.Rugs.Contains(piece))
                 {
-                    LayOver(model, bed);
+                    // Over the roof when there is one (it hardly shows in the cart), else on the cart's floor.
+                    if (!_ridge.HasValue || !Drape(model))
+                        LayOver(model, bed);
                     continue;
                 }
                 if (GamePieces.Beds.Contains(piece))
                     Stand(model, new Vector3(cx, floor, cz), w, l, 1.2f);
                 else if (piece == GamePieces.WorkbenchPiece)
                     Stand(model, new Vector3(bed.min.x - 0.15f, floor, cz), 0.7f, l * 0.8f, 0.9f, 180f);
+                else if (piece == Cauldron)
+                    // At the front, in front of the bed, sticking out a little.
+                    Stand(model, new Vector3(cx, floor, bed.max.z + 0.1f), 0.6f, 0.6f, 0.7f);
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))
@@ -90,6 +97,10 @@ namespace Cartheim.Plugin
 
         public void Destroy()
         {
+            foreach (var mesh in _made)
+                if (mesh)
+                    Object.Destroy(mesh);
+            _made.Clear();
             if (Root)
                 Object.Destroy(Root);
             Anchors.Clear();
@@ -141,6 +152,9 @@ namespace Cartheim.Plugin
         private Vector3? _ridge;
         // How steeply the roof rises (up per across).
         private float _pitch;
+        // How far each half of the roof reaches across from the ridge, and how thick its covering is above the ridge line.
+        private float _roofHalfWidth;
+        private float _roofThickness;
 
         // The wild beehive's look (as found hanging in trees), small.
         private const string WildHive = "Beehive";
@@ -185,6 +199,76 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Cart hive {slot}: size {b.size}, scale {fit.Scale:0.00}, {(_ridge.HasValue ? "hanging off a back post" : "on the floor")}");
         }
 
+
+        // How much of each roof slope a draped rug covers, from the ridge down.
+        private const float DrapeReach = 0.9f;
+        // How far above the roof's covering a draped rug lies, so it doesn't sink into the thatch.
+        private const float DrapeLift = 0.03f;
+
+        // Meshes made for this cart's looks (a draped rug), destroyed with them.
+        private readonly List<Mesh> _made = new List<Mesh>();
+
+        // A rug laid over the roof's ridge and folded down both slopes: its longer side runs across the roof. Its meshes
+        // are bent copies; false (and the rug goes in the cart) if the game doesn't let its meshes be read.
+        private bool Drape(GameObject model)
+        {
+            var holder = model.transform.GetChild(0);
+            var parts = holder.GetComponentsInChildren<MeshFilter>();
+            if (parts.Length == 0 || parts.Any(p => !p.sharedMesh || !p.sharedMesh.isReadable))
+            {
+                Debug.Log($"[Cartheim] {model.name}'s mesh can't be read, so it can't be draped over the roof; it lies in the cart");
+                return false;
+            }
+            var size = BoundsOf(parts, model.transform);
+            if (size == null)
+                return false;
+            var b = size.Value;
+            var acrossX = b.size.x >= b.size.z;
+            var half = (acrossX ? b.size.x : b.size.z) / 2f;
+            var angle = Mathf.Atan(_pitch);
+            var slopeLength = _roofHalfWidth / Mathf.Cos(angle);
+            var fold = new Vector3(b.center.x, b.min.y, b.center.z);
+            foreach (var part in parts)
+            {
+                var place = Matrix4x4.TRS(part.transform.localPosition, part.transform.localRotation, part.transform.localScale);
+                var bent = Folded(part.sharedMesh, place, fold, acrossX, angle);
+                _made.Add(bent);
+                part.sharedMesh = bent;
+            }
+            holder.localRotation = acrossX ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+            holder.localPosition = -(holder.localRotation * fold);
+            model.transform.localScale = Vector3.one * (DrapeReach * slopeLength / half);
+            model.transform.localPosition = _ridge.Value + Vector3.up * (_roofThickness + DrapeLift);
+            Debug.Log($"[Cartheim] {model.name} draped over the roof: size {b.size}, scale {model.transform.localScale.x:0.00}");
+            return true;
+        }
+
+        // The mesh bent along a line through the fold point (along the rug's shorter side): each side goes down at the
+        // angle, as far along the slope as it reached across before.
+        private static Mesh Folded(Mesh mesh, Matrix4x4 place, Vector3 fold, bool acrossX, float angle)
+        {
+            var toPart = place.inverse;
+            var vertices = mesh.vertices;
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                var q = place.MultiplyPoint3x4(vertices[i]);
+                var u = acrossX ? q.x - fold.x : q.z - fold.z;
+                var reach = Mathf.Abs(u) * Mathf.Cos(angle);
+                var across = Mathf.Sign(u) * reach;
+                if (acrossX)
+                    q.x = fold.x + across;
+                else
+                    q.z = fold.z + across;
+                q.y = fold.y - Mathf.Abs(u) * Mathf.Sin(angle) + (q.y - fold.y);
+                vertices[i] = toPart.MultiplyPoint3x4(q);
+            }
+            var bent = Object.Instantiate(mesh);
+            bent.name = mesh.name + " draped";
+            bent.vertices = vertices;
+            bent.RecalculateNormals();
+            bent.RecalculateBounds();
+            return bent;
+        }
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
         // in a ridge down its middle, a wood roof cross on the ridge at each end, on a post at each corner. Placed by the
         // pieces' snap points, as the game fits them together on a house, not by their meshes (thatch hangs past its edges).
@@ -199,6 +283,11 @@ namespace Cartheim.Plugin
             var ridge = new Vector3(bed.center.x, eaves + scale * slope.Rise, bed.center.z);
             _ridge = ridge;
             _pitch = slope.Rise / slope.Run;
+            _roofHalfWidth = halfWidth;
+            // The top of the roof's thatch (or shingles) above the line its pieces fit together on.
+            var piecePrefab = GamePieces.Prefab(piece);
+            var meshes = piecePrefab ? BoundsOf(piecePrefab.GetComponentsInChildren<MeshFilter>(true), piecePrefab.transform) : null;
+            _roofThickness = meshes.HasValue ? Mathf.Max(0f, meshes.Value.max.y - slope.Top.y) * scale : 0f;
             foreach (var side in new[] { -1f, 1f })
             {
                 var model = Model(piece, Root.transform);
