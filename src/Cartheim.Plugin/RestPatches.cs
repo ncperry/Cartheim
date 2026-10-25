@@ -35,8 +35,9 @@ namespace Cartheim.Plugin
 
         private static readonly AccessTools.FieldRef<Player, Transform> AttachPoint = AccessTools.FieldRefAccess<Player, Transform>("m_attachPoint");
 
-        // How far from the middle of the cart a player getting out of its bed is put down: clear of the cart's sides.
-        private const float GetOutDistance = 1.4f;
+        // How far from the middle of the cart a player getting out of its bed is put down: clear of its sides, or its back.
+        private const float GetOutDistance = 1.6f;
+        private const float GetOutBehind = 2f;
 
         // Getting out of bed puts the player where they lay, a little higher: inside a cart, that's inside the cart's own
         // body, where they get stuck. Out of a cart's bed, they stand on the ground beside the cart instead.
@@ -54,12 +55,50 @@ namespace Cartheim.Plugin
             if (!__state || __instance.IsAttached())
                 return;
             var cart = __state.transform;
-            // The side the player was facing, so they get out where they look.
-            var side = Vector3.Dot(__instance.transform.forward, cart.right) >= 0f ? cart.right : -cart.right;
-            var spot = cart.position + side * GetOutDistance;
-            spot.y = ZoneSystem.instance ? ZoneSystem.instance.GetSolidHeight(spot) : spot.y;
+            // The side the player was facing first, so they get out where they look; then the other side, then behind.
+            var facing = Vector3.Dot(__instance.transform.forward, cart.right) >= 0f ? cart.right : -cart.right;
+            var spots = new[] { facing * GetOutDistance, -facing * GetOutDistance, -cart.forward * GetOutBehind };
+            var spot = cart.position + spots[0];
+            foreach (var offset in spots)
+            {
+                var candidate = cart.position + offset;
+                if (ZoneSystem.instance)
+                    candidate.y = ZoneSystem.instance.GetGroundHeight(candidate);
+                if (Clear(candidate, cart))
+                {
+                    spot = candidate;
+                    break;
+                }
+            }
+            // Moved through the body too: moving only the transform, the physics body can put the player back.
             __instance.transform.position = spot;
-            Debug.Log($"[Cartheim] Out of the cart's bed, beside the cart at {spot}");
+            var body = Body(__instance);
+            if (body)
+            {
+                body.position = spot;
+                body.linearVelocity = Vector3.zero;
+            }
+            Debug.Log($"[Cartheim] Out of the cart's bed (cart at {cart.position}), put beside it at {spot}");
+            __state.StartCoroutine(ReportWhereTheyStand(__instance, spot));
+        }
+
+        private static readonly AccessTools.FieldRef<Character, Rigidbody> Body = AccessTools.FieldRefAccess<Character, Rigidbody>("m_body");
+
+        // Somewhere a player can stand without being inside the cart: none of the cart's own solid colliders there.
+        private static bool Clear(Vector3 feet, Transform cart)
+        {
+            foreach (var collider in Physics.OverlapCapsule(feet + Vector3.up * 0.5f, feet + Vector3.up * 1.6f, 0.4f, ~0, QueryTriggerInteraction.Ignore))
+                if (collider.transform.IsChildOf(cart))
+                    return false;
+            return true;
+        }
+
+        // Half a second later: where the player actually is, in case something moved them back.
+        private static System.Collections.IEnumerator ReportWhereTheyStand(Player player, Vector3 putAt)
+        {
+            yield return new WaitForSeconds(0.5f);
+            if (player)
+                Debug.Log($"[Cartheim] Half a second out of the cart's bed, the player stands at {player.transform.position} ({Vector3.Distance(player.transform.position, putAt):0.00} m from where they were put)");
         }
 
         // Beside a cart with a fire near it, the game counts the player as sheltered...
