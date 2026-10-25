@@ -192,8 +192,31 @@ namespace Cartheim.Plugin
             // In its own space it stands across x, and its logs cross at its middle snap point.
             var points = SnapPoints(GamePieces.Prefab(CrossPiece));
             holder.localPosition = -(points.Count == 0 ? new Vector3(0f, 0.5f, 0f) : points.OrderBy(p => Mathf.Abs(p.x)).First());
-            cross.transform.localScale = Vector3.one * scale;
+            // Its logs are modelled thicker than a wood beam; across its face it shrinks until they match the beams (the same
+            // shrink both ways keeps their angle, so they stay in line with the beams), and keeps the roof's scale in depth.
+            var face = scale * LogToBeam(points);
+            cross.transform.localScale = new Vector3(face, face, scale);
             cross.transform.localPosition = onRidge;
+        }
+
+        // How much thinner a wood beam is than one of the cross's logs, across: the beam's height, against how far the
+        // cross's meshes reach past its top ends, square to the logs' slope, on both sides.
+        private static float LogToBeam(List<Vector3> crossPoints)
+        {
+            var crossPrefab = GamePieces.Prefab(CrossPiece);
+            var beamPrefab = GamePieces.Prefab(BeamPiece);
+            var cross = crossPrefab ? BoundsOf(crossPrefab.GetComponentsInChildren<MeshFilter>(true), crossPrefab.transform) : null;
+            var beam = beamPrefab ? BoundsOf(beamPrefab.GetComponentsInChildren<MeshFilter>(true), beamPrefab.transform) : null;
+            if (cross == null || beam == null || crossPoints.Count < 3)
+                return 1f;
+            var top = crossPoints.Max(p => p.y);
+            var crossing = crossPoints.OrderBy(p => Mathf.Abs(p.x)).First();
+            var end = crossPoints.First(p => Mathf.Abs(p.y - top) < 0.01f);
+            var pitch = Mathf.Atan2(top - crossing.y, Mathf.Abs(end.x - crossing.x));
+            var log = 2f * (cross.Value.max.y - top) * Mathf.Cos(pitch);
+            var ratio = log > 0f ? beam.Value.size.y / log : 1f;
+            Debug.Log($"[Cartheim] Roof cross logs {log:0.00} thick, beams {beam.Value.size.y:0.00}: cross shrunk to {ratio:0.00}");
+            return Mathf.Clamp(ratio, 0.3f, 1f);
         }
 
         // A wood beam from one point to another, as thick as the roof's scale makes it.
