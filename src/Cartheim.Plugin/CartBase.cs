@@ -28,6 +28,10 @@ namespace Cartheim.Plugin
         // The pieces riding hidden in the cart (chest, bed, rug, light...), by piece, once loaded.
         private readonly Dictionary<string, GameObject> _riders = new Dictionary<string, GameObject>();
         private CraftingStation _upgradeStation;
+        private Vagon _vagon;
+        // The small copies of built pieces standing in the cart, and which pieces they are.
+        private GameObject _looks;
+        private string _looksKey = "";
         private GameObject _hearth;
         private GameObject _wisp;
         private GameObject _baseArea;
@@ -38,6 +42,7 @@ namespace Cartheim.Plugin
         {
             _nview = GetComponent<ZNetView>();
             _wear = GetComponent<WearNTear>();
+            _vagon = GetComponent<Vagon>();
             if (_wear)
             {
                 _ownHealth = _wear.m_health;
@@ -72,6 +77,8 @@ namespace Cartheim.Plugin
             foreach (var station in _stations.Values)
                 if (station)
                     Destroy(station.gameObject);
+            if (_looks)
+                Destroy(_looks);
             if (_upgradeStation)
                 Destroy(_upgradeStation.gameObject);
             if (_hearth)
@@ -85,6 +92,9 @@ namespace Cartheim.Plugin
         // What the cart offers right now: nothing while the mod is switched off.
         public bool HasLitHearth => Plugin.Enabled.Value && _hearth;
         public bool HasRoof => Plugin.Enabled.Value && Upgrades.RoofLevel > 0;
+
+        // Whether the cart shows any built piece as itself, in place of the game's crates and sacks.
+        public bool HasLooks => Plugin.Enabled.Value && _looks;
 
         private void DropRefund()
         {
@@ -206,6 +216,15 @@ namespace Cartheim.Plugin
             {
                 Destroy(_hearth);
                 _hearth = null;
+            }
+            var wantLooks = on ? CartLooks.Shown(Upgrades) : new List<string>();
+            var looksKey = string.Join(",", wantLooks);
+            if (looksKey != _looksKey)
+            {
+                if (_looks)
+                    Destroy(_looks);
+                _looks = wantLooks.Count > 0 && _vagon ? CartLooks.Make(_vagon, wantLooks) : null;
+                _looksKey = looksKey;
             }
             if (on && !_upgradeStation)
                 _upgradeStation = MakeUpgradeStation();

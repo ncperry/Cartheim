@@ -132,3 +132,10 @@ the piece for the hammer, and only while the cart can take them (built and locke
 - [ ] Craft builds the upgrade at once ("Built X into the cart"); it drops off the list, and anything it unlocks appears.
 - [ ] Chest tab opens the chest beside the crafting screen; bed tab closes the screen and uses the bed; beehive tab takes
       its honey (its tooltip shows how much there is).
+
+## Step 13: the cart shows what's built (trial)
+
+- [ ] A cart with a workbench and forge shows small copies of them in its bed (workbench front left, forge front right),
+      in place of the crates and sacks.
+- [ ] A rug covers the whole bed; a chest (any kind) stands back left, a barrel back right.
+- [ ] The copies move with the cart, can't be bumped into, and go when Cartheim is switched off (the crates come back).

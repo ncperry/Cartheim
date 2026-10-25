@@ -59,7 +59,8 @@ namespace Cartheim.Plugin
             var cart = __instance.GetComponent<CartBase>();
             if (!Plugin.Enabled.Value || !cart)
                 return true;
-            var fullness = cart.Upgrades.Fullness;
+            // A cart showing its built pieces shows them alone.
+            var fullness = cart.HasLooks ? 0f : cart.Upgrades.Fullness;
             foreach (var load in __instance.m_loadVis)
                 load.m_gameobject.SetActive(fullness > 0f && fullness >= load.m_minPercentage);
             return false;
