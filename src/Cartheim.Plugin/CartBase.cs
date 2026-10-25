@@ -146,10 +146,25 @@ namespace Cartheim.Plugin
         {
             foreach (var (slot, rider) in _riders)
                 if (rider)
-                    CartRiders.Follow(rider, transform, _looks != null && _looks.Anchors.TryGetValue(GamePieces.PieceIn(slot), out var anchor) ? anchor : null);
+                    CartRiders.Follow(rider, transform, AnchorFor(slot));
             KeepSpawnPointOnBed();
             if (_wisp)
                 CartWisp.Float(_wisp, transform);
+        }
+
+        // Where a riding piece shows on the cart, by its slot (each hive has its own) or else its piece.
+        private Transform AnchorFor(string slot)
+        {
+            if (_looks == null)
+                return null;
+            return _looks.Anchors.TryGetValue(slot, out var anchor) || _looks.Anchors.TryGetValue(GamePieces.PieceIn(slot), out anchor) ? anchor : null;
+        }
+
+        // The beehive riding in a slot, while the mod is on and it is loaded.
+        public Beehive BeehiveIn(string slot)
+        {
+            var rider = Plugin.Enabled.Value ? Rider(slot) : null;
+            return rider ? rider.GetComponent<Beehive>() : null;
         }
 
         public CraftingStation Station(string piece) => _stations.TryGetValue(piece, out var s) ? s : null;

@@ -23,6 +23,8 @@ namespace Cartheim.Plugin
 
         private CraftingStation Station => _cart.Station(_piece);
 
+        private Beehive Hive => GamePieces.BeehiveSlots.Contains(_piece) ? _cart.BeehiveIn(_piece) : null;
+
         public string GetHoverText()
         {
             if (!_cart || !Plugin.Enabled.Value)
@@ -31,6 +33,9 @@ namespace Cartheim.Plugin
             var bed = Bed;
             if (bed)
                 return bed.GetHoverText() + Localization.instance.Localize(cartKey);
+            var hive = Hive;
+            if (hive)
+                return hive.GetHoverText() + Localization.instance.Localize(cartKey);
             var container = Container;
             if (container)
                 return container.GetHoverText() + Localization.instance.Localize(cartKey);
@@ -53,6 +58,9 @@ namespace Cartheim.Plugin
             var bed = Bed;
             if (bed)
                 return bed.Interact(user, false, false);
+            var hive = Hive;
+            if (hive)
+                return hive.Interact(user, false, false);
             var container = Container;
             if (container)
                 return container.Interact(user, false, false);

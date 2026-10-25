@@ -35,8 +35,10 @@ namespace Cartheim.Plugin
                 if (upgrades.Has(piece))
                     shown.Add(piece);
             var roof = GamePieces.Roofs.LastOrDefault(upgrades.Has);
+            // After the roof: the hives hang from its rafters. Shown by slot, one per hive built.
             if (roof != null)
                 shown.Add(roof);
+            shown.AddRange(GamePieces.BeehiveSlots.Take(upgrades.Count(CartUpgrades.Beehive)));
             return shown;
         }
 
@@ -52,6 +54,11 @@ namespace Cartheim.Plugin
             var cz = bed.center.z;
             foreach (var piece in shown)
             {
+                if (GamePieces.BeehiveSlots.Contains(piece))
+                {
+                    Hive(piece, bed, floor, cart, vagon.gameObject.layer);
+                    continue;
+                }
                 if (GamePieces.Roofs.Contains(piece))
                 {
                     Roof(GamePieces.MadeOf(piece), bed);
@@ -129,6 +136,49 @@ namespace Cartheim.Plugin
             model.transform.localScale = new Vector3(bed.size.x / width, 1f, bed.size.z / length);
         }
 
+
+        // The top of the roof, down its middle, once a roof is built.
+        private Vector3? _ridge;
+
+        // The wild beehive's look (as found hanging in trees), small.
+        private const string WildHive = "Beehive";
+        private const float HiveSize = 0.4f;
+        // How far below the top of the roof the rafters a hive hangs from are.
+        private const float RaftersBelowRidge = 0.15f;
+
+        // A beehive hangs from the roof's rafters, the first at the back, the second at the front; with no roof, it sits
+        // on the cart's floor there.
+        private void Hive(string slot, Bounds bed, float floor, CartBase cart, int layer)
+        {
+            var model = Model(WildHive, Root.transform);
+            if (!model)
+            {
+                Debug.LogWarning($"[Cartheim] No {WildHive} model to show the cart's hive with");
+                return;
+            }
+            var holder = model.transform.GetChild(0);
+            var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), model.transform);
+            if (size == null)
+                return;
+            var b = size.Value;
+            var fit = Fit.Into(HiveSize, HiveSize, HiveSize, b.size.x, b.size.z, b.size.y);
+            var z = slot.Contains('#') ? bed.max.z - HiveSize : bed.min.z + HiveSize;
+            if (_ridge.HasValue)
+            {
+                // Hung by its top.
+                holder.localPosition = -new Vector3(b.center.x, b.max.y, b.center.z);
+                model.transform.localPosition = new Vector3(bed.center.x, _ridge.Value.y - RaftersBelowRidge, z);
+            }
+            else
+            {
+                holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z);
+                model.transform.localPosition = new Vector3(bed.center.x, floor, z);
+            }
+            model.transform.localScale = Vector3.one * fit.Scale;
+            Anchors[slot] = holder;
+            Hover(model, cart, slot, layer);
+            Debug.Log($"[Cartheim] Cart hive {slot}: size {b.size}, scale {fit.Scale:0.00}, {(_ridge.HasValue ? "hanging from the rafters" : "on the floor")}");
+        }
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
         // in a ridge down its middle, a wood roof cross on the ridge at each end, on a post at each corner. Placed by the
         // pieces' snap points, as the game fits them together on a house, not by their meshes (thatch hangs past its edges).
@@ -141,6 +191,7 @@ namespace Cartheim.Plugin
             var scale = halfWidth / slope.Run;
             var alongRidge = (bed.size.z + RoofOverhang) / slope.Width;
             var ridge = new Vector3(bed.center.x, eaves + scale * slope.Rise, bed.center.z);
+            _ridge = ridge;
             foreach (var side in new[] { -1f, 1f })
             {
                 var model = Model(piece, Root.transform);
