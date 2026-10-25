@@ -334,7 +334,7 @@ namespace Cartheim.Plugin
         }
 
         private const float SconceSize = 0.5f;
-        private const float SconceBelowEaves = 0.45f;
+        private const float SconceBelowEaves = 0.65f;
         // Half a roof post's thickness, so a sconce sits on its face.
         private const float PostHalfWidth = 0.08f;
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
