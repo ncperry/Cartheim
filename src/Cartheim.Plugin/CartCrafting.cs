@@ -198,6 +198,7 @@ namespace Cartheim.Plugin
             piece == SteamEngine.Boiler || piece == SteamEngine.Pistons ? "\n\n<color=orange>The steam engine takes a quarter more of the cart's pull off you. With both, pulling the cart doesn't slow you at all.</color>" :
             piece == CartUpgrades.Beehive ? "\n\n<color=orange>Up to two per cart. Its bees are always happy.</color>" :
             piece == GamePieces.Fermenter ? "\n\n<color=orange>Ferments under the cart's roof, wherever the cart goes.</color>" :
+            piece == Tent.Piece ? "\n\n<color=orange>Pitch it beside the cart (on fairly flat ground) with the tent button below the station tabs: it keeps the rain off you and your campfire. The cart stays put until you pack it up.</color>" :
             "";
 
         // Valheim Inventory's craft counter (how many Craft makes) doesn't apply to upgrades: each is built once. Runs after

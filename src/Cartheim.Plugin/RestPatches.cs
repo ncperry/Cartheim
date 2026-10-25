@@ -40,7 +40,8 @@ namespace Cartheim.Plugin
         private const float GetOutBehind = 2f;
 
         // Getting out of bed puts the player where they lay, a little higher: inside a cart, that's inside the cart's own
-        // body, where they get stuck. Out of a cart's bed, they stand on the ground beside the cart instead.
+        // body, where they get stuck. Out of a cart's bed, they stand under its pitched tent, or else on the ground beside the
+        // cart.
         [HarmonyPatch(typeof(Player), nameof(Player.AttachStop)), HarmonyPrefix]
         private static void LeavingCartBed(Player __instance, out CartBase __state)
         {
@@ -59,17 +60,21 @@ namespace Cartheim.Plugin
             var facing = Vector3.Dot(__instance.transform.forward, cart.right) >= 0f ? cart.right : -cart.right;
             var spots = new[] { facing * GetOutDistance, -facing * GetOutDistance, -cart.forward * GetOutBehind };
             var spot = cart.position + spots[0];
-            foreach (var offset in spots)
-            {
-                var candidate = cart.position + offset;
-                if (ZoneSystem.instance)
-                    candidate.y = ZoneSystem.instance.GetGroundHeight(candidate);
-                if (Clear(candidate, cart))
+            // With the tent pitched, they wake up under it.
+            if (__state.TentFloor is Vector3 tent)
+                spot = new Vector3(tent.x, ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(tent) : tent.y, tent.z);
+            else
+                foreach (var offset in spots)
                 {
-                    spot = candidate;
-                    break;
+                    var candidate = cart.position + offset;
+                    if (ZoneSystem.instance)
+                        candidate.y = ZoneSystem.instance.GetGroundHeight(candidate);
+                    if (Clear(candidate, cart))
+                    {
+                        spot = candidate;
+                        break;
+                    }
                 }
-            }
             // Moved through the body too: moving only the transform, the physics body can put the player back.
             __instance.transform.position = spot;
             var body = Body(__instance);

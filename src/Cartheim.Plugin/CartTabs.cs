@@ -9,8 +9,9 @@ using Object = UnityEngine.Object;
 namespace Cartheim.Plugin
 {
     // A column of icon tabs down the left of the crafting screen while at one of a cart's stations: the Cart (its
-    // upgrades), each station built in, then its beehives, used rather than crafted at. (Its containers are all open
-    // beside the crafting screen, see CartStorage; its bed is used by clicking it in the cart.)
+    // upgrades), each station built in, then its beehives, used rather than crafted at, and its tent, pitched or packed
+    // up. (Its containers are all open beside the crafting screen, see CartStorage; its bed is used by clicking it in the
+    // cart.)
     internal class CartTabs
     {
         private const float Size = 56f;
@@ -70,6 +71,9 @@ namespace Cartheim.Plugin
             }
             foreach (var hive in cart.Beehives)
                 targets.Add((hive, PieceName(hive), $"{Localization.instance.Localize(hive.m_name)}: honey {CartRiders.HoneyIn(hive)} / {hive.m_maxHoney}, click to take it"));
+            // Last, below the hives: the tent, pitched or packed up with a click.
+            if (cart.HasTent)
+                targets.Add((cart, Cartheim.Core.Tent.Piece, cart.TentUp ? "Tent: click to pack it up (the cart can move again)" : "Tent: click to pitch it beside the cart (the cart then stays put)"));
             return targets;
         }
 
@@ -102,6 +106,9 @@ namespace Cartheim.Plugin
                     break;
                 case Beehive hive:
                     hive.Interact(player, false, false);
+                    break;
+                case CartBase cart:
+                    cart.ToggleTent(player);
                     break;
             }
         }

@@ -13,6 +13,9 @@ namespace Cartheim.Plugin
         private const string SaveKey = "cartheim_upgrades";
         private const string AddRpc = "Cartheim_Add";
         private const string AddCoalRpc = "Cartheim_AddCoal";
+        private const string TentRpc = "Cartheim_Tent";
+        // Whether the cart's tent is pitched.
+        private const string TentKey = "cartheim_tent_up";
         // The coal in the steam engine, and when it last burnt.
         private const string CoalKey = "cartheim_coal";
         private const string CoalTimeKey = "cartheim_coal_time";
@@ -46,6 +49,9 @@ namespace Cartheim.Plugin
         private Rigidbody[] _bodies = new Rigidbody[0];
         // How much of the pull the steam engine takes off the player right now (0 to 1).
         private float _assist;
+        // The tent pitched beside the cart, and how each of the cart's bodies was held before the tent held it still.
+        private GameObject _tent;
+        private readonly Dictionary<Rigidbody, RigidbodyConstraints> _unfrozen = new Dictionary<Rigidbody, RigidbodyConstraints>();
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -70,6 +76,8 @@ namespace Cartheim.Plugin
             _nview.Register<string, string>(AddRpc, RPC_Add);
             _nview.Unregister(AddCoalRpc);
             _nview.Register(AddCoalRpc, RPC_AddCoal);
+            _nview.Unregister(TentRpc);
+            _nview.Register<bool>(TentRpc, RPC_Tent);
             _bodies = GetComponentsInChildren<Rigidbody>();
             All.Add(this);
             InvokeRepeating(nameof(Refresh), 0.5f, 1f);
@@ -86,6 +94,11 @@ namespace Cartheim.Plugin
                 _nview.Unregister(ChestRpc);
             if (_nview)
                 _nview.Unregister(AddCoalRpc);
+            if (_nview)
+                _nview.Unregister(TentRpc);
+            if (_tent)
+                Destroy(_tent);
+            Freeze(false);
             if (_wear)
             {
                 _wear.m_onDestroyed -= DropRefund;
@@ -178,6 +191,80 @@ namespace Cartheim.Plugin
         }
 
         private const float EngineFireHeight = 0.1f;
+
+        public bool HasTent => Plugin.Enabled.Value && Upgrades.Has(Tent.Piece);
+
+        // Pitched beside the cart; the cart stays put (and can't be hitched) until it's packed up.
+        public bool TentUp => HasTent && _nview && _nview.IsValid() && _nview.GetZDO().GetBool(TentKey);
+
+        // Where a player getting up should stand: under the pitched tent.
+        public Vector3? TentFloor => _tent ? _tent.transform.position : (Vector3?)null;
+
+        // Whether a point (a player, a fire) is under the cart's pitched tent.
+        public bool Shelters(Vector3 point) => _tent && TentAssets.Under(_tent, point, Plugin.TentMaxRise.Value);
+
+        // The tent button: packs the tent up, or pitches it where the ground beside the cart is flat enough.
+        public void ToggleTent(Player player)
+        {
+            if (!HasTent)
+                return;
+            if (TentUp)
+            {
+                _nview.InvokeRPC(TentRpc, false);
+                player.Message(MessageHud.MessageType.Center, "Packed up the tent");
+                Debug.Log($"[Cartheim] Cart {Uid()}'s tent packed up");
+                return;
+            }
+            if (_vagon && _vagon.IsAttached())
+            {
+                player.Message(MessageHud.MessageType.Center, "Unhitch the cart first");
+                return;
+            }
+            if (!TentAssets.Spot(transform, out var at, out _, out var heights))
+            {
+                player.Message(MessageHud.MessageType.Center, "There's no tent to pitch");
+                return;
+            }
+            var rise = heights.Max() - heights.Min();
+            Debug.Log($"[Cartheim] Pitching cart {Uid()}'s tent at {at}: the ground rises {rise:0.00} m (at most {Plugin.TentMaxRise.Value} m)");
+            if (!Tent.FlatEnough(heights, Plugin.TentMaxRise.Value))
+            {
+                player.Message(MessageHud.MessageType.Center, $"The ground beside the cart is too uneven for the tent ({rise:0.0} m from high to low)");
+                return;
+            }
+            _nview.InvokeRPC(TentRpc, true);
+            player.Message(MessageHud.MessageType.Center, "Pitched the tent");
+        }
+
+        private void RPC_Tent(long sender, bool up)
+        {
+            if (!_nview.IsOwner())
+                return;
+            _nview.GetZDO().Set(TentKey, up);
+            Refresh();
+        }
+
+        // Held still (while the tent is pitched): every part of the cart frozen where it is; let go, each as it was.
+        private void Freeze(bool still)
+        {
+            foreach (var body in _bodies)
+            {
+                if (!body)
+                    continue;
+                if (still && !_unfrozen.ContainsKey(body))
+                {
+                    _unfrozen[body] = body.constraints;
+                    body.constraints = RigidbodyConstraints.FreezeAll;
+                }
+                else if (!still && _unfrozen.TryGetValue(body, out var was))
+                {
+                    body.constraints = was;
+                    body.WakeUp();
+                }
+            }
+            if (!still)
+                _unfrozen.Clear();
+        }
 
         // The coal in the steam engine, as its owner keeps it.
         public float Coal => _nview && _nview.IsValid() ? _nview.GetZDO().GetFloat(CoalKey) : 0f;
@@ -383,6 +470,15 @@ namespace Cartheim.Plugin
                 Destroy(_wisp);
                 _wisp = null;
             }
+            var wantTent = on && TentUp;
+            if (wantTent && !_tent && TentAssets.Spot(transform, out var tentAt, out var tentFacing, out _))
+                _tent = TentAssets.Pitch(tentAt, tentFacing);
+            else if (!wantTent && _tent)
+            {
+                Destroy(_tent);
+                _tent = null;
+            }
+            Freeze(wantTent);
             BurnCoal(on);
             _assist = on ? SteamEngine.Assist(Upgrades.Level(SteamEngine.Engine), Coal) : 0f;
             // A hearth built before the steam engine replaced it still burns; the engine burns while it has coal.

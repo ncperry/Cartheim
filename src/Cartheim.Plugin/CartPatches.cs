@@ -17,13 +17,21 @@ namespace Cartheim.Plugin
         }
 
         // The alternate interact (Shift+E) opens the cart's crafting screen with all its storage open: at its workbench,
-        // or at the Cart tab (its upgrades) before it has one. Plain E still hitches the cart.
+        // or at the Cart tab (its upgrades) before it has one. Plain E still hitches the cart, unless its tent is pitched.
         [HarmonyPatch(typeof(Vagon), nameof(Vagon.Interact)), HarmonyPrefix]
         private static bool OpenCartCrafting(Vagon __instance, Humanoid character, bool hold, bool alt, ref bool __result)
         {
+            var cart = __instance.GetComponent<CartBase>();
+            // With its tent pitched, the cart can't be hitched: pack the tent up first.
+            if (!alt && cart && cart.TentUp)
+            {
+                if (!hold)
+                    character.Message(MessageHud.MessageType.Center, "Pack up the tent first");
+                __result = false;
+                return false;
+            }
             if (!alt || hold || !Plugin.Enabled.Value || character != Player.m_localPlayer)
                 return true;
-            var cart = __instance.GetComponent<CartBase>();
             var station = cart ? cart.Station(GamePieces.WorkbenchPiece) : null;
             if (!station && cart)
                 station = cart.UpgradeStation;
@@ -93,23 +101,38 @@ namespace Cartheim.Plugin
                 HaveFire(__instance) = CartFire.Near(marker.Cart.transform.position);
         }
 
-        // Near a roofed cart the player is under a roof: no rain soaks them, and the game counts them as sheltered.
+        // Under a cart's pitched tent, or lying in the bed under a cart's roof, the player is under a roof: no rain soaks
+        // them, and the game counts them as sheltered.
         [HarmonyPatch(typeof(Player), "UpdateCover"), HarmonyPostfix]
-        private static void ShelterUnderCartRoof(Player __instance, ref bool ___m_underRoof, ref float ___m_coverPercentage)
+        private static void ShelterUnderCartTent(Player __instance, ref bool ___m_underRoof, ref float ___m_coverPercentage)
         {
             if (__instance != Player.m_localPlayer || ___m_underRoof && ___m_coverPercentage >= 0.8f)
                 return;
-            if (!CartFire.UnderCartRoof(__instance.transform.position))
+            if (!CartFire.UnderCartTent(__instance.transform.position) && !InCartBedUnderRoof(__instance))
                 return;
             ___m_underRoof = true;
             ___m_coverPercentage = 1f;
         }
 
-        // A fire near a roofed cart stays dry, so rain and wind don't put it out.
-        [HarmonyPatch(typeof(Fireplace), "CheckWet"), HarmonyPostfix]
-        private static void KeepFireDryUnderCartRoof(Fireplace __instance, ref bool ___m_wet)
+        private static readonly AccessTools.FieldRef<Player, Transform> AttachPoint = AccessTools.FieldRefAccess<Player, Transform>("m_attachPoint");
+
+        private static bool InCartBedUnderRoof(Player player)
         {
-            if (___m_wet && CartFire.UnderCartRoof(__instance.transform.position))
+            if (!player.IsAttached())
+                return false;
+            var point = AttachPoint(player);
+            var bed = point ? point.GetComponentInParent<Bed>() : null;
+            if (!bed || !bed.GetComponent<CartRider>())
+                return false;
+            var cart = CartFire.CartNear(bed.transform.position);
+            return cart && cart.HasRoof;
+        }
+
+        // A fire under a cart's pitched tent stays dry, so rain and wind don't put it out.
+        [HarmonyPatch(typeof(Fireplace), "CheckWet"), HarmonyPostfix]
+        private static void KeepFireDryUnderCartTent(Fireplace __instance, ref bool ___m_wet)
+        {
+            if (___m_wet && CartFire.UnderCartTent(__instance.transform.position))
                 ___m_wet = false;
         }
 

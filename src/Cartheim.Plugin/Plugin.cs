@@ -17,6 +17,9 @@ namespace Cartheim.Plugin
         // How heavy the cart feels to pull, as the weight of what it would carry.
         public static ConfigEntry<float> FeltLoad;
 
+        // How uneven the ground may be where the tent is pitched.
+        public static ConfigEntry<float> TentMaxRise;
+
         private readonly CartTabs _cartTabs = new CartTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
@@ -29,6 +32,9 @@ namespace Cartheim.Plugin
             FeltLoad = Config.Bind("Cart", "Pulls as if carrying", 600f,
                 "The cart pulls as if its storage weighed this much, whatever it holds: 0 is an empty cart's light, " +
                 "rattly pull; more is steadier and slower. Unlimited storage would otherwise make a full cart drag.");
+            TentMaxRise = Config.Bind("Cart", "Tent ground rise", 0.6f,
+                "How much higher (in metres) the ground may be at one place than another where the tent would stand; " +
+                "on rougher ground it can't be pitched.");
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));
@@ -66,6 +72,7 @@ namespace Cartheim.Plugin
             _cartTabs.Destroy();
             CartCrafting.Destroy();
             CartStorage.Close();
+            TentAssets.Release();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);
         }

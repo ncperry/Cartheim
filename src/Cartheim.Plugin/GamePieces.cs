@@ -80,13 +80,16 @@ namespace Cartheim.Plugin
         public static readonly string[] EngineParts = { SteamEngine.Engine, SteamEngine.Boiler, SteamEngine.Pistons };
         public const string EngineLooksLike = "smelter";
 
-        private static readonly Dictionary<string, (string name, string description, ItemCount[] recipe)> Engine =
+        private static readonly Dictionary<string, (string name, string description, ItemCount[] recipe)> OwnPieces =
             new Dictionary<string, (string, string, ItemCount[])>
             {
                 [SteamEngine.Engine] = ("Steam engine", "A coal-fired engine that pushes the cart along. Burns like a hearth while it has coal.",
                     new[] { new ItemCount("Iron", 10), new ItemCount("IronNails", 5) }),
                 [SteamEngine.Boiler] = ("Bigger boiler", "More steam for the steam engine.", new[] { new ItemCount("Iron", 5) }),
                 [SteamEngine.Pistons] = ("Second piston", "More push from the steam engine.", new[] { new ItemCount("Iron", 5) }),
+                // Haldor's cloth tent, pitched beside the cart.
+                [Tent.Piece] = ("Tent", "A cloth tent, pitched beside the cart when it stops for the night.",
+                    new[] { new ItemCount("DeerHide", 10), new ItemCount("LeatherScraps", 10), new ItemCount("Wood", 2) }),
             };
 
         // The upgrade panel's sections, in order.
@@ -102,6 +105,7 @@ namespace Cartheim.Plugin
             yield return ("Wisp", new[] { WispTorch });
             yield return ("Bees (up to two hives)", new[] { CartUpgrades.Beehive });
             yield return ("Brewing", new[] { Fermenter });
+            yield return ("Camp", new[] { Tent.Piece });
         }
 
         // Every hammer piece that is a crafting station or extends one, as the game has them.
@@ -167,18 +171,21 @@ namespace Cartheim.Plugin
 
         // The game piece an upgrade is: the roof piece a cart roof is made of, otherwise the piece itself.
         public static string MadeOf(string piece) =>
-            RoofMadeOf.TryGetValue(piece, out var roof) ? roof.piece : Engine.ContainsKey(piece) ? EngineLooksLike : piece;
+            RoofMadeOf.TryGetValue(piece, out var roof) ? roof.piece : EngineParts.Contains(piece) ? EngineLooksLike : piece;
 
         // The piece's icon, as the build menu shows it.
         public static Sprite Icon(string piece)
         {
+            // The tent is no game piece: it shows as a deer hide.
+            if (piece == Tent.Piece)
+                return Item("DeerHide")?.m_itemData.GetIcon();
             var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
             return p ? p.m_icon : null;
         }
 
         public static string Description(string piece)
         {
-            if (Engine.TryGetValue(piece, out var engine))
+            if (OwnPieces.TryGetValue(piece, out var engine))
                 return engine.description;
             var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
             return p ? p.m_description : "";
@@ -187,13 +194,16 @@ namespace Cartheim.Plugin
         // Whether the player has learnt the piece for the hammer (by finding its materials), as for building it anywhere.
         public static bool KnownBy(Player player, string piece)
         {
+            // The tent: once the player has found what it's made of.
+            if (piece == Tent.Piece)
+                return player.NoCostCheat() || Recipe(piece).All(c => Item(c.Prefab) && player.IsMaterialKnown(Item(c.Prefab).m_itemData.m_shared.m_name));
             var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
             return p && (player.NoCostCheat() || player.IsRecipeKnown(p.m_name));
         }
 
         public static string DisplayName(string piece)
         {
-            if (Engine.TryGetValue(piece, out var engine))
+            if (OwnPieces.TryGetValue(piece, out var engine))
                 return engine.name;
             if (RoofMadeOf.TryGetValue(piece, out var roof))
                 return DisplayName(roof.piece).Split(' ')[0] + " roof";
@@ -204,7 +214,7 @@ namespace Cartheim.Plugin
         // The piece's own recipe as prefab names, as the hammer would charge it.
         public static List<ItemCount> Recipe(string piece)
         {
-            if (Engine.TryGetValue(piece, out var engine))
+            if (OwnPieces.TryGetValue(piece, out var engine))
                 return engine.recipe.ToList();
             if (RoofMadeOf.TryGetValue(piece, out var roof))
                 return Recipe(roof.piece).Select(c => new ItemCount(c.Prefab, c.Count * RoofPiecesPerRoof)).ToList();

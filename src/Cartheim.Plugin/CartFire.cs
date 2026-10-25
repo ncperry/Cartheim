@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Cartheim.Plugin
 {
     // What's close enough to a cart to count as the cart's own: a fire (for the cauldron, sleeping and rest) and, the other
-    // way round, which carts shelter a point under their roof.
+    // way round, which carts shelter a point under their pitched tent.
     internal static class CartFire
     {
         public const float Range = 5f;
@@ -13,8 +13,14 @@ namespace Cartheim.Plugin
             NearCart(point, cart => cart.HasLitHearth) ||
             EffectArea.IsPointInsideArea(point, EffectArea.Type.Burning, Range) != null;
 
-        // Within range of a cart with a roof: kept out of the rain.
-        public static bool UnderCartRoof(Vector3 point) => NearCart(point, cart => cart.HasRoof);
+        // Under a cart's pitched tent: kept out of the rain.
+        public static bool UnderCartTent(Vector3 point)
+        {
+            foreach (var cart in CartBase.All)
+                if (cart && cart.Shelters(point))
+                    return true;
+            return false;
+        }
 
         // Beside a cart that has a fire near it (its own hearth, or a fire within range): a place to rest, roof or no roof.
         public static bool RestingByCart(Vector3 point) => NearCart(point, cart => Plugin.Enabled.Value && Near(cart.transform.position));
