@@ -90,11 +90,21 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void A_cart_takes_only_one_light()
+        public void A_cart_with_a_sconce_can_take_fey_lights_too()
         {
             var cart = new CartUpgrades();
             cart.Add("piece_workbench");
-            cart.Add("piece_FairylightGarland");
+            cart.Add("piece_walltorch");
+
+            Assert.True(cart.CanAdd("piece_FairylightGarland"));
+        }
+
+        [Fact]
+        public void A_cart_takes_each_light_once()
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            cart.Add("piece_walltorch");
 
             Assert.False(cart.CanAdd("piece_walltorch"));
         }
@@ -106,13 +116,13 @@ namespace Cartheim.Core.Tests
         [InlineData("piece_hoodedlantern")]
         [InlineData("piece_jackoturnip")]
         [InlineData("piece_snowlantern")]
-        public void Every_lantern_counts_as_the_one_light(string lantern)
+        public void Every_lantern_can_go_in_alongside_the_fey_lights(string lantern)
         {
             var cart = new CartUpgrades();
             cart.Add("piece_workbench");
             cart.Add(lantern);
 
-            Assert.False(cart.CanAdd("piece_FairylightGarland"));
+            Assert.True(cart.CanAdd("piece_FairylightGarland"));
         }
 
         [Theory]

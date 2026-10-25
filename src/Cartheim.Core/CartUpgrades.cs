@@ -13,13 +13,6 @@ namespace Cartheim.Core
         // A cart holds one chest, whichever kind.
         private static readonly HashSet<string> Chests = new HashSet<string> { "piece_chest_wood", "piece_chest", "piece_chest_blackmetal", "piece_chest_private", "piece_chest_grausten" };
 
-        // A cart has one light to glow with.
-        private static readonly HashSet<string> Lights = new HashSet<string>
-        {
-            "piece_FairylightGarland", "piece_walltorch", "piece_dvergr_lantern", "piece_dvergr_lantern_pole", "piece_Lavalantern",
-            "piece_hoodedlantern", "piece_jackoturnip", "piece_snowlantern",
-        };
-
         // One bed to sleep in (and respawn at), one rug: only the best of each counts for comfort anyway.
         private static readonly HashSet<string> Beds = new HashSet<string> { "bed", "piece_bed02", "ashwood_bed" };
 
@@ -33,7 +26,8 @@ namespace Cartheim.Core
         public const int MaxBeehives = 2;
 
         // Kinds of piece a cart holds only one of.
-        private static readonly HashSet<string>[] OneOfEach = { Chests, Lights, Beds, Rugs };
+        // (Lights aren't among them: a cart takes as many kinds of light as you like, each once.)
+        private static readonly HashSet<string>[] OneOfEach = { Chests, Beds, Rugs };
 
         public const float HealthPerWorkbenchLevel = 100f;
         public const float ArmorPerForgeLevel = 5f;
