@@ -139,3 +139,13 @@ the piece for the hammer, and only while the cart can take them (built and locke
       in place of the crates and sacks.
 - [ ] A rug covers the whole bed; a chest (any kind) stands back left, a barrel back right.
 - [ ] The copies move with the cart, can't be bumped into, and go when Cartheim is switched off (the crates come back).
+
+## Step 14: all the cart's storage at once (replaces the Cart/Chest page tabs)
+
+- [ ] Shift+E opens the crafting screen and, at the same time, your inventory, the cart's own storage, and a panel each for
+      its chest, barrel and wardrobe (whichever are built): the cart's storage where a chest usually shows, the others to
+      its right, below it, and below right.
+- [ ] Drag items between any of them and your inventory. Ctrl+click in a chest/barrel/wardrobe panel moves the item to your
+      inventory; Ctrl+click in your inventory moves it into the cart's own storage.
+- [ ] Close the inventory, or walk away: they all close. A second player can then open them.
+- [ ] A personal chest built by someone else doesn't show ("can't open").

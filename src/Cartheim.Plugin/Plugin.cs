@@ -15,7 +15,6 @@ namespace Cartheim.Plugin
         public static ConfigEntry<bool> Enabled;
 
         private readonly CartTabs _cartTabs = new CartTabs();
-        private readonly ChestTabs _chestTabs = new ChestTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
 
@@ -28,6 +27,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));
             _harmony.PatchAll(typeof(RestPatches));
+            _harmony.PatchAll(typeof(CartStorage));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
             foreach (var vagon in FindObjectsByType<Vagon>(UnityEngine.FindObjectsSortMode.None))
                 if (!vagon.GetComponent<CartBase>() && vagon.GetComponent<ZNetView>()?.GetZDO() != null)
@@ -42,7 +42,7 @@ namespace Cartheim.Plugin
                 _loggedPieces = true;
                 GamePieces.LogStationPieces();
             }
-            _chestTabs.Update();
+            CartStorage.Update();
         }
 
         // After every Update, where other mods set up the crafting screen's buttons.
@@ -57,7 +57,7 @@ namespace Cartheim.Plugin
             _harmony?.UnpatchSelf();
             _cartTabs.Destroy();
             CartCrafting.Destroy();
-            _chestTabs.Destroy();
+            CartStorage.Close();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);
         }

@@ -13,8 +13,8 @@ namespace Cartheim.Plugin
                 __instance.gameObject.AddComponent<CartBase>();
         }
 
-        // The alternate interact (Shift+E) opens the cart's crafting screen at its workbench, or at the Cart tab (its
-        // upgrades) before it has one; plain E still hitches the cart.
+        // The alternate interact (Shift+E) opens the cart's crafting screen with all its storage open: at its workbench,
+        // or at the Cart tab (its upgrades) before it has one. Plain E still hitches the cart.
         [HarmonyPatch(typeof(Vagon), nameof(Vagon.Interact)), HarmonyPrefix]
         private static bool OpenCartCrafting(Vagon __instance, Humanoid character, bool hold, bool alt, ref bool __result)
         {
@@ -27,6 +27,7 @@ namespace Cartheim.Plugin
             if (!station)
                 return true;
             CartCrafting.Use(station);
+            CartStorage.Open(cart);
             __result = true;
             return false;
         }

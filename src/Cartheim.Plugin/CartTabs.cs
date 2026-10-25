@@ -9,15 +9,12 @@ using Object = UnityEngine.Object;
 namespace Cartheim.Plugin
 {
     // A column of icon tabs down the left of the crafting screen while at one of a cart's stations: the Cart (its
-    // upgrades), each station built in, then the pieces riding in it that are used rather than crafted at: the chest and
-    // other containers, the bed and the beehives.
+    // upgrades), each station built in, then the pieces riding in it that are used rather than crafted at: the bed and
+    // the beehives. (Its containers are all open beside the crafting screen; see CartStorage.)
     internal class CartTabs
     {
         private const float Size = 56f;
         private const float Gap = 4f;
-
-        private static readonly AccessTools.FieldRef<InventoryGui, Container> CurrentContainer =
-            AccessTools.FieldRefAccess<InventoryGui, Container>("m_currentContainer");
 
         private GameObject _column;
         private CartBase _shownFor;
@@ -71,8 +68,6 @@ namespace Cartheim.Plugin
                 if (station)
                     targets.Add((station, piece, GamePieces.DisplayName(piece)));
             }
-            foreach (var container in cart.Containers)
-                targets.Add((container, PieceName(container), Localization.instance.Localize(container.m_name)));
             var bed = cart.Bed;
             if (bed)
                 targets.Add((bed, PieceName(bed), Localization.instance.Localize(bed.GetComponent<Piece>().m_name) + ": first use sets your spawn point, then sleep"));
@@ -107,13 +102,6 @@ namespace Cartheim.Plugin
             {
                 case CraftingStation station:
                     CartCrafting.Use(station);
-                    break;
-                case Container container:
-                    // Showing another container doesn't let go of the one on show; let go of it, or nobody else could open it.
-                    var open = CurrentContainer(InventoryGui.instance);
-                    if (open && open != container && open.IsOwner())
-                        open.SetInUse(false);
-                    container.Interact(player, false, false);
                     break;
                 case Bed bed:
                     InventoryGui.instance.Hide();
