@@ -139,16 +139,18 @@ namespace Cartheim.Plugin
 
         // The top of the roof, down its middle, once a roof is built.
         private Vector3? _ridge;
+        // How steeply the roof rises (up per across).
+        private float _pitch;
 
         // The wild beehive's look (as found hanging in trees), small.
         private const string WildHive = "Beehive";
         private const float HiveSize = 0.4f;
-        // A hive hangs this far below the eaves, and its middle this far behind the back posts' middle: past the post.
-        private const float BelowEaves = 0.1f;
+        // A hive's middle hangs this far behind the back posts' middle: past the post.
         private const float BehindPost = 0.3f;
 
         // A beehive hangs off the back of one of the roof's two back posts (the first hive the left, the second the right),
-        // just under the eaves, sticking out behind the cart; with no roof (so no posts), it sits on the floor there.
+        // hung by its top where the post meets the roof's edge beam (which has climbed from the eave by then), sticking out
+        // behind the cart; with no roof (so no posts), it sits on the floor there.
         private void Hive(string slot, Bounds bed, float floor, CartBase cart, int layer)
         {
             var model = Model(WildHive, Root.transform);
@@ -169,7 +171,7 @@ namespace Cartheim.Plugin
             {
                 // Hung by its top.
                 holder.localPosition = -new Vector3(b.center.x, b.max.y, b.center.z);
-                model.transform.localPosition = new Vector3(x, bed.min.y + EavesHeight - BelowEaves, z);
+                model.transform.localPosition = new Vector3(x, bed.min.y + EavesHeight + RoofOverhang * _pitch, z);
             }
             else
             {
@@ -196,6 +198,7 @@ namespace Cartheim.Plugin
             var alongRidge = (bed.size.z + RoofOverhang) / slope.Width;
             var ridge = new Vector3(bed.center.x, eaves + scale * slope.Rise, bed.center.z);
             _ridge = ridge;
+            _pitch = slope.Rise / slope.Run;
             foreach (var side in new[] { -1f, 1f })
             {
                 var model = Model(piece, Root.transform);
