@@ -9,8 +9,8 @@ using Object = UnityEngine.Object;
 namespace Cartheim.Plugin
 {
     // A column of icon tabs down the left of the crafting screen while at one of a cart's stations: the Cart (its
-    // upgrades), each station built in, then the pieces riding in it that are used rather than crafted at: the bed and
-    // the beehives. (Its containers are all open beside the crafting screen; see CartStorage.)
+    // upgrades), each station built in, then its beehives, used rather than crafted at. (Its containers are all open
+    // beside the crafting screen, see CartStorage; its bed is used by clicking it in the cart.)
     internal class CartTabs
     {
         private const float Size = 56f;
@@ -68,9 +68,6 @@ namespace Cartheim.Plugin
                 if (station)
                     targets.Add((station, piece, GamePieces.DisplayName(piece)));
             }
-            var bed = cart.Bed;
-            if (bed)
-                targets.Add((bed, PieceName(bed), Localization.instance.Localize(bed.GetComponent<Piece>().m_name) + ": first use sets your spawn point, then sleep"));
             foreach (var hive in cart.Beehives)
                 targets.Add((hive, PieceName(hive), $"{Localization.instance.Localize(hive.m_name)}: honey {CartRiders.HoneyIn(hive)} / {hive.m_maxHoney}, click to take it"));
             return targets;
@@ -102,10 +99,6 @@ namespace Cartheim.Plugin
             {
                 case CraftingStation station:
                     CartCrafting.Use(station);
-                    break;
-                case Bed bed:
-                    InventoryGui.instance.Hide();
-                    bed.Interact(player, false, false);
                     break;
                 case Beehive hive:
                     hive.Interact(player, false, false);
