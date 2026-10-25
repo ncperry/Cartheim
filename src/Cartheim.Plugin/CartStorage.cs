@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Cartheim.Core;
 using HarmonyLib;
 using TMPro;
@@ -95,10 +96,29 @@ namespace Cartheim.Plugin
         private static readonly AccessTools.FieldRef<Inventory, int> InventoryWidth = AccessTools.FieldRefAccess<Inventory, int>("m_width");
         private static readonly AccessTools.FieldRef<Inventory, int> InventoryHeight = AccessTools.FieldRefAccess<Inventory, int>("m_height");
 
-        // The cart's own storage, and every container built into it, hold twice the slots. Not tied to the mod switch:
-        // shrinking a full chest back would lose what's in the extra rows.
+        // The cart's own storage has no end, and every container built into it holds twice the slots. Not tied to the mod switch:
+        // shrinking a full chest back would hide what's in the extra rows.
         [HarmonyPatch(typeof(Container), "Awake"), HarmonyPrefix]
         private static void DoubleCartStorage(Container __instance) => Double(__instance);
+
+        // Again once it has its inventory (made and loaded in Awake), so the cart's own storage starts growing.
+        [HarmonyPatch(typeof(Container), "Awake"), HarmonyPostfix]
+        private static void GrowCartStorage(Container __instance) => Double(__instance);
+
+        // The cart's own storage, with the rows it has to begin with.
+        private static readonly ConditionalWeakTable<Inventory, StrongBox<int>> Growing = new ConditionalWeakTable<Inventory, StrongBox<int>>();
+
+        // After anything goes in or out (and after loading, which places items past the last row as saved), the cart's
+        // own storage has just enough rows for its lowest item and an empty row below it.
+        [HarmonyPatch(typeof(Inventory), "Changed"), HarmonyPostfix]
+        private static void Grow(Inventory __instance)
+        {
+            if (!Growing.TryGetValue(__instance, out var baseRows))
+                return;
+            var items = __instance.GetAllItems();
+            var lowest = items.Count == 0 ? -1 : items.Max(i => i.m_gridPos.y);
+            InventoryHeight(__instance) = StorageSize.GrowingRows(baseRows.Value, lowest);
+        }
 
         // Sized as doubled from the game's own piece, so doing it again (a hot reload, a second load) changes nothing.
         public static void Double(Container container)
@@ -110,10 +130,19 @@ namespace Cartheim.Plugin
             container.m_width = width;
             container.m_height = height;
             var inventory = container.GetInventory();
-            if (inventory != null && InventoryHeight(inventory) < height)
+            if (inventory == null)
+                return;
+            if (InventoryHeight(inventory) < height)
             {
                 InventoryWidth(inventory) = width;
                 InventoryHeight(inventory) = height;
+            }
+            // The cart's own storage has no end: it grows a row at a time as it fills.
+            if (container.GetComponentInParent<Vagon>())
+            {
+                Growing.Remove(inventory);
+                Growing.Add(inventory, new StrongBox<int>(height));
+                Grow(inventory);
             }
         }
 
