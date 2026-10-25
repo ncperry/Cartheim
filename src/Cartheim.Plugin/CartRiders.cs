@@ -12,22 +12,27 @@ namespace Cartheim.Plugin
     {
         public const string CartKey = "cartheim_cart";
 
-        // The cart remembers each piece it carries under its own key.
-        public static string KeyFor(string piece) => "cartheim_chest_" + piece;
 
         // Where the pieces ride: inside the cart's bed.
         private static readonly Vector3 Offset = Vector3.up * 0.5f;
 
+        // Marked with the cart's own id and the slot it rides in, which last across world loads (the game's object ids
+        // don't); and, as before, with the cart's object id, which tells other mods it rides in a cart.
+        public const string UidKey = "cartheim_cart_uid";
+        public const string SlotKey = "cartheim_slot";
+
         // Builds the piece for the local player, who becomes its creator (the only one who can open a personal chest).
-        public static ZDOID Build(string piece, Transform cart, ZDOID cartId)
+        public static ZDOID Build(string piece, Transform cart, ZDOID cartId, long cartUid, string slot)
         {
             var prefab = GamePieces.Prefab(piece);
             var go = Object.Instantiate(prefab, cart.position + Offset, cart.rotation);
             var nview = go.GetComponent<ZNetView>();
             go.GetComponent<Piece>()?.SetCreator(Player.m_localPlayer.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             nview.GetZDO().Set(CartKey, cartId);
+            nview.GetZDO().Set(UidKey, cartUid);
+            nview.GetZDO().Set(SlotKey, slot);
             Hide(go);
-            Debug.Log($"[Cartheim] Built {piece} {nview.GetZDO().m_uid} into cart {cartId}");
+            Debug.Log($"[Cartheim] Built {piece} {nview.GetZDO().m_uid} into cart {cartUid} as {slot}");
             return nview.GetZDO().m_uid;
         }
 

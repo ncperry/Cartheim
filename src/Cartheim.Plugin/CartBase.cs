@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HarmonyLib;
 using System.Linq;
 using System.Reflection;
 using Cartheim.Core;
@@ -11,6 +12,7 @@ namespace Cartheim.Plugin
     {
         private const string SaveKey = "cartheim_upgrades";
         private const string AddRpc = "Cartheim_Add";
+        // No longer used (riders find the cart by its id); unregistered in case a copy from before a hot reload has it.
         private const string ChestRpc = "Cartheim_SetChest";
 
         // Close enough to use a cart station from anywhere beside the cart.
@@ -57,7 +59,6 @@ namespace Cartheim.Plugin
             _nview.Unregister(AddRpc);
             _nview.Unregister(ChestRpc);
             _nview.Register<string, string>(AddRpc, RPC_Add);
-            _nview.Register<string, ZDOID>(ChestRpc, RPC_SetChest);
             All.Add(this);
             InvokeRepeating(nameof(Refresh), 0.5f, 1f);
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO()?.m_uid} ready; health {_ownHealth}, has WearNTear {(bool)_wear}");
@@ -127,18 +128,18 @@ namespace Cartheim.Plugin
                 ? GamePieces.BeehiveSlots.Select(Rider).Where(r => r).Select(r => r.GetComponent<Beehive>()).Where(b => b).ToList()
                 : new List<Beehive>();
 
-        // Builds the piece into its first free slot (a second beehive goes in the second).
+        // Builds the piece into its first free slot (a second beehive goes in the second), marked with the cart's id.
         public void BuildRider(string piece)
         {
-            var slot = GamePieces.SlotsFor(piece).FirstOrDefault(s => !Rider(s) && _nview.GetZDO().GetZDOID(CartRiders.KeyFor(s)) == ZDOID.None) ?? piece;
-            var id = CartRiders.Build(piece, transform, _nview.GetZDO().m_uid);
-            _nview.InvokeRPC(ChestRpc, slot, id);
-        }
-
-        private void RPC_SetChest(long sender, string piece, ZDOID chest)
-        {
-            if (_nview.IsOwner())
-                _nview.GetZDO().Set(CartRiders.KeyFor(piece), chest);
+            EnsureUid();
+            var uid = Uid();
+            if (uid == 0)
+            {
+                Debug.LogWarning("[Cartheim] This cart has no id yet (its owner gives it one); can't build a riding piece into it");
+                return;
+            }
+            var slot = GamePieces.SlotsFor(piece).FirstOrDefault(s => !Rider(s)) ?? piece;
+            CartRiders.Build(piece, transform, _nview.GetZDO().m_uid, uid, slot);
         }
 
         private void Update()
@@ -189,6 +190,7 @@ namespace Cartheim.Plugin
             if (!_nview || !_nview.IsValid())
                 return;
             Upgrades = Load();
+            EnsureUid();
             // Keeps the cart's own storage growing, whatever has resized it since.
             if (_vagon && _vagon.m_container)
                 CartStorage.Double(_vagon.m_container);
@@ -267,24 +269,71 @@ namespace Cartheim.Plugin
                 profile.SetCustomSpawnPoint(spawn);
         }
 
+        private static readonly AccessTools.FieldRef<ZNetScene, Dictionary<ZDO, ZNetView>> Instances =
+            AccessTools.FieldRefAccess<ZNetScene, Dictionary<ZDO, ZNetView>>("m_instances");
+
+        // How near the cart a piece built before riders carried the cart's id must be for the cart to claim it.
+        private const float ClaimDistance = 4f;
+
+        // The slots the cart's upgrades fill with riding pieces: one per rider piece built, the second hive's own slot.
+        private List<string> ExpectedSlots() =>
+            GamePieces.Riders.Where(slot => Upgrades.Count(GamePieces.PieceIn(slot)) > (slot.Contains('#') ? 1 : 0)).ToList();
+
+        // Finds the pieces riding in the cart by the cart's own id, which (unlike the game's object ids, renumbered on every
+        // world load) stays the same for good. Pieces built before that, carrying only an old object id, are claimed by
+        // the cart they sit in and given its id.
         private void FindRiders()
         {
-            foreach (var piece in GamePieces.Riders)
+            var missing = ExpectedSlots().Where(slot => !Rider(slot)).ToList();
+            if (missing.Count == 0 || !ZNetScene.instance)
+                return;
+            var uid = Uid();
+            foreach (var pair in Instances(ZNetScene.instance).ToList())
             {
-                if (_riders.TryGetValue(piece, out var known) && known)
+                var zdo = pair.Key;
+                var view = pair.Value;
+                if (zdo == null || !view || missing.Count == 0)
                     continue;
-                // piece is a slot here: a second beehive rides as "piece_beehive#2".
-                var id = _nview.GetZDO().GetZDOID(CartRiders.KeyFor(piece));
-                var go = id == ZDOID.None ? null : ZNetScene.instance.FindInstance(id);
-                if (!go)
-                    continue;
+                var slot = zdo.GetString(CartRiders.SlotKey, "");
+                var ridesHere = uid != 0 && zdo.GetLong(CartRiders.UidKey) == uid && missing.Contains(slot);
+                if (!ridesHere)
+                {
+                    // A piece from before cart ids: still marked as riding some cart, right where this one is.
+                    if (zdo.GetLong(CartRiders.UidKey) != 0 || zdo.GetZDOID(CartRiders.CartKey) == ZDOID.None ||
+                        Vector3.Distance(zdo.GetPosition(), transform.position) > ClaimDistance)
+                        continue;
+                    var prefab = Utils.GetPrefabName(view.gameObject);
+                    slot = missing.FirstOrDefault(s => GamePieces.PieceIn(s) == prefab);
+                    if (slot == null || uid == 0)
+                        continue;
+                    view.ClaimOwnership();
+                    zdo.Set(CartRiders.UidKey, uid);
+                    zdo.Set(CartRiders.SlotKey, slot);
+                    Debug.Log($"[Cartheim] Cart {uid} claims its {slot} from before cart ids");
+                }
+                var go = view.gameObject;
                 CartRiders.Hide(go);
                 var container = go.GetComponent<Container>();
                 if (container)
                     CartStorage.Double(container);
-                _riders[piece] = go;
-                Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} carries {piece} {id}");
+                _riders[slot] = go;
+                missing.Remove(slot);
+                Debug.Log($"[Cartheim] Cart {uid} carries {slot} {zdo.m_uid}");
             }
+        }
+
+        private const string UidKey = "cartheim_uid";
+
+        // The cart's own id, kept in its save data; 0 until its owner has given it one.
+        private long Uid() => _nview && _nview.IsValid() ? _nview.GetZDO().GetLong(UidKey) : 0;
+
+        private void EnsureUid()
+        {
+            if (Uid() != 0 || !_nview.IsOwner())
+                return;
+            var uid = ((long)Random.Range(1, int.MaxValue) << 31) | (long)Random.Range(1, int.MaxValue);
+            _nview.GetZDO().Set(UidKey, uid);
+            Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} now has id {uid}");
         }
 
         // A copy of the real station's crafting settings, riding on the cart. It has no model, collider or area marker of its
