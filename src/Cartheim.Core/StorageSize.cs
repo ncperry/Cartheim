@@ -5,5 +5,7 @@ namespace Cartheim.Core
     public static class StorageSize
     {
         public static (int width, int height) Doubled(int width, int height) => (width, height * 2);
+
+        public static int GrowingRows(int baseRows, int lowestUsedRow) => baseRows;
     }
 }

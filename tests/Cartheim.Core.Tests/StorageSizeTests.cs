@@ -12,5 +12,11 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal((6, 6), (width, height));
         }
+
+        [Fact]
+        public void Growing_storage_keeps_its_own_rows_while_empty()
+        {
+            Assert.Equal(6, StorageSize.GrowingRows(baseRows: 6, lowestUsedRow: -1));
+        }
     }
 }
