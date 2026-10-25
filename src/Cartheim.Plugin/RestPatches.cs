@@ -33,6 +33,35 @@ namespace Cartheim.Plugin
             return false;
         }
 
+        private static readonly AccessTools.FieldRef<Player, Transform> AttachPoint = AccessTools.FieldRefAccess<Player, Transform>("m_attachPoint");
+
+        // How far from the middle of the cart a player getting out of its bed is put down: clear of the cart's sides.
+        private const float GetOutDistance = 1.4f;
+
+        // Getting out of bed puts the player where they lay, a little higher: inside a cart, that's inside the cart's own
+        // body, where they get stuck. Out of a cart's bed, they stand on the ground beside the cart instead.
+        [HarmonyPatch(typeof(Player), nameof(Player.AttachStop)), HarmonyPrefix]
+        private static void LeavingCartBed(Player __instance, out CartBase __state)
+        {
+            var point = AttachPoint(__instance);
+            var bed = point ? point.GetComponentInParent<Bed>() : null;
+            __state = bed && IsCartPiece(bed) ? CartFire.CartNear(bed.transform.position) : null;
+        }
+
+        [HarmonyPatch(typeof(Player), nameof(Player.AttachStop)), HarmonyPostfix]
+        private static void StepOutBesideCart(Player __instance, CartBase __state)
+        {
+            if (!__state || __instance.IsAttached())
+                return;
+            var cart = __state.transform;
+            // The side the player was facing, so they get out where they look.
+            var side = Vector3.Dot(__instance.transform.forward, cart.right) >= 0f ? cart.right : -cart.right;
+            var spot = cart.position + side * GetOutDistance;
+            spot.y = ZoneSystem.instance ? ZoneSystem.instance.GetSolidHeight(spot) : spot.y;
+            __instance.transform.position = spot;
+            Debug.Log($"[Cartheim] Out of the cart's bed, beside the cart at {spot}");
+        }
+
         // Beside a cart with a fire near it, the game counts the player as sheltered...
         [HarmonyPatch(typeof(Player), nameof(Player.InShelter)), HarmonyPostfix]
         private static void ShelteredByCart(Player __instance, ref bool __result)
