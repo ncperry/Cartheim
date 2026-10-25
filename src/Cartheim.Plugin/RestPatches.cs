@@ -131,7 +131,7 @@ namespace Cartheim.Plugin
             var pieces = new List<Piece>();
             Piece.GetAllComfortPiecesInRadius(position, 10f, pieces);
             var bestFire = pieces.Where(p => p.m_comfortGroup == Piece.ComfortGroup.Fire).Select(p => p.GetComfort()).DefaultIfEmpty(0).Max();
-            __result += cart.Upgrades.ExtraComfort(hearth ? hearth.m_comfort : 0, bestFire);
+            __result += cart.Upgrades.ExtraComfort(hearth ? hearth.m_comfort : 0, bestFire, cart.EngineBurning);
         }
 
         // A cart's bees are always happy: any biome, and the cart never crowds them.

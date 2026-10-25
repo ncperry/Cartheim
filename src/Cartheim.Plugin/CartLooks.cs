@@ -37,6 +37,8 @@ namespace Cartheim.Plugin
                          .Concat(GamePieces.Chests).Append("piece_chest_barrel"))
                 if (upgrades.Has(piece))
                     shown.Add(piece);
+            if (upgrades.Has(SteamEngine.Engine))
+                shown.Add(SteamEngine.Engine);
             var roof = GamePieces.Roofs.LastOrDefault(upgrades.Has);
             // After the roof: the rug drapes over it, and the hives hang from its posts (shown by slot, one per hive built).
             if (roof != null)
@@ -82,7 +84,7 @@ namespace Cartheim.Plugin
                     Roof(GamePieces.MadeOf(piece), bed);
                     continue;
                 }
-                var model = Model(piece, Root.transform);
+                var model = Model(piece == SteamEngine.Engine ? GamePieces.EngineLooksLike : piece, Root.transform);
                 if (!model)
                     continue;
                 if (GamePieces.Rugs.Contains(piece))
@@ -99,6 +101,9 @@ namespace Cartheim.Plugin
                 else if (piece == Cauldron)
                     // On the forge's side, just ahead of it towards the cart's handles, sticking out so the whole bowl shows.
                     Stand(model, new Vector3(bed.max.x + 0.3f, floor, bed.max.z - 0.1f), 0.45f, 0.45f, 0.6f);
+                else if (piece == SteamEngine.Engine)
+                    // Across from the cauldron, on the workbench's side, just ahead of it towards the cart's handles.
+                    Stand(model, new Vector3(bed.min.x - 0.3f, floor, bed.max.z - 0.1f), 0.5f, 0.5f, 0.9f);
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))

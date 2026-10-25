@@ -10,6 +10,8 @@ namespace Cartheim.Plugin
     {
         private CartBase _cart;
         private string _piece;
+        private float _lastCoal;
+        private const float CoalRepeat = 0.2f;
 
         public void Init(CartBase cart, string piece)
         {
@@ -36,6 +38,10 @@ namespace Cartheim.Plugin
             var hive = Hive;
             if (hive)
                 return hive.GetHoverText() + Localization.instance.Localize(cartKey);
+            if (_piece == Cartheim.Core.SteamEngine.Engine)
+                return Localization.instance.Localize(
+                    $"Steam engine{(_cart.EngineBurning ? "" : " (cold)")}\n( $piece_fire_fuel {Mathf.Ceil(_cart.Coal)}/{Cartheim.Core.SteamEngine.MaxCoal} )\n" +
+                    $"[<color=yellow><b>$KEY_Use</b></color>] $piece_use {GamePieces.ItemName(Cartheim.Core.SteamEngine.Coal)}{cartKey}");
             var container = Container;
             if (container)
                 return container.GetHoverText() + Localization.instance.Localize(cartKey);
@@ -51,7 +57,17 @@ namespace Cartheim.Plugin
 
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
-            if (hold || !_cart || !Plugin.Enabled.Value || user != Player.m_localPlayer)
+            if (!_cart || !Plugin.Enabled.Value || user != Player.m_localPlayer)
+                return false;
+            // Holding E keeps adding coal, as at a fire; nothing else repeats.
+            if (_piece == Cartheim.Core.SteamEngine.Engine && !alt)
+            {
+                if (hold && Time.time - _lastCoal < CoalRepeat)
+                    return false;
+                _lastCoal = Time.time;
+                return _cart.AddCoal(Player.m_localPlayer);
+            }
+            if (hold)
                 return false;
             if (alt)
                 return _cart.GetComponent<Vagon>().Interact(user, false, true);

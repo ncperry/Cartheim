@@ -194,6 +194,8 @@ namespace Cartheim.Plugin
             piece == "forge" ? $"\n\n<color=orange>+{CartUpgrades.ArmorPerForgeLevel:0} cart armor per forge level.</color>" :
             GamePieces.Roofs.Contains(piece) ? "\n\n<color=orange>Keeps the rain off within 5 m, and +1 comfort near the cart.</color>" :
             piece == "hearth" ? "\n\n<color=orange>A fire in the cart: lights the cauldron and lets you rest.</color>" :
+            piece == SteamEngine.Engine ? $"\n\n<color=orange>Load it with up to {SteamEngine.MaxCoal} coal; it burns one as long as a hearth burns a log. While it burns it warms, lights the cauldron and lets you rest like a hearth, and takes half the cart's pull off you.</color>" :
+            piece == SteamEngine.Boiler || piece == SteamEngine.Pistons ? "\n\n<color=orange>The steam engine takes a quarter more of the cart's pull off you. With both, pulling the cart doesn't slow you at all.</color>" :
             piece == CartUpgrades.Beehive ? "\n\n<color=orange>Up to two per cart. Its bees are always happy.</color>" :
             "";
 

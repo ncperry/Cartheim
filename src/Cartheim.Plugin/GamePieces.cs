@@ -72,11 +72,25 @@ namespace Cartheim.Plugin
             [CartUpgrades.GraustenRoof] = ("piece_grausten_roof_45", CartUpgrades.ShingleRoof),
         };
 
+        // The steam engine and its two upgrades: no game pieces, so their names, costs and looks are the cart's own. It
+        // shows as a small smelter.
+        public static readonly string[] EngineParts = { SteamEngine.Engine, SteamEngine.Boiler, SteamEngine.Pistons };
+        public const string EngineLooksLike = "smelter";
+
+        private static readonly Dictionary<string, (string name, string description, ItemCount[] recipe)> Engine =
+            new Dictionary<string, (string, string, ItemCount[])>
+            {
+                [SteamEngine.Engine] = ("Steam engine", "A coal-fired engine that pushes the cart along. Burns like a hearth while it has coal.",
+                    new[] { new ItemCount("Iron", 10), new ItemCount("IronNails", 5) }),
+                [SteamEngine.Boiler] = ("Bigger boiler", "More steam for the steam engine.", new[] { new ItemCount("Iron", 5) }),
+                [SteamEngine.Pistons] = ("Second piston", "More push from the steam engine.", new[] { new ItemCount("Iron", 5) }),
+            };
+
         // The upgrade panel's sections, in order.
         public static IEnumerable<(string title, IReadOnlyList<string> pieces)> Sections()
         {
             yield return ("Crafting", Stations);
-            yield return ("Fire", new[] { "hearth" });
+            yield return ("Steam engine (needs the stonecutter and forge)", EngineParts);
             yield return ("Roof (each over the last)", Roofs);
             yield return ("Chest (one per cart)", Chests);
             yield return ("More storage", ExtraContainers);
@@ -148,7 +162,8 @@ namespace Cartheim.Plugin
         public const string WorkbenchPiece = "piece_workbench";
 
         // The game piece an upgrade is: the roof piece a cart roof is made of, otherwise the piece itself.
-        public static string MadeOf(string piece) => RoofMadeOf.TryGetValue(piece, out var roof) ? roof.piece : piece;
+        public static string MadeOf(string piece) =>
+            RoofMadeOf.TryGetValue(piece, out var roof) ? roof.piece : Engine.ContainsKey(piece) ? EngineLooksLike : piece;
 
         // The piece's icon, as the build menu shows it.
         public static Sprite Icon(string piece)
@@ -159,6 +174,8 @@ namespace Cartheim.Plugin
 
         public static string Description(string piece)
         {
+            if (Engine.TryGetValue(piece, out var engine))
+                return engine.description;
             var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
             return p ? p.m_description : "";
         }
@@ -172,6 +189,8 @@ namespace Cartheim.Plugin
 
         public static string DisplayName(string piece)
         {
+            if (Engine.TryGetValue(piece, out var engine))
+                return engine.name;
             if (RoofMadeOf.TryGetValue(piece, out var roof))
                 return DisplayName(roof.piece).Split(' ')[0] + " roof";
             var p = Prefab(piece)?.GetComponent<Piece>();
@@ -181,6 +200,8 @@ namespace Cartheim.Plugin
         // The piece's own recipe as prefab names, as the hammer would charge it.
         public static List<ItemCount> Recipe(string piece)
         {
+            if (Engine.TryGetValue(piece, out var engine))
+                return engine.recipe.ToList();
             if (RoofMadeOf.TryGetValue(piece, out var roof))
                 return Recipe(roof.piece).Select(c => new ItemCount(c.Prefab, c.Count * RoofPiecesPerRoof)).ToList();
             var p = Prefab(piece)?.GetComponent<Piece>();
@@ -193,6 +214,10 @@ namespace Cartheim.Plugin
         // The station a piece extends (the forge for a forge cooler), or null for a piece that extends nothing.
         public static string Extends(string piece)
         {
+            if (piece == SteamEngine.Boiler || piece == SteamEngine.Pistons)
+                return SteamEngine.Engine;
+            if (piece == SteamEngine.Engine)
+                return null;
             if (RoofMadeOf.TryGetValue(piece, out var roof))
                 return roof.over;
             var extension = Prefab(piece)?.GetComponent<StationExtension>();

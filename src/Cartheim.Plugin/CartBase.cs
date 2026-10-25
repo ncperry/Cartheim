@@ -12,6 +12,12 @@ namespace Cartheim.Plugin
     {
         private const string SaveKey = "cartheim_upgrades";
         private const string AddRpc = "Cartheim_Add";
+        private const string AddCoalRpc = "Cartheim_AddCoal";
+        // The coal in the steam engine, and when it last burnt.
+        private const string CoalKey = "cartheim_coal";
+        private const string CoalTimeKey = "cartheim_coal_time";
+        // How hard the engine pushes the cart towards the player's pace: the share of the gap closed per second, at full assist.
+        private const float PushGain = 10f;
         // No longer used (riders find the cart by its id); unregistered in case a copy from before a hot reload has it.
         private const string ChestRpc = "Cartheim_SetChest";
 
@@ -37,6 +43,9 @@ namespace Cartheim.Plugin
         private GameObject _hearth;
         private GameObject _wisp;
         private GameObject _baseArea;
+        private Rigidbody[] _bodies = new Rigidbody[0];
+        // How much of the pull the steam engine takes off the player right now (0 to 1).
+        private float _assist;
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
 
@@ -59,6 +68,9 @@ namespace Cartheim.Plugin
             _nview.Unregister(AddRpc);
             _nview.Unregister(ChestRpc);
             _nview.Register<string, string>(AddRpc, RPC_Add);
+            _nview.Unregister(AddCoalRpc);
+            _nview.Register(AddCoalRpc, RPC_AddCoal);
+            _bodies = GetComponentsInChildren<Rigidbody>();
             All.Add(this);
             InvokeRepeating(nameof(Refresh), 0.5f, 1f);
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO()?.m_uid} ready; health {_ownHealth}, has WearNTear {(bool)_wear}");
@@ -72,6 +84,8 @@ namespace Cartheim.Plugin
                 _nview.Unregister(AddRpc);
             if (_nview)
                 _nview.Unregister(ChestRpc);
+            if (_nview)
+                _nview.Unregister(AddCoalRpc);
             if (_wear)
             {
                 _wear.m_onDestroyed -= DropRefund;
@@ -107,6 +121,13 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO().m_uid} destroyed; dropping {string.Join(", ", refund)}");
             foreach (var item in refund)
                 GamePieces.Drop(item, transform.position);
+            // Coal not yet burnt in the steam engine spills too.
+            var coal = Mathf.FloorToInt(Coal);
+            if (coal > 0)
+            {
+                Debug.Log($"[Cartheim] Cart {Uid()}'s steam engine spills {coal} coal");
+                GamePieces.Drop(new ItemCount(SteamEngine.Coal, coal), transform.position);
+            }
             foreach (var rider in _riders.Values.Where(r => r).ToList())
                 CartRiders.Break(rider, transform.position);
         }
@@ -150,6 +171,120 @@ namespace Cartheim.Plugin
             KeepSpawnPointOnBed();
             if (_wisp)
                 CartWisp.Float(_wisp, transform);
+            // The engine's fire burns in its firebox.
+            var engine = AnchorFor(SteamEngine.Engine);
+            if (_hearth && engine)
+                _hearth.transform.position = engine.position + Vector3.up * EngineFireHeight;
+        }
+
+        private const float EngineFireHeight = 0.1f;
+
+        // The coal in the steam engine, as its owner keeps it.
+        public float Coal => _nview && _nview.IsValid() ? _nview.GetZDO().GetFloat(CoalKey) : 0f;
+
+        public bool EngineBurning => Plugin.Enabled.Value && Upgrades.Has(SteamEngine.Engine) && Coal > 0f;
+
+        // As long to burn a coal as the game's hearth takes over a log.
+        private static float SecondsPerCoal
+        {
+            get
+            {
+                var hearth = GamePieces.Prefab("hearth")?.GetComponent<Fireplace>();
+                return hearth && hearth.m_secPerFuel > 0f ? hearth.m_secPerFuel : 5000f;
+            }
+        }
+
+        // One coal from the player's inventory into the engine, if it has room and they have one.
+        public bool AddCoal(Player player)
+        {
+            if (!Upgrades.Has(SteamEngine.Engine))
+                return false;
+            // Said as at any fire.
+            var coal = GamePieces.Item(SteamEngine.Coal);
+            var name = coal ? coal.m_itemData.m_shared.m_name : SteamEngine.Coal;
+            if (!coal || !player.GetInventory().HaveItem(name))
+            {
+                player.Message(MessageHud.MessageType.Center, "$msg_outof " + name);
+                return false;
+            }
+            if (!SteamEngine.HasRoomFor(Coal))
+            {
+                player.Message(MessageHud.MessageType.Center, Localization.instance.Localize("$msg_cantaddmore", name));
+                return false;
+            }
+            player.GetInventory().RemoveItem(name, 1);
+            _nview.InvokeRPC(AddCoalRpc);
+            player.Message(MessageHud.MessageType.Center, Localization.instance.Localize("$msg_fireadding", name));
+            return true;
+        }
+
+        private void RPC_AddCoal(long sender)
+        {
+            if (!_nview.IsOwner())
+                return;
+            var zdo = _nview.GetZDO();
+            var coal = zdo.GetFloat(CoalKey);
+            // Nowhere to put it (another player filled it first): it isn't lost, it drops by the cart.
+            if (!SteamEngine.HasRoomFor(coal))
+            {
+                GamePieces.Drop(new ItemCount(SteamEngine.Coal, 1), transform.position);
+                return;
+            }
+            if (coal <= 0f)
+                zdo.Set(CoalTimeKey, ZNet.instance.GetTime().Ticks);
+            zdo.Set(CoalKey, coal + 1f);
+            Debug.Log($"[Cartheim] Cart {Uid()}'s steam engine now has {coal + 1f:0.00} coal");
+            Refresh();
+        }
+
+        // The cart's owner burns the engine's coal for the time gone by, as a hearth burns its wood (even while nobody was
+        // near, as the game's own fires do). While the mod is off it neither burns nor counts the time.
+        private void BurnCoal(bool on)
+        {
+            if (!_nview.IsOwner() || !Upgrades.Has(SteamEngine.Engine) || !ZNet.instance)
+                return;
+            var zdo = _nview.GetZDO();
+            var now = ZNet.instance.GetTime();
+            var last = zdo.GetLong(CoalTimeKey);
+            zdo.Set(CoalTimeKey, now.Ticks);
+            var coal = zdo.GetFloat(CoalKey);
+            if (!on || last == 0 || coal <= 0f)
+                return;
+            var seconds = (now - new System.DateTime(last)).TotalSeconds;
+            if (seconds <= 0)
+                return;
+            var left = SteamEngine.Burn(coal, seconds, SecondsPerCoal);
+            zdo.Set(CoalKey, left);
+            if (Mathf.CeilToInt(left) != Mathf.CeilToInt(coal))
+                Debug.Log($"[Cartheim] Cart {Uid()}'s steam engine burnt down to {left:0.00} coal ({SecondsPerCoal} s a coal)");
+        }
+
+        private float _nextPushLog;
+
+        // While the local player pulls the cart, the engine pushes it along at their pace, so the cart drags at them less
+        // (not at all, fully upgraded). Only sideways and forwards: the cart still rolls down and up hills under its weight.
+        private void FixedUpdate()
+        {
+            if (_assist <= 0f || !_vagon || !_nview || !_nview.IsValid() || !_nview.IsOwner())
+                return;
+            var player = Player.m_localPlayer;
+            if (!player || !_vagon.IsAttached(player))
+                return;
+            var pace = player.GetVelocity();
+            foreach (var body in _bodies)
+            {
+                if (!body)
+                    continue;
+                var gap = pace - body.linearVelocity;
+                gap.y = 0f;
+                body.AddForce(gap * (_assist * PushGain), ForceMode.Acceleration);
+            }
+            if (Time.time >= _nextPushLog && pace.sqrMagnitude > 0.5f)
+            {
+                _nextPushLog = Time.time + 5f;
+                Debug.Log($"[Cartheim] Steam engine pushing at {_assist:0.00}: player at {new Vector3(pace.x, 0f, pace.z).magnitude:0.00} m/s, " +
+                          $"cart at {(_bodies.Length > 0 && _bodies[0] ? new Vector3(_bodies[0].linearVelocity.x, 0f, _bodies[0].linearVelocity.z).magnitude : 0f):0.00} m/s");
+            }
         }
 
         // Where a riding piece shows on the cart, by its slot (each hive has its own) or else its piece.
@@ -231,7 +366,10 @@ namespace Cartheim.Plugin
                 Destroy(_wisp);
                 _wisp = null;
             }
-            var wantHearth = on && Upgrades.HasHearth;
+            BurnCoal(on);
+            _assist = on ? SteamEngine.Assist(Upgrades.Level(SteamEngine.Engine), Coal) : 0f;
+            // A hearth built before the steam engine replaced it still burns; the engine burns while it has coal.
+            var wantHearth = on && (Upgrades.HasHearth || EngineBurning);
             if (wantHearth && !_hearth)
                 _hearth = CartHearth.Light(transform);
             else if (!wantHearth && _hearth)
