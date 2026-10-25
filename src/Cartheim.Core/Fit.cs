@@ -11,6 +11,6 @@ namespace Cartheim.Core
         }
 
         public static Fit Into(float spotWidth, float spotLength, float maxHeight, float width, float length, float height) =>
-            new Fit(System.Math.Min(spotWidth / width, spotLength / length));
+            new Fit(System.Math.Min(System.Math.Min(spotWidth / width, spotLength / length), maxHeight / height));
     }
 }
