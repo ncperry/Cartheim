@@ -18,6 +18,7 @@ namespace Cartheim.Plugin
         private const float RidgeOverlap = 0.12f;
         private const string CrossPiece = "wood_wall_roof_top";
         private const string Cauldron = "piece_cauldron";
+        private const string FeyLights = "piece_FairylightGarland";
         private const string BeamPiece = "wood_beam";
         // The rug lies just above the cart's floor.
         private const float RugLift = 0.02f;
@@ -40,6 +41,8 @@ namespace Cartheim.Plugin
             if (roof != null)
                 shown.Add(roof);
             shown.AddRange(GamePieces.Rugs.Where(upgrades.Has));
+            if (upgrades.Has(FeyLights))
+                shown.Add(FeyLights);
             shown.AddRange(GamePieces.BeehiveSlots.Take(upgrades.Count(CartUpgrades.Beehive)));
             return shown;
         }
@@ -56,6 +59,11 @@ namespace Cartheim.Plugin
             var cz = bed.center.z;
             foreach (var piece in shown)
             {
+                if (piece == FeyLights)
+                {
+                    FeyLightsAcrossTheFront(bed);
+                    continue;
+                }
                 if (GamePieces.BeehiveSlots.Contains(piece))
                 {
                     Hive(piece, bed, floor, cart, vagon.gameObject.layer);
@@ -268,6 +276,29 @@ namespace Cartheim.Plugin
             bent.RecalculateNormals();
             bent.RecalculateBounds();
             return bent;
+        }
+
+        // Fey lights strung across the front of the cart (its handle end): hung from the eaves between the two front posts
+        // with a roof, along the top of the front rail without. Their light comes from the garland, so it shines there.
+        private void FeyLightsAcrossTheFront(Bounds bed)
+        {
+            var model = Model(FeyLights, Root.transform);
+            if (!model)
+                return;
+            var holder = model.transform.GetChild(0);
+            var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), model.transform);
+            if (size == null)
+                return;
+            var b = size.Value;
+            var fit = Fit.Into(bed.size.x, 0.3f, 0.6f, b.size.x, b.size.z, b.size.y);
+            holder.localRotation = fit.Turned ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
+            // Hung by its top.
+            holder.localPosition = -(holder.localRotation * new Vector3(b.center.x, b.max.y, b.center.z));
+            var top = _ridge.HasValue ? bed.min.y + EavesHeight : bed.max.y;
+            model.transform.localPosition = new Vector3(bed.center.x, top, bed.max.z);
+            model.transform.localScale = Vector3.one * fit.Scale;
+            Anchors[FeyLights] = holder;
+            Debug.Log($"[Cartheim] Fey lights across the front: size {b.size}, scale {fit.Scale:0.00}{(fit.Turned ? ", turned" : "")}");
         }
         // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides until their top edges meet
         // in a ridge down its middle, a wood roof cross on the ridge at each end, on a post at each corner. Placed by the

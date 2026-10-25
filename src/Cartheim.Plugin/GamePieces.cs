@@ -81,7 +81,7 @@ namespace Cartheim.Plugin
             yield return ("Chest (one per cart)", Chests);
             yield return ("More storage", ExtraContainers);
             yield return ("Furniture (one bed, one rug)", Furniture);
-            yield return ("Light (one per cart)", Lights);
+            yield return ("Lights", Lights);
             yield return ("Wisp", new[] { WispTorch });
             yield return ("Bees (up to two hives)", new[] { CartUpgrades.Beehive });
         }
