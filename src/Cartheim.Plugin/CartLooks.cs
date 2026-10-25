@@ -14,6 +14,9 @@ namespace Cartheim.Plugin
         // How far the roof reaches past the cart's sides and ends, and how high its eaves are above the cart's floor.
         private const float RoofOverhang = 0.25f;
         private const float EavesHeight = 1.4f;
+        // How far each half of the roof reaches past the ridge, so the two meet.
+        private const float RidgeOverlap = 0.12f;
+        private const string CrossPiece = "wood_wall_roof_top";
         // The rug lies just above the cart's floor.
         private const float RugLift = 0.02f;
 
@@ -124,14 +127,16 @@ namespace Cartheim.Plugin
             model.transform.localScale = new Vector3(bed.size.x / width, 1f, bed.size.z / length);
         }
 
-        // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides to a ridge down its middle,
-        // on a post at each corner.
+        // A gable roof of the roof piece, its two halves rising from eaves over the cart's sides to a ridge down its middle
+        // (each reaching a little past it, so they meet), a wood roof cross filling each gable end, on a post at each corner.
         private void Roof(string piece, Bounds bed)
         {
             var eaves = bed.min.y + EavesHeight;
-            var run = bed.size.x / 2f + RoofOverhang;
+            var halfWidth = bed.size.x / 2f + RoofOverhang;
+            var run = halfWidth + RidgeOverlap;
             var length = bed.size.z + 2f * RoofOverhang;
             var rises = RisingDirection(GamePieces.Prefab(piece));
+            var rise = 0f;
             foreach (var side in new[] { -1f, 1f })
             {
                 var model = Model(piece, Root.transform);
@@ -146,9 +151,12 @@ namespace Cartheim.Plugin
                 var b = size.Value;
                 holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z);
                 var across = run / b.size.x;
+                rise = across * b.size.y;
                 model.transform.localScale = new Vector3(across, across, length / b.size.z);
-                model.transform.localPosition = new Vector3(bed.center.x + side * run / 2f, eaves, bed.center.z);
+                model.transform.localPosition = new Vector3(bed.center.x + side * (halfWidth - run / 2f), eaves, bed.center.z);
             }
+            foreach (var end in new[] { bed.min.z, bed.max.z })
+                GableCross(new Vector3(bed.center.x, eaves, end), 2f * halfWidth, rise);
             foreach (var x in new[] { bed.min.x, bed.max.x })
                 foreach (var z in new[] { bed.min.z, bed.max.z })
                 {
@@ -165,6 +173,29 @@ namespace Cartheim.Plugin
                     post.transform.localPosition = new Vector3(x, bed.min.y, z);
                 }
             Debug.Log($"[Cartheim] Cart roof of {piece}, rising along {rises}");
+        }
+
+        // The wood roof cross, stood across the cart at one end, filling the gable under the roof.
+        private void GableCross(Vector3 bottomMiddle, float width, float height)
+        {
+            var cross = Model(CrossPiece, Root.transform);
+            if (!cross)
+                return;
+            var holder = cross.transform.GetChild(0);
+            var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), cross.transform);
+            if (size == null)
+                return;
+            // It is a wall: thin one way. Turned so its face looks along the cart.
+            if (size.Value.size.x < size.Value.size.z)
+            {
+                holder.localRotation = Quaternion.Euler(0f, 90f, 0f);
+                size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), cross.transform);
+            }
+            var b = size.Value;
+            holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z);
+            var across = width / b.size.x;
+            cross.transform.localScale = new Vector3(across, height / b.size.y, across);
+            cross.transform.localPosition = bottomMiddle;
         }
 
         // Which way the roof piece slopes up, in its own space: read from its snap points, which sit at its corners.
