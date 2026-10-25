@@ -67,7 +67,7 @@ namespace Cartheim.Plugin
                 if (GamePieces.Beds.Contains(piece))
                     Stand(model, new Vector3(cx, floor, cz), w, l, 1.2f);
                 else if (piece == GamePieces.WorkbenchPiece)
-                    Stand(model, new Vector3(bed.min.x - 0.15f, floor, cz), 0.7f, l * 0.8f, 0.9f);
+                    Stand(model, new Vector3(bed.min.x - 0.15f, floor, cz), 0.7f, l * 0.8f, 0.9f, 180f);
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))
@@ -94,8 +94,8 @@ namespace Cartheim.Plugin
             return BoundsOf(meshes, vagon.transform) ?? new Bounds(new Vector3(0f, 0.8f, 0f), new Vector3(1.4f, 0.7f, 1.9f));
         }
 
-        // Shrunk and maybe turned to fit its spot, standing on it.
-        private static void Stand(GameObject model, Vector3 spot, float spotWidth, float spotLength, float maxHeight)
+        // Shrunk and maybe turned to fit its spot, standing on it, turned a further yaw degrees.
+        private static void Stand(GameObject model, Vector3 spot, float spotWidth, float spotLength, float maxHeight, float yaw = 0f)
         {
             var holder = model.transform.GetChild(0);
             var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), model.transform);
@@ -103,7 +103,8 @@ namespace Cartheim.Plugin
                 return;
             var b = size.Value;
             var fit = Fit.Into(spotWidth, spotLength, maxHeight, b.size.x, b.size.z, b.size.y);
-            holder.localRotation = fit.Turned ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
+            // Turned to fit, and then (the workbench) to face out from the cart.
+            holder.localRotation = Quaternion.Euler(0f, (fit.Turned ? 90f : 0f) + yaw, 0f);
             holder.localPosition = -(holder.localRotation * new Vector3(b.center.x, b.min.y, b.center.z));
             model.transform.localPosition = spot;
             model.transform.localScale = Vector3.one * fit.Scale;
@@ -285,10 +286,56 @@ namespace Cartheim.Plugin
                 part.transform.localPosition = place.GetColumn(3);
                 part.transform.localRotation = place.rotation;
                 part.transform.localScale = place.lossyScale;
-                part.GetComponent<MeshFilter>().sharedMesh = mesh.sharedMesh;
+                part.GetComponent<MeshFilter>().sharedMesh = LegShare.TryGetValue(piece, out var legs) ? WithoutLegs(mesh.sharedMesh, place, legs) : mesh.sharedMesh;
                 part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
             }
             return model;
+        }
+
+        // How much of a piece's height is its legs, cut off when it's shown on a cart: it rests on the cart instead.
+        private static readonly Dictionary<string, float> LegShare = new Dictionary<string, float>
+        {
+            [GamePieces.WorkbenchPiece] = 0.4f,
+            ["forge"] = 0.5f,
+        };
+
+        // Each mesh with its legs cut off, made once.
+        private static readonly Dictionary<Mesh, Mesh> Legless = new Dictionary<Mesh, Mesh>();
+
+        // The mesh without the triangles reaching into the bottom share of its height (as the piece stands): a leg runs
+        // from the floor up to the top in long faces, so only what lies wholly above the cut is kept.
+        private static Mesh WithoutLegs(Mesh mesh, Matrix4x4 place, float share)
+        {
+            if (!mesh.isReadable)
+                return mesh;
+            if (Legless.TryGetValue(mesh, out var made) && made)
+                return made;
+            var heights = mesh.vertices.Select(v => place.MultiplyPoint3x4(v).y).ToArray();
+            var lowest = heights.Min();
+            var cut = lowest + share * (heights.Max() - lowest);
+            var legless = Object.Instantiate(mesh);
+            legless.name = mesh.name + " without legs";
+            for (var sub = 0; sub < mesh.subMeshCount; sub++)
+            {
+                var triangles = mesh.GetTriangles(sub);
+                var kept = new List<int>();
+                for (var i = 0; i + 2 < triangles.Length; i += 3)
+                    if (Mathf.Min(heights[triangles[i]], heights[triangles[i + 1]], heights[triangles[i + 2]]) >= cut)
+                        kept.AddRange(new[] { triangles[i], triangles[i + 1], triangles[i + 2] });
+                legless.SetTriangles(kept, sub);
+            }
+            // Bounds from the vertices still drawn: the legs' vertices stay in the mesh, unused.
+            var vertices = mesh.vertices;
+            var used = Enumerable.Range(0, mesh.subMeshCount).SelectMany(legless.GetTriangles).Distinct().Select(i => vertices[i]).ToList();
+            if (used.Count > 0)
+            {
+                var bounds = new Bounds(used[0], Vector3.zero);
+                foreach (var v in used)
+                    bounds.Encapsulate(v);
+                legless.bounds = bounds;
+            }
+            Legless[mesh] = legless;
+            return legless;
         }
 
         // Whether the part shows on a piece as built: it and every parent up to the piece switched on.
