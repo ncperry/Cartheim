@@ -23,8 +23,9 @@ namespace Cartheim.Plugin
         // up (so the edge comes level with the cart's eaves).
         private const float Across = 0.6f;
         private const float Up = 0.8f;
-        // How much of the tent's floor its rug covers, each way.
-        private const float RugShare = 0.6f;
+        // The tent's rug: this big each way, lying this far out from the cart's side, level with the cart's middle.
+        private const float RugSize = 2.2f;
+        private const float RugFromCart = 0.15f;
         // Ground is sampled this many times along each side of where the tent would stand.
         private const int Samples = 4;
 
@@ -138,8 +139,7 @@ namespace Cartheim.Plugin
             var footprint = Footprint(tent.sharedMesh, bed);
             root.AddComponent<TentShape>().Footprint = footprint;
             if (rug != null)
-                CartLooks.Rug(root.transform, rug, new Bounds(new Vector3(footprint.center.x, 0f, footprint.center.z),
-                    new Vector3(footprint.size.x * RugShare, 0f, footprint.size.z * RugShare)));
+                CartLooks.Rug(root.transform, rug, new Bounds(new Vector3(-(RugFromCart + RugSize / 2f), 0f, 0f), new Vector3(RugSize, 0f, RugSize)));
             Debug.Log($"[Cartheim] Tent pitched at {position}, covering {footprint.min} to {footprint.max} from the middle of the cart's left side");
             return root;
         }
