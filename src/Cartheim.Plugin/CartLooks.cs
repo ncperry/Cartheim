@@ -6,9 +6,10 @@ using UnityEngine;
 namespace Cartheim.Plugin
 {
     // What a cart shows of what is built into it: copies of the pieces' own models. The bed lies lengthwise down the
-    // middle on the rug, which covers the cart's bed; the workbench and forge hang off the sides, the chest and barrel off
-    // the back; a roof on four posts covers it all. Only looks, made by every player from the cart's upgrades, so nothing
-    // goes over the network; the bed, stations and containers can be hovered and used with E (see CartPieceHover).
+    // middle; the workbench and forge hang off the sides, the chest and barrel off the back; a roof on four posts covers
+    // it all. (The rug lies under the tent, shown while it's pitched; see Rug.) Only looks, made by every player from the
+    // cart's upgrades, so nothing goes over the network; the bed, stations and containers can be hovered and used with E
+    // (see CartPieceHover).
     internal class CartLooks
     {
         // How far the roof reaches past the cart's sides and ends, and how high its eaves are above the cart's floor.
@@ -44,10 +45,10 @@ namespace Cartheim.Plugin
             if (upgrades.Has(SteamEngine.Engine))
                 shown.Add(SteamEngine.Engine);
             var roof = GamePieces.Roofs.LastOrDefault(upgrades.Has);
-            // After the roof: the rug drapes over it, and the hives hang from its posts (shown by slot, one per hive built).
+            // After the roof: the hives hang from its posts (shown by slot, one per hive built). (The rug lies under the
+            // tent, shown with it.)
             if (roof != null)
                 shown.Add(roof);
-            shown.AddRange(GamePieces.Rugs.Where(upgrades.Has));
             if (upgrades.Has(Sconce))
                 shown.Add(Sconce);
             if (upgrades.Has(FeyLights))
@@ -95,13 +96,6 @@ namespace Cartheim.Plugin
                 var model = Model(piece == SteamEngine.Engine ? GamePieces.EngineLooksLike : piece, Root.transform);
                 if (!model)
                     continue;
-                if (GamePieces.Rugs.Contains(piece))
-                {
-                    // Over the roof when there is one (it hardly shows in the cart), else on the cart's floor.
-                    if (!_ridge.HasValue || !Drape(model))
-                        LayOver(model, bed);
-                    continue;
-                }
                 if (GamePieces.Beds.Contains(piece))
                     Stand(model, new Vector3(cx, floor, cz), w, l, 1.2f);
                 else if (piece == GamePieces.WorkbenchPiece)
@@ -137,10 +131,6 @@ namespace Cartheim.Plugin
 
         public void Destroy()
         {
-            foreach (var mesh in _made)
-                if (mesh)
-                    Object.Destroy(mesh);
-            _made.Clear();
             if (Root)
                 Object.Destroy(Root);
             Anchors.Clear();
@@ -170,21 +160,28 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] {model.name}: size {b.size}, scale {fit.Scale:0.00}{(fit.Turned ? ", turned" : "")}");
         }
 
-        // Stretched over the whole bed, just above its floor.
-        private static void LayOver(GameObject model, Bounds bed)
+        // A rug laid flat in the middle of an area of the parent (the floor of a pitched tent), turned so its long side
+        // runs along the area's, as big as fits without stretching it out of shape.
+        public static GameObject Rug(Transform parent, string piece, Bounds area)
         {
+            var model = Model(piece, parent);
+            if (!model)
+                return null;
             var holder = model.transform.GetChild(0);
             var size = BoundsOf(holder.GetComponentsInChildren<MeshFilter>(), model.transform);
             if (size == null)
-                return;
+                return model;
             var b = size.Value;
-            var turned = b.size.x > b.size.z != bed.size.x > bed.size.z;
+            var turned = b.size.x > b.size.z != area.size.x > area.size.z;
             holder.localRotation = turned ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
             holder.localPosition = -(holder.localRotation * new Vector3(b.center.x, b.min.y, b.center.z));
             var width = turned ? b.size.z : b.size.x;
             var length = turned ? b.size.x : b.size.z;
-            model.transform.localPosition = new Vector3(bed.center.x, bed.min.y + RugLift / 2f, bed.center.z);
-            model.transform.localScale = new Vector3(bed.size.x / width, 1f, bed.size.z / length);
+            var scale = Mathf.Min(area.size.x / width, area.size.z / length);
+            model.transform.localPosition = new Vector3(area.center.x, area.min.y + RugLift, area.center.z);
+            model.transform.localScale = new Vector3(scale, 1f, scale);
+            Debug.Log($"[Cartheim] {piece} laid under the tent: size {b.size}, scale {scale:0.00}");
+            return model;
         }
 
 
@@ -240,77 +237,6 @@ namespace Cartheim.Plugin
             Anchors[slot] = holder;
             Hover(model, cart, slot, layer);
             Debug.Log($"[Cartheim] Cart hive {slot}: size {b.size}, scale {fit.Scale:0.00}, {(_ridge.HasValue ? "hanging off a back post" : "on the floor")}");
-        }
-
-
-        // How much of each roof slope a draped rug covers, from the ridge down.
-        private const float DrapeReach = 0.9f;
-        // How far above the roof's covering a draped rug lies, so it doesn't sink into the thatch.
-        private const float DrapeLift = 0.03f;
-
-        // Meshes made for this cart's looks (a draped rug), destroyed with them.
-        private readonly List<Mesh> _made = new List<Mesh>();
-
-        // A rug laid over the roof's ridge and folded down both slopes: its longer side runs across the roof. Its meshes
-        // are bent copies; false (and the rug goes in the cart) if the game doesn't let its meshes be read.
-        private bool Drape(GameObject model)
-        {
-            var holder = model.transform.GetChild(0);
-            var parts = holder.GetComponentsInChildren<MeshFilter>();
-            if (parts.Length == 0 || parts.Any(p => !p.sharedMesh || !p.sharedMesh.isReadable))
-            {
-                Debug.Log($"[Cartheim] {model.name}'s mesh can't be read, so it can't be draped over the roof; it lies in the cart");
-                return false;
-            }
-            var size = BoundsOf(parts, model.transform);
-            if (size == null)
-                return false;
-            var b = size.Value;
-            var acrossX = b.size.x >= b.size.z;
-            var half = (acrossX ? b.size.x : b.size.z) / 2f;
-            var angle = Mathf.Atan(_pitch);
-            var slopeLength = _roofHalfWidth / Mathf.Cos(angle);
-            var fold = new Vector3(b.center.x, b.min.y, b.center.z);
-            foreach (var part in parts)
-            {
-                var place = Matrix4x4.TRS(part.transform.localPosition, part.transform.localRotation, part.transform.localScale);
-                var bent = Folded(part.sharedMesh, place, fold, acrossX, angle);
-                _made.Add(bent);
-                part.sharedMesh = bent;
-            }
-            holder.localRotation = acrossX ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
-            holder.localPosition = -(holder.localRotation * fold);
-            model.transform.localScale = Vector3.one * (DrapeReach * slopeLength / half);
-            model.transform.localPosition = _ridge.Value + Vector3.up * (_roofThickness + DrapeLift);
-            Debug.Log($"[Cartheim] {model.name} draped over the roof: size {b.size}, scale {model.transform.localScale.x:0.00}");
-            return true;
-        }
-
-        // The mesh bent along a line through the fold point (along the rug's shorter side): each side goes down at the
-        // angle, as far along the slope as it reached across before.
-        private static Mesh Folded(Mesh mesh, Matrix4x4 place, Vector3 fold, bool acrossX, float angle)
-        {
-            var toPart = place.inverse;
-            var vertices = mesh.vertices;
-            for (var i = 0; i < vertices.Length; i++)
-            {
-                var q = place.MultiplyPoint3x4(vertices[i]);
-                var u = acrossX ? q.x - fold.x : q.z - fold.z;
-                var reach = Mathf.Abs(u) * Mathf.Cos(angle);
-                var across = Mathf.Sign(u) * reach;
-                if (acrossX)
-                    q.x = fold.x + across;
-                else
-                    q.z = fold.z + across;
-                q.y = fold.y - Mathf.Abs(u) * Mathf.Sin(angle) + (q.y - fold.y);
-                vertices[i] = toPart.MultiplyPoint3x4(q);
-            }
-            var bent = Object.Instantiate(mesh);
-            bent.name = mesh.name + " draped";
-            bent.vertices = vertices;
-            bent.RecalculateNormals();
-            bent.RecalculateBounds();
-            return bent;
         }
 
         // Fey lights strung across the front of the cart (its handle end): hung from the eaves between the two front posts

@@ -16,6 +16,21 @@ namespace Cartheim.Core.Tests
             Assert.False(cart.CanAdd(Tent.Piece));
         }
 
+        // The rug lies under the tent, so it comes after it.
+        [Theory]
+        [InlineData("rug_deer")]
+        [InlineData("jute_carpet")]
+        public void A_rug_needs_the_tent_built_first(string rug)
+        {
+            var cart = new CartUpgrades();
+            cart.Add("piece_workbench");
+            Assert.False(cart.CanAdd(rug));
+
+            cart.Add(Tent.Piece);
+
+            Assert.True(cart.CanAdd(rug));
+        }
+
         [Fact]
         public void Ground_that_rises_less_than_the_most_allowed_is_flat_enough()
         {

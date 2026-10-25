@@ -44,6 +44,8 @@ namespace Cartheim.Core
             (piece == Workbench || Has(Workbench)) &&
             (extends == null || Has(extends)) &&
             (piece != SteamEngine.Engine || SteamEngine.Needs.All(Has)) &&
+            // A rug lies under the tent.
+            (!Rugs.Contains(piece) || Has(Tent.Piece)) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
 
         public void Add(string piece, string extends = null) => built.Add((piece, extends));

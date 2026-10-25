@@ -51,6 +51,7 @@ namespace Cartheim.Plugin
         private float _assist;
         // The tent pitched beside the cart, and how each of the cart's bodies was held before the tent held it still.
         private GameObject _tent;
+        private string _tentRug;
         private readonly Dictionary<Rigidbody, RigidbodyConstraints> _unfrozen = new Dictionary<Rigidbody, RigidbodyConstraints>();
 
         public CartUpgrades Upgrades { get; private set; } = new CartUpgrades();
@@ -471,8 +472,18 @@ namespace Cartheim.Plugin
                 _wisp = null;
             }
             var wantTent = on && TentUp;
+            var rug = GamePieces.Rugs.FirstOrDefault(Upgrades.Has);
+            // A rug built while the tent is up goes down when it's pitched again, here and now.
+            if (_tent && rug != _tentRug)
+            {
+                Destroy(_tent);
+                _tent = null;
+            }
             if (wantTent && !_tent && _vagon && TentAssets.Spot(transform, CartLooks.BedOf(_vagon), out var tentAt, out var tentFacing, out _))
-                _tent = TentAssets.Pitch(tentAt, tentFacing, CartLooks.BedOf(_vagon));
+            {
+                _tent = TentAssets.Pitch(tentAt, tentFacing, CartLooks.BedOf(_vagon), rug);
+                _tentRug = rug;
+            }
             else if (!wantTent && _tent)
             {
                 Destroy(_tent);
