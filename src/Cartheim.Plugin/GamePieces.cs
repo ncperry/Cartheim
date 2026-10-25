@@ -232,14 +232,14 @@ namespace Cartheim.Plugin
             return item ? Localization.instance.Localize(item.m_itemData.m_shared.m_name) : prefab;
         }
 
-        // How many of each material in the cost the player carries.
+        // How many of each material in the cost the player has, counting the cart's storage.
         public static Dictionary<string, int> Carried(Player player, IEnumerable<ItemCount> cost)
         {
             var carried = new Dictionary<string, int>();
             foreach (var c in cost)
             {
                 var item = Item(c.Prefab);
-                carried[c.Prefab] = item ? player.GetInventory().CountItems(item.m_itemData.m_shared.m_name) : 0;
+                carried[c.Prefab] = item ? CartMaterials.CountWithCart(player.GetInventory(), item.m_itemData.m_shared.m_name, -1, true) : 0;
             }
             return carried;
         }
@@ -270,7 +270,7 @@ namespace Cartheim.Plugin
             {
                 var item = Item(c.Prefab);
                 if (item)
-                    player.GetInventory().RemoveItem(item.m_itemData.m_shared.m_name, c.Count);
+                    CartMaterials.Take(player, item.m_itemData.m_shared.m_name, c.Count);
             }
         }
     }

@@ -49,8 +49,34 @@ namespace Cartheim.Plugin
             }
         }
 
+        // A cart whose storage just changed while the player had their inventory open beside it (an Alt+click putting
+        // something into the cart or taking it out): its storage is shown next frame.
+        private static CartBase _changed;
+
+        [HarmonyPatch(typeof(Inventory), "Changed"), HarmonyPostfix]
+        private static void ShowWhenChanged(Inventory __instance)
+        {
+            if (_cart || !Growing.TryGetValue(__instance, out _) || !InventoryGui.IsVisible() || !InventoryGui.instance ||
+                CurrentContainer(InventoryGui.instance) || !Plugin.Enabled.Value)
+                return;
+            _changed = CartBase.All.FirstOrDefault(c => c && c.GetComponent<Vagon>()?.m_container?.GetInventory() == __instance);
+        }
+
         public static void Update()
         {
+            if (_changed)
+            {
+                var changed = _changed;
+                _changed = null;
+                var local = Player.m_localPlayer;
+                var screen = InventoryGui.instance;
+                if (!_cart && local && screen && InventoryGui.IsVisible() && !CurrentContainer(screen) &&
+                    Vector3.Distance(local.transform.position, changed.transform.position) <= screen.m_autoCloseDistance)
+                {
+                    Debug.Log("[Cartheim] The cart's storage changed with the inventory open beside it; showing it");
+                    Open(changed);
+                }
+            }
             if (!_cart)
             {
                 if (Shown.Count > 0 || Asked.Count > 0)

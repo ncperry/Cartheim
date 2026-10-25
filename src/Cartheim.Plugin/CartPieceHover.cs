@@ -83,7 +83,9 @@ namespace Cartheim.Plugin
             var station = Station;
             if (!station)
                 return false;
+            // With the cart's storage beside it, as for Shift+E.
             CartCrafting.Use(station);
+            CartStorage.Open(_cart);
             return true;
         }
 
