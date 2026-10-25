@@ -81,8 +81,8 @@ namespace Cartheim.Plugin
                 else if (piece == GamePieces.WorkbenchPiece)
                     Stand(model, new Vector3(bed.min.x - 0.15f, floor, cz), 0.7f, l * 0.8f, 0.9f, 180f);
                 else if (piece == Cauldron)
-                    // On the forge's side, in line with it, just ahead of it towards the cart's handles.
-                    Stand(model, new Vector3(bed.max.x + 0.15f, floor, bed.max.z - 0.1f), 0.6f, 0.6f, 0.7f);
+                    // On the forge's side, just ahead of it towards the cart's handles, sticking out so the whole bowl shows.
+                    Stand(model, new Vector3(bed.max.x + 0.3f, floor, bed.max.z - 0.1f), 0.45f, 0.45f, 0.6f);
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))
@@ -472,7 +472,8 @@ namespace Cartheim.Plugin
             foreach (var renderer in prefab.GetComponentsInChildren<MeshRenderer>(true))
             {
                 var mesh = renderer.GetComponent<MeshFilter>();
-                if (!renderer.enabled || !mesh || !mesh.sharedMesh || lesserDetail.Contains(renderer) || !Shows(renderer.transform, prefab.transform))
+                if (!renderer.enabled || !mesh || !mesh.sharedMesh || lesserDetail.Contains(renderer) || !Shows(renderer.transform, prefab.transform) ||
+                    (OnlyParts.TryGetValue(piece, out var only) && !renderer.name.StartsWith(only)))
                     continue;
                 var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
                 part.transform.SetParent(holder, false);
@@ -485,6 +486,9 @@ namespace Cartheim.Plugin
             }
             return model;
         }
+
+        // The only part of a piece shown on a cart, by name: the cauldron's bowl, without its tripod and chains.
+        private static readonly Dictionary<string, string> OnlyParts = new Dictionary<string, string> { [Cauldron] = "cauldron" };
 
         // How much of a piece's height is its legs, cut off when it's shown on a cart: it rests on the cart instead.
         private static readonly Dictionary<string, float> LegShare = new Dictionary<string, float>

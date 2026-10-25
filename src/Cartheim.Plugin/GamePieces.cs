@@ -128,6 +128,16 @@ namespace Cartheim.Plugin
             var fireplace = hearth ? hearth.GetComponent<Fireplace>() : null;
             if (fireplace)
                 Debug.Log($"[Cartheim] hearth enabledObject {fireplace.m_enabledObject?.name}, high {fireplace.m_enabledObjectHigh?.name}, low {fireplace.m_enabledObjectLow?.name}");
+            // The cauldron's parts, for showing just its bowl on a cart.
+            var cauldron = Prefab("piece_cauldron");
+            if (cauldron)
+                foreach (var renderer in cauldron.GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    var mesh = renderer.GetComponent<MeshFilter>()?.sharedMesh;
+                    var at = cauldron.transform.InverseTransformPoint(renderer.bounds.center);
+                    Debug.Log($"[Cartheim] Cauldron part {renderer.name} (under {renderer.transform.parent?.name}), mesh {mesh?.name}, " +
+                              $"readable {mesh?.isReadable}, active {renderer.gameObject.activeSelf}, mesh bounds {mesh?.bounds}, local pos {renderer.transform.localPosition}");
+                }
             var cart = Prefab("Cart");
             if (cart)
                 Debug.Log($"[Cartheim] Cart prefab components: {string.Join(", ", cart.GetComponents<Component>().Select(c => c.GetType().Name))}");
