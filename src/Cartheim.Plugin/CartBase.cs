@@ -189,6 +189,9 @@ namespace Cartheim.Plugin
             if (!_nview || !_nview.IsValid())
                 return;
             Upgrades = Load();
+            // Keeps the cart's own storage growing, whatever has resized it since.
+            if (_vagon && _vagon.m_container)
+                CartStorage.Double(_vagon.m_container);
             FindRiders();
             var on = Plugin.Enabled.Value;
             foreach (var (slot, rider) in _riders)

@@ -117,7 +117,10 @@ namespace Cartheim.Plugin
                 return;
             var items = __instance.GetAllItems();
             var lowest = items.Count == 0 ? -1 : items.Max(i => i.m_gridPos.y);
-            InventoryHeight(__instance) = StorageSize.GrowingRows(baseRows.Value, lowest);
+            var rows = StorageSize.GrowingRows(baseRows.Value, lowest);
+            if (rows != InventoryHeight(__instance))
+                Debug.Log($"[Cartheim] Cart storage now {rows} rows (lowest item in row {lowest})");
+            InventoryHeight(__instance) = rows;
         }
 
         // Sized as doubled from the game's own piece, so doing it again (a hot reload, a second load) changes nothing.
@@ -140,8 +143,11 @@ namespace Cartheim.Plugin
             // The cart's own storage has no end: it grows a row at a time as it fills.
             if (container.GetComponentInParent<Vagon>())
             {
-                Growing.Remove(inventory);
-                Growing.Add(inventory, new StrongBox<int>(height));
+                if (!Growing.TryGetValue(inventory, out _))
+                {
+                    Growing.Add(inventory, new StrongBox<int>(height));
+                    Debug.Log($"[Cartheim] Cart storage grows from {height} rows; has {inventory.GetAllItems().Count} items");
+                }
                 Grow(inventory);
             }
         }
