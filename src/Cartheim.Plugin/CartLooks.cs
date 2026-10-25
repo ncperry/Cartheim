@@ -81,8 +81,8 @@ namespace Cartheim.Plugin
                 else if (piece == GamePieces.WorkbenchPiece)
                     Stand(model, new Vector3(bed.min.x - 0.15f, floor, cz), 0.7f, l * 0.8f, 0.9f, 180f);
                 else if (piece == Cauldron)
-                    // At the front, in front of the bed, sticking out a little.
-                    Stand(model, new Vector3(cx, floor, bed.max.z + 0.1f), 0.6f, 0.6f, 0.7f);
+                    // On the forge's side, in line with it, just ahead of it towards the cart's handles.
+                    Stand(model, new Vector3(bed.max.x + 0.15f, floor, bed.max.z - 0.1f), 0.6f, 0.6f, 0.7f);
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))
