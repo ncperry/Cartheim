@@ -29,6 +29,8 @@ namespace Cartheim.Core
             "jute_carpet", "jute_carpet_blue",
         };
 
+        public const string Beehive = "piece_beehive";
+
         // Kinds of piece a cart holds only one of.
         private static readonly HashSet<string>[] OneOfEach = { Chests, Lights, Beds, Rugs };
 
@@ -43,7 +45,7 @@ namespace Cartheim.Core
         // The workbench goes in first; everything else is built onto it, and an extension (forge cooler, tanning rack)
         // onto the station it extends.
         public bool CanAdd(string piece, string extends = null) =>
-            !Has(piece) &&
+            (piece == Beehive || !Has(piece)) &&
             (piece == Workbench || Has(Workbench)) &&
             (extends == null || Has(extends)) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
