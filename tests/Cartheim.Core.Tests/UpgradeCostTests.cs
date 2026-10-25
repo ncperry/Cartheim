@@ -101,5 +101,19 @@ namespace Cartheim.Core.Tests
 
             Assert.Contains(new ItemCount("BronzeNails", 5), cost);
         }
+
+        [Theory]
+        [InlineData("Carrot")]
+        [InlineData("Dandelion")]
+        [InlineData("Feathers")]
+        [InlineData("Mushroom")]
+        [InlineData("RoundLog")]
+        [InlineData("TrophySkeleton")]
+        public void Meadows_and_Black_Forest_finds_are_held_on_with_bronze_nails(string material)
+        {
+            var cost = UpgradeCost.For(new[] { new ItemCount("Wood", 2), new ItemCount(material, 1) });
+
+            Assert.Contains(new ItemCount("BronzeNails", 5), cost);
+        }
     }
 }

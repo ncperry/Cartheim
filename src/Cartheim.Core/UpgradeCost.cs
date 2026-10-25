@@ -11,6 +11,7 @@ namespace Cartheim.Core
         private static readonly HashSet<string> BlackForestOrEarlier = new HashSet<string>
         {
             "Wood", "FineWood", "Stone", "Flint", "Resin", "Coal", "LeatherScraps", "DeerHide", "Copper", "Tin", "Bronze", "QueenBee", "Thistle",
+            "Carrot", "Dandelion", "Feathers", "Mushroom", "RoundLog", "TrophySkeleton",
         };
 
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
