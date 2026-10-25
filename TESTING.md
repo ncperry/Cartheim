@@ -103,3 +103,14 @@ and Claude reads `BepInEx\LogOutput.log` (lines start with `[Cartheim]`) before 
 - [ ] With Cartheim off, none of the above works (no panel, stations, tabs, roof shelter, hearth, rest, comfort, glow, wisp,
       spawn block, extra health/armor, laden fix, upgrade looks), and nothing is lost: switched on, it all comes back.
 - [ ] With Cartheim off, destroying a cart still drops its contents, every container's contents and every upgrade's materials.
+
+## Step 11: beehives
+
+- [ ] The Cart panel has "Bees (up to two hives)": Beehive, for 10 wood, 1 queen bee and 5 bronze nails.
+      After one, it still shows "Build"; after two, "Built".
+- [ ] Each hive shows in the Stations section as "Honey 0 / 4" with "Take honey". With no honey yet, Take honey says the bees are happy,
+      wherever the cart is (any biome) and whatever is around it.
+- [ ] Bees buzz around the cart by day.
+- [ ] After a while, Take honey drops honey beside the cart and the count goes back to 0.
+- [ ] Breaking the cart drops any honey still in the hives, along with the hives' materials.
+- [ ] Cartheim off: hives follow the normal rules again (biome, space).

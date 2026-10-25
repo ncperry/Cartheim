@@ -106,10 +106,18 @@ namespace Cartheim.Plugin
 
         private GameObject Rider(string piece) => _riders.TryGetValue(piece, out var r) && r ? r : null;
 
+        // The beehives built into the cart, while the mod is on and they are loaded.
+        public List<Beehive> Beehives =>
+            Plugin.Enabled.Value
+                ? GamePieces.BeehiveSlots.Select(Rider).Where(r => r).Select(r => r.GetComponent<Beehive>()).Where(b => b).ToList()
+                : new List<Beehive>();
+
+        // Builds the piece into its first free slot (a second beehive goes in the second).
         public void BuildRider(string piece)
         {
+            var slot = GamePieces.SlotsFor(piece).FirstOrDefault(s => !Rider(s) && _nview.GetZDO().GetZDOID(CartRiders.KeyFor(s)) == ZDOID.None) ?? piece;
             var id = CartRiders.Build(piece, transform, _nview.GetZDO().m_uid);
-            _nview.InvokeRPC(ChestRpc, piece, id);
+            _nview.InvokeRPC(ChestRpc, slot, id);
         }
 
         private void RPC_SetChest(long sender, string piece, ZDOID chest)
@@ -224,6 +232,7 @@ namespace Cartheim.Plugin
             {
                 if (_riders.TryGetValue(piece, out var known) && known)
                     continue;
+                // piece is a slot here: a second beehive rides as "piece_beehive#2".
                 var id = _nview.GetZDO().GetZDOID(CartRiders.KeyFor(piece));
                 var go = id == ZDOID.None ? null : ZNetScene.instance.FindInstance(id);
                 if (!go)

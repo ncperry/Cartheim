@@ -80,7 +80,8 @@ namespace Cartheim.Plugin
             var stations = _cart.Stations.ToList();
             var containers = _cart.Containers;
             var bed = _cart.Bed;
-            if (stations.Count > 0 || containers.Count > 0 || bed)
+            var hives = _cart.Beehives;
+            if (stations.Count > 0 || containers.Count > 0 || bed || hives.Count > 0)
             {
                 PanelWidgets.Header(list, "Stations", Width - 90);
                 foreach (var piece in stations)
@@ -98,6 +99,13 @@ namespace Cartheim.Plugin
                     PanelWidgets.Size(PanelWidgets.Label(row, Localization.instance.Localize(bed.GetComponent<Piece>().m_name), Vector2.zero, 16, Color.white, NameWidth, TextAnchor.MiddleLeft), NameWidth);
                     PanelWidgets.Size(PanelWidgets.Label(row, "First use sets your spawn point, then sleep", Vector2.zero, 14, Color.white, CostWidth, TextAnchor.MiddleLeft), CostWidth);
                     PanelWidgets.Size(PanelWidgets.Button(row, "Use", Vector2.zero, ButtonWidth, () => UseBed(bed)), ButtonWidth);
+                }
+                foreach (var hive in hives)
+                {
+                    var row = PanelWidgets.Row(list);
+                    PanelWidgets.Size(PanelWidgets.Label(row, Localization.instance.Localize(hive.m_name), Vector2.zero, 16, Color.white, NameWidth, TextAnchor.MiddleLeft), NameWidth);
+                    PanelWidgets.Size(PanelWidgets.Label(row, $"Honey {CartRiders.HoneyIn(hive)} / {hive.m_maxHoney}", Vector2.zero, 16, Color.white, CostWidth, TextAnchor.MiddleLeft), CostWidth);
+                    PanelWidgets.Size(PanelWidgets.Button(row, "Take honey", Vector2.zero, ButtonWidth, () => TakeHoney(hive)), ButtonWidth);
                 }
                 foreach (var chest in containers)
                 {
@@ -159,6 +167,16 @@ namespace Cartheim.Plugin
                 return;
             Close();
             bed.Interact(player, false, false);
+        }
+
+        // The hive's own use: honey drops out beside the cart, or with none yet, the game says the bees are happy.
+        private void TakeHoney(Beehive hive)
+        {
+            var player = Player.m_localPlayer;
+            if (!hive || !player)
+                return;
+            hive.Interact(player, false, false);
+            Redraw();
         }
 
         private void OpenChest(Container chest)

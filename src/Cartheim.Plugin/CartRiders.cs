@@ -1,4 +1,5 @@
 using System.Linq;
+using Cartheim.Core;
 using Splatform;
 using UnityEngine;
 
@@ -44,6 +45,11 @@ namespace Cartheim.Plugin
                 Object.Destroy(wear);
             foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
                 fire.m_infiniteFuel = true;
+            // A beehive's bees still show, buzzing about the cart.
+            var hive = piece.GetComponent<Beehive>();
+            if (hive && hive.m_beeEffect)
+                foreach (var renderer in hive.m_beeEffect.GetComponentsInChildren<Renderer>(true))
+                    renderer.enabled = true;
             if (!piece.GetComponent<CartRider>())
                 piece.AddComponent<CartRider>();
         }
@@ -67,6 +73,9 @@ namespace Cartheim.Plugin
                 nview.GetZDO().SetPosition(piece.transform.position);
         }
 
+        // How much honey a beehive holds, as the game keeps it.
+        public static int HoneyIn(Beehive hive) => hive ? hive.GetComponent<ZNetView>()?.GetZDO()?.GetInt(ZDOVars.s_level) ?? 0 : 0;
+
         // Spills a container's contents and removes the piece without dropping its own materials (the cart's refund returns
         // those).
         public static void Break(GameObject piece, Vector3 at)
@@ -80,6 +89,14 @@ namespace Cartheim.Plugin
                 foreach (var item in items)
                     ItemDrop.DropItem(item, 0, at + Vector3.up * 0.5f + Random.insideUnitSphere * 0.5f, Quaternion.Euler(0f, Random.Range(0, 360), 0f));
                 container.GetInventory().RemoveAll();
+            }
+            // Honey still in a beehive spills too.
+            var hive = piece.GetComponent<Beehive>();
+            var honey = HoneyIn(hive);
+            if (honey > 0 && hive.m_honeyItem)
+            {
+                Debug.Log($"[Cartheim] Cart's {piece.name} breaks; dropping {honey} honey");
+                GamePieces.Drop(new ItemCount(hive.m_honeyItem.gameObject.name, honey), at);
             }
             if (nview && nview.IsValid())
             {

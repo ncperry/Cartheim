@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Cartheim.Plugin
 {
     // Sleeping in a cart's bed and resting by a cart: both need a fire near the cart and no enemies about, but no roof.
+    // Also the bees in a cart's beehives, kept happy.
     internal static class RestPatches
     {
         private static bool IsCartPiece(Component piece) => Plugin.Enabled.Value && piece.GetComponent<CartRider>();
@@ -63,6 +64,21 @@ namespace Cartheim.Plugin
             Piece.GetAllComfortPiecesInRadius(position, 10f, pieces);
             var bestFire = pieces.Where(p => p.m_comfortGroup == Piece.ComfortGroup.Fire).Select(p => p.GetComfort()).DefaultIfEmpty(0).Max();
             __result += cart.Upgrades.ExtraComfort(hearth ? hearth.m_comfort : 0, bestFire);
+        }
+
+        // A cart's bees are always happy: any biome, and the cart never crowds them.
+        [HarmonyPatch(typeof(Beehive), "CheckBiome"), HarmonyPrefix]
+        private static bool CartBeesLikeAnyBiome(Beehive __instance, ref bool __result) => HappyCartBees(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Beehive), "HaveFreeSpace"), HarmonyPrefix]
+        private static bool CartBeesHaveRoom(Beehive __instance, ref bool __result) => HappyCartBees(__instance, ref __result);
+
+        private static bool HappyCartBees(Beehive hive, ref bool result)
+        {
+            if (!IsCartPiece(hive))
+                return true;
+            result = true;
+            return false;
         }
 
         // Switched off, the cart's hidden furniture gives no comfort.
