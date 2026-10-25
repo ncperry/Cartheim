@@ -20,8 +20,8 @@ namespace Cartheim.Plugin
         private const string Cauldron = "piece_cauldron";
         private const string MeadKetill = "piece_MeadCauldron";
         // The fermenter shows as small as a growler.
-        private const float GrowlerWidth = 0.26f;
-        private const float GrowlerHeight = 0.4f;
+        private const float GrowlerWidth = 0.36f;
+        private const float GrowlerHeight = 0.56f;
         private const string FeyLights = "piece_FairylightGarland";
         private const string Sconce = "piece_walltorch";
         private const string BeamPiece = "wood_beam";
