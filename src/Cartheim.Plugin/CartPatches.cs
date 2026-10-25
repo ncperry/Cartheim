@@ -45,14 +45,25 @@ namespace Cartheim.Plugin
 
         private static readonly System.Reflection.MethodInfo SetMass = AccessTools.Method(typeof(Vagon), "SetMass");
 
-        // A full cart pulls like an empty one: its mass never grows with what it carries.
+        private static float _loggedMass = -1f;
+
+        // The cart pulls as if it carried a set, middling load (the "Pulls as if carrying" setting), whatever it holds.
         [HarmonyPatch(typeof(Vagon), "UpdateMass"), HarmonyPrefix]
-        private static bool KeepEmptyMass(Vagon __instance, ZNetView ___m_nview)
+        private static bool KeepSetMass(Vagon __instance, ZNetView ___m_nview)
         {
             if (!Plugin.Enabled.Value)
                 return true;
-            if (___m_nview && ___m_nview.IsValid() && ___m_nview.IsOwner())
-                SetMass.Invoke(__instance, new object[] { __instance.m_baseMass });
+            if (!___m_nview || !___m_nview.IsValid() || !___m_nview.IsOwner())
+                return false;
+            var mass = Cartheim.Core.CartMass.Pulled(__instance.m_baseMass, __instance.m_itemWeightMassFactor, Plugin.FeltLoad.Value);
+            SetMass.Invoke(__instance, new object[] { mass });
+            if (mass != _loggedMass)
+            {
+                _loggedMass = mass;
+                var carried = __instance.m_container ? __instance.m_container.GetInventory().GetTotalWeight() : 0f;
+                Debug.Log($"[Cartheim] Cart mass {mass} (base {__instance.m_baseMass}, {__instance.m_itemWeightMassFactor} per weight, " +
+                          $"felt load {Plugin.FeltLoad.Value}; really carrying {carried}, which the game would make {__instance.m_baseMass + carried * __instance.m_itemWeightMassFactor})");
+            }
             return false;
         }
 

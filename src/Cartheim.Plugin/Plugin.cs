@@ -14,6 +14,9 @@ namespace Cartheim.Plugin
         // Read whenever cart behavior would act, so switching it off takes effect at once.
         public static ConfigEntry<bool> Enabled;
 
+        // How heavy the cart feels to pull, as the weight of what it would carry.
+        public static ConfigEntry<float> FeltLoad;
+
         private readonly CartTabs _cartTabs = new CartTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
@@ -23,6 +26,9 @@ namespace Cartheim.Plugin
             Enabled = Config.Bind("Mods", "Cartheim", true,
                 "Turn carts into mobile bases: build crafting stations, furniture and a chest into them. " +
                 "Switched off, a destroyed cart still returns everything built into it.");
+            FeltLoad = Config.Bind("Cart", "Pulls as if carrying", 600f,
+                "The cart pulls as if its storage weighed this much, whatever it holds: 0 is an empty cart's light, " +
+                "rattly pull; more is steadier and slower. Unlimited storage would otherwise make a full cart drag.");
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));
