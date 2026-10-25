@@ -78,7 +78,12 @@ namespace Cartheim.Plugin
         public static void Follow(GameObject piece, Transform cart, Transform model = null)
         {
             if (model)
+            {
                 piece.transform.SetPositionAndRotation(model.position, model.rotation);
+                // A light (a sconce) is shrunk with its model, so its flame stays where the model's bracket is.
+                if (piece.GetComponentInChildren<Light>(true))
+                    piece.transform.localScale = model.lossyScale;
+            }
             else
                 piece.transform.SetPositionAndRotation(cart.position + Offset, cart.rotation);
             var nview = piece.GetComponent<ZNetView>();
