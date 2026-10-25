@@ -93,5 +93,13 @@ namespace Cartheim.Core.Tests
 
             Assert.Equal(new ItemCount("IronNails", 5), UpgradeCost.For(butchersTable).Last());
         }
+
+        [Fact]
+        public void Fey_lights_are_held_on_with_bronze_nails_as_thistle_grows_in_the_black_forest()
+        {
+            var cost = UpgradeCost.For(new[] { new ItemCount("FineWood", 2), new ItemCount("Thistle", 1) });
+
+            Assert.Contains(new ItemCount("BronzeNails", 5), cost);
+        }
     }
 }

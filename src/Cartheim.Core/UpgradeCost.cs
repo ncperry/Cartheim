@@ -10,7 +10,7 @@ namespace Cartheim.Core
         // counts as swamp or later, so the piece is held on with iron nails.
         private static readonly HashSet<string> BlackForestOrEarlier = new HashSet<string>
         {
-            "Wood", "FineWood", "Stone", "Flint", "Resin", "Coal", "LeatherScraps", "DeerHide", "Copper", "Tin", "Bronze", "QueenBee",
+            "Wood", "FineWood", "Stone", "Flint", "Resin", "Coal", "LeatherScraps", "DeerHide", "Copper", "Tin", "Bronze", "QueenBee", "Thistle",
         };
 
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
