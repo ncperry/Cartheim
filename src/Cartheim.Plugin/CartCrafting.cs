@@ -199,8 +199,8 @@ namespace Cartheim.Plugin
             piece == CartUpgrades.Beehive ? "\n\n<color=orange>Up to two per cart. Its bees are always happy.</color>" :
             "";
 
-        // Valheim Inventory's "Craft all" doesn't apply to upgrades: each is built once. Runs after every Update, which is
-        // where that mod shows its button.
+        // Valheim Inventory's craft counter (how many Craft makes) doesn't apply to upgrades: each is built once. Runs after
+        // every Update, which is where that mod shows its counter.
         public static void HideCraftAll()
         {
             var gui = InventoryGui.instance;
@@ -208,11 +208,10 @@ namespace Cartheim.Plugin
             if (!gui || !player || !InventoryGui.IsVisible() || !IsUpgradeStation(player.GetCurrentCraftingStation()) || !gui.m_craftButton)
                 return;
             foreach (Transform sibling in gui.m_craftButton.transform.parent)
-            {
-                var label = sibling.GetComponentInChildren<Text>();
-                if (label && label.text.StartsWith("Craft all"))
+                if (sibling.name == CraftCounter)
                     sibling.gameObject.SetActive(false);
-            }
         }
+
+        private const string CraftCounter = "Craft count";
     }
 }
