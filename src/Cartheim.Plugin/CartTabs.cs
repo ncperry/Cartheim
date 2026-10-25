@@ -9,9 +9,8 @@ using Object = UnityEngine.Object;
 namespace Cartheim.Plugin
 {
     // A column of icon tabs down the left of the crafting screen while at one of a cart's stations: the Cart (its
-    // upgrades), each station built in, then its beehives, used rather than crafted at, and its tent, pitched or packed
-    // up. (Its containers are all open beside the crafting screen, see CartStorage; its bed is used by clicking it in the
-    // cart.)
+    // upgrades), each station built in, and its tent, pitched or packed up. (Its containers are all open beside the
+    // crafting screen, see CartStorage; its bed and beehives are used by clicking them on the cart.)
     internal class CartTabs
     {
         private const float Size = 56f;
@@ -44,7 +43,7 @@ namespace Cartheim.Plugin
             for (var i = 0; i < _shown.Count; i++)
             {
                 _shown[i].tab.interactable = _shown[i].target != current;
-                // Kept current: a beehive's honey changes while the screen is open.
+                // Kept current: the tent's tooltip changes as it's pitched and packed up.
                 _shown[i].tooltip.m_text = targets[i].name;
             }
         }
@@ -69,16 +68,11 @@ namespace Cartheim.Plugin
                 if (station)
                     targets.Add((station, piece, GamePieces.DisplayName(piece)));
             }
-            foreach (var hive in cart.Beehives)
-                targets.Add((hive, PieceName(hive), $"{Localization.instance.Localize(hive.m_name)}: honey {CartRiders.HoneyIn(hive)} / {hive.m_maxHoney}, click to take it"));
-            // Last, below the hives: the tent, pitched or packed up with a click.
+            // Last: the tent, pitched or packed up with a click.
             if (cart.HasTent)
                 targets.Add((cart, Cartheim.Core.Tent.Piece, cart.TentUp ? "Tent: click to pack it up (the cart can move again)" : "Tent: click to pitch it beside the cart (the cart then stays put)"));
             return targets;
         }
-
-        // A riding piece's prefab name, for its build-menu icon.
-        private static string PieceName(Component piece) => Utils.GetPrefabName(piece.gameObject);
 
         private void Rebuild(CartBase cart, List<(Object target, string piece, string name)> targets)
         {
@@ -103,9 +97,6 @@ namespace Cartheim.Plugin
             {
                 case CraftingStation station:
                     CartCrafting.Use(station);
-                    break;
-                case Beehive hive:
-                    hive.Interact(player, false, false);
                     break;
                 case CartBase cart:
                     cart.ToggleTent(player);
