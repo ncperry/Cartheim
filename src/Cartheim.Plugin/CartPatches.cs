@@ -5,9 +5,6 @@ namespace Cartheim.Plugin
 {
     internal static class CartPatches
     {
-        // Opens the cart panel; set by the plugin.
-        public static System.Action<CartBase> OpenPanel;
-
         [HarmonyPatch(typeof(Vagon), "Awake"), HarmonyPostfix]
         private static void AddCartBase(Vagon __instance)
         {
@@ -16,16 +13,20 @@ namespace Cartheim.Plugin
                 __instance.gameObject.AddComponent<CartBase>();
         }
 
-        // The alternate interact (Shift+E) opens the cart panel; plain E still hitches the cart.
+        // The alternate interact (Shift+E) opens the cart's crafting screen at its workbench, or at the Cart tab (its
+        // upgrades) before it has one; plain E still hitches the cart.
         [HarmonyPatch(typeof(Vagon), nameof(Vagon.Interact)), HarmonyPrefix]
-        private static bool OpenCartPanel(Vagon __instance, Humanoid character, bool hold, bool alt, ref bool __result)
+        private static bool OpenCartCrafting(Vagon __instance, Humanoid character, bool hold, bool alt, ref bool __result)
         {
             if (!alt || hold || !Plugin.Enabled.Value || character != Player.m_localPlayer)
                 return true;
             var cart = __instance.GetComponent<CartBase>();
-            if (!cart)
+            var station = cart ? cart.Station(GamePieces.WorkbenchPiece) : null;
+            if (!station && cart)
+                station = cart.UpgradeStation;
+            if (!station)
                 return true;
-            OpenPanel?.Invoke(cart);
+            CartCrafting.Use(station);
             __result = true;
             return false;
         }

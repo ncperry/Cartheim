@@ -27,6 +27,7 @@ namespace Cartheim.Plugin
         private readonly Dictionary<string, CraftingStation> _stations = new Dictionary<string, CraftingStation>();
         // The pieces riding hidden in the cart (chest, bed, rug, light...), by piece, once loaded.
         private readonly Dictionary<string, GameObject> _riders = new Dictionary<string, GameObject>();
+        private CraftingStation _upgradeStation;
         private GameObject _hearth;
         private GameObject _wisp;
         private GameObject _baseArea;
@@ -71,6 +72,8 @@ namespace Cartheim.Plugin
             foreach (var station in _stations.Values)
                 if (station)
                     Destroy(station.gameObject);
+            if (_upgradeStation)
+                Destroy(_upgradeStation.gameObject);
             if (_hearth)
                 Destroy(_hearth);
             if (_wisp)
@@ -138,7 +141,15 @@ namespace Cartheim.Plugin
 
         public CraftingStation Station(string piece) => _stations.TryGetValue(piece, out var s) ? s : null;
 
-        public IEnumerable<string> Stations => _stations.Keys;
+        // The real stations built in, in the hammer's order.
+        public IEnumerable<string> Stations => GamePieces.Stations.Where(_stations.ContainsKey);
+
+        // The Cart tab's station, where the cart's upgrades are built; there whenever the mod is on.
+        public CraftingStation UpgradeStation => Plugin.Enabled.Value ? _upgradeStation : null;
+
+        // The cart's health now, and at most.
+        public float Health => _nview && _nview.IsValid() && _wear ? _nview.GetZDO().GetFloat(ZDOVars.s_health, _wear.m_health) : 0f;
+        public float MaxHealth => _wear ? _wear.m_health : 0f;
 
         // Pay first, then ask the cart's owner to record it; everyone picks it up from the save data within a second.
         public void Add(string piece, string extends)
@@ -196,6 +207,13 @@ namespace Cartheim.Plugin
                 Destroy(_hearth);
                 _hearth = null;
             }
+            if (on && !_upgradeStation)
+                _upgradeStation = MakeUpgradeStation();
+            else if (!on && _upgradeStation)
+            {
+                Destroy(_upgradeStation.gameObject);
+                _upgradeStation = null;
+            }
             foreach (var piece in GamePieces.Stations)
             {
                 var wanted = on && Upgrades.Level(piece) > 0 && GamePieces.Prefab(piece)?.GetComponent<CraftingStation>();
@@ -245,9 +263,29 @@ namespace Cartheim.Plugin
 
         // A copy of the real station's crafting settings, riding on the cart. It has no model, collider or area marker of its
         // own, and needs neither roof nor fire.
-        private CraftingStation MakeStation(string piece)
+        private CraftingStation MakeStation(string piece) => MakeStation(piece, GamePieces.Prefab(piece).GetComponent<CraftingStation>());
+
+        // The Cart tab's station: a workbench in all but name, whose only recipes are the cart's upgrades (see CartCrafting).
+        private CraftingStation MakeUpgradeStation()
         {
-            var original = GamePieces.Prefab(piece).GetComponent<CraftingStation>();
+            var workbench = GamePieces.Prefab(GamePieces.WorkbenchPiece)?.GetComponent<CraftingStation>();
+            if (!workbench)
+                return null;
+            var station = MakeStation(CartCrafting.UpgradeStationPiece, workbench);
+            station.m_name = "Cart";
+            var icon = GamePieces.Icon("Cart");
+            if (icon)
+                station.m_icon = icon;
+            station.m_showBasicRecipies = false;
+            station.m_craftingSkill = Skills.SkillType.None;
+            // It lends the cart no build range: only the real stations built in do.
+            station.m_rangeBuild = 0f;
+            station.m_extraRangePerLevel = 0f;
+            return station;
+        }
+
+        private CraftingStation MakeStation(string piece, CraftingStation original)
+        {
             var holder = new GameObject("Cartheim " + piece);
             holder.transform.SetParent(transform, false);
             var station = holder.AddComponent<CraftingStation>();

@@ -1,0 +1,173 @@
+using System.Collections.Generic;
+using System.Linq;
+using HarmonyLib;
+using Jotunn.Managers;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+namespace Cartheim.Plugin
+{
+    // A column of icon tabs down the left of the crafting screen while at one of a cart's stations: the Cart (its
+    // upgrades), each station built in, then the pieces riding in it that are used rather than crafted at: the chest and
+    // other containers, the bed and the beehives.
+    internal class CartTabs
+    {
+        private const float Size = 56f;
+        private const float Gap = 4f;
+
+        private static readonly AccessTools.FieldRef<InventoryGui, Container> CurrentContainer =
+            AccessTools.FieldRefAccess<InventoryGui, Container>("m_currentContainer");
+
+        private GameObject _column;
+        private CartBase _shownFor;
+        private readonly List<(Object target, Button tab, UITooltip tooltip)> _shown = new List<(Object, Button, UITooltip)>();
+        private bool _logged;
+
+        public void Update()
+        {
+            var gui = InventoryGui.instance;
+            var player = Player.m_localPlayer;
+            var cart = gui && player && InventoryGui.IsVisible() ? CartCrafting.CartOf(player.GetCurrentCraftingStation()) : null;
+            if (!cart || !Plugin.Enabled.Value)
+            {
+                if (_column)
+                    _column.SetActive(false);
+                return;
+            }
+            EnsureCreated(gui);
+            var targets = TargetsOf(cart);
+            if (cart != _shownFor || !targets.Select(t => t.target).SequenceEqual(_shown.Select(s => s.target)))
+                Rebuild(cart, targets);
+            _column.SetActive(true);
+            // The station on show is the tab that can't be clicked.
+            var current = player.GetCurrentCraftingStation();
+            for (var i = 0; i < _shown.Count; i++)
+            {
+                _shown[i].tab.interactable = _shown[i].target != current;
+                // Kept current: a beehive's honey changes while the screen is open.
+                _shown[i].tooltip.m_text = targets[i].name;
+            }
+        }
+
+        public void Destroy()
+        {
+            if (_column)
+                Object.Destroy(_column);
+            _column = null;
+            _shown.Clear();
+            _shownFor = null;
+        }
+
+        private static List<(Object target, string piece, string name)> TargetsOf(CartBase cart)
+        {
+            var targets = new List<(Object, string, string)>();
+            if (cart.UpgradeStation)
+                targets.Add((cart.UpgradeStation, "Cart", "Cart: build upgrades"));
+            foreach (var piece in cart.Stations)
+            {
+                var station = cart.Station(piece);
+                if (station)
+                    targets.Add((station, piece, GamePieces.DisplayName(piece)));
+            }
+            foreach (var container in cart.Containers)
+                targets.Add((container, PieceName(container), Localization.instance.Localize(container.m_name)));
+            var bed = cart.Bed;
+            if (bed)
+                targets.Add((bed, PieceName(bed), Localization.instance.Localize(bed.GetComponent<Piece>().m_name) + ": first use sets your spawn point, then sleep"));
+            foreach (var hive in cart.Beehives)
+                targets.Add((hive, PieceName(hive), $"{Localization.instance.Localize(hive.m_name)}: honey {CartRiders.HoneyIn(hive)} / {hive.m_maxHoney}, click to take it"));
+            return targets;
+        }
+
+        // A riding piece's prefab name, for its build-menu icon.
+        private static string PieceName(Component piece) => Utils.GetPrefabName(piece.gameObject);
+
+        private void Rebuild(CartBase cart, List<(Object target, string piece, string name)> targets)
+        {
+            foreach (Transform child in _column.transform)
+                Object.Destroy(child.gameObject);
+            _shown.Clear();
+            _shownFor = cart;
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var (target, piece, name) = targets[i];
+                var tab = Tab(piece, name, i, () => Click(target));
+                _shown.Add((target, tab, tab.GetComponent<UITooltip>()));
+            }
+        }
+
+        private static void Click(Object target)
+        {
+            var player = Player.m_localPlayer;
+            if (!player || !target)
+                return;
+            switch (target)
+            {
+                case CraftingStation station:
+                    CartCrafting.Use(station);
+                    break;
+                case Container container:
+                    // Showing another container doesn't let go of the one on show; let go of it, or nobody else could open it.
+                    var open = CurrentContainer(InventoryGui.instance);
+                    if (open && open != container && open.IsOwner())
+                        open.SetInUse(false);
+                    container.Interact(player, false, false);
+                    break;
+                case Bed bed:
+                    InventoryGui.instance.Hide();
+                    bed.Interact(player, false, false);
+                    break;
+                case Beehive hive:
+                    hive.Interact(player, false, false);
+                    break;
+            }
+        }
+
+        private void EnsureCreated(InventoryGui gui)
+        {
+            if (_column)
+                return;
+            _column = new GameObject("Cartheim station tabs", typeof(RectTransform));
+            var rect = (RectTransform)_column.transform;
+            rect.SetParent(gui.m_crafting, false);
+            // Just outside the crafting panel's left edge, from its top down.
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-Gap, -Gap);
+            rect.sizeDelta = new Vector2(Size, 10 * (Size + Gap));
+            if (!_logged)
+            {
+                _logged = true;
+                var corners = new Vector3[4];
+                gui.m_crafting.GetWorldCorners(corners);
+                Debug.Log($"[Cartheim] Crafting panel spans {corners[0]} to {corners[2]} on a {Screen.width}x{Screen.height} screen");
+            }
+        }
+
+        private Button Tab(string piece, string name, int index, System.Action onClick)
+        {
+            var corner = new Vector2(0.5f, 1f);
+            var go = GUIManager.Instance.CreateButton("", _column.transform, corner, corner, new Vector2(0f, -index * (Size + Gap) - Size / 2f), Size, Size);
+            var icon = new GameObject("icon", typeof(RectTransform), typeof(Image));
+            var iconRect = (RectTransform)icon.transform;
+            iconRect.SetParent(go.transform, false);
+            iconRect.anchorMin = Vector2.zero;
+            iconRect.anchorMax = Vector2.one;
+            iconRect.offsetMin = new Vector2(6f, 6f);
+            iconRect.offsetMax = new Vector2(-6f, -6f);
+            var image = icon.GetComponent<Image>();
+            image.sprite = GamePieces.Icon(piece);
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            var tooltip = go.AddComponent<UITooltip>();
+            var gameTooltip = InventoryGui.instance.m_craftButton.GetComponent<UITooltip>();
+            if (gameTooltip)
+                tooltip.m_tooltipPrefab = gameTooltip.m_tooltipPrefab;
+            tooltip.m_text = name;
+            var button = go.GetComponent<Button>();
+            button.onClick.AddListener(() => onClick());
+            return button;
+        }
+    }
+}

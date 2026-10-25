@@ -14,7 +14,7 @@ namespace Cartheim.Plugin
         // Read whenever cart behavior would act, so switching it off takes effect at once.
         public static ConfigEntry<bool> Enabled;
 
-        private readonly CartPanel _panel = new CartPanel();
+        private readonly CartTabs _cartTabs = new CartTabs();
         private readonly ChestTabs _chestTabs = new ChestTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
@@ -24,10 +24,9 @@ namespace Cartheim.Plugin
             Enabled = Config.Bind("Mods", "Cartheim", true,
                 "Turn carts into mobile bases: build crafting stations, furniture and a chest into them. " +
                 "Switched off, a destroyed cart still returns everything built into it.");
-            CartPatches.OpenPanel = cart => _panel.Open(cart);
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
-            _harmony.PatchAll(typeof(MenuBlockPatch));
+            _harmony.PatchAll(typeof(CartCrafting));
             _harmony.PatchAll(typeof(RestPatches));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
             foreach (var vagon in FindObjectsByType<Vagon>(UnityEngine.FindObjectsSortMode.None))
@@ -43,16 +42,21 @@ namespace Cartheim.Plugin
                 _loggedPieces = true;
                 GamePieces.LogStationPieces();
             }
-            // Stays true for the frame in which Esc closes the panel, so that same press doesn't open the game menu.
-            MenuBlockPatch.PanelOpen = _panel.IsOpen;
-            _panel.Update();
             _chestTabs.Update();
+        }
+
+        // After every Update, where other mods set up the crafting screen's buttons.
+        private void LateUpdate()
+        {
+            _cartTabs.Update();
+            CartCrafting.HideCraftAll();
         }
 
         private void OnDestroy()
         {
             _harmony?.UnpatchSelf();
-            _panel.Destroy();
+            _cartTabs.Destroy();
+            CartCrafting.Destroy();
             _chestTabs.Destroy();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);

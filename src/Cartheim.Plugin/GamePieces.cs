@@ -135,6 +135,31 @@ namespace Cartheim.Plugin
 
         public static GameObject Prefab(string piece) => ZNetScene.instance ? ZNetScene.instance.GetPrefab(piece) : null;
 
+        public const string WorkbenchPiece = "piece_workbench";
+
+        // The game piece an upgrade is: the roof piece a cart roof is made of, otherwise the piece itself.
+        public static string MadeOf(string piece) => RoofMadeOf.TryGetValue(piece, out var roof) ? roof.piece : piece;
+
+        // The piece's icon, as the build menu shows it.
+        public static Sprite Icon(string piece)
+        {
+            var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
+            return p ? p.m_icon : null;
+        }
+
+        public static string Description(string piece)
+        {
+            var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
+            return p ? p.m_description : "";
+        }
+
+        // Whether the player has learnt the piece for the hammer (by finding its materials), as for building it anywhere.
+        public static bool KnownBy(Player player, string piece)
+        {
+            var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
+            return p && (player.NoCostCheat() || player.IsRecipeKnown(p.m_name));
+        }
+
         public static string DisplayName(string piece)
         {
             if (RoofMadeOf.TryGetValue(piece, out var roof))
