@@ -20,5 +20,15 @@ namespace Cartheim.Core.Tests
 
             Assert.True(cart.CanAdd("piece_beehive"));
         }
+
+        [Fact]
+        public void A_cart_holds_at_most_two_beehives()
+        {
+            var cart = Workbench();
+            cart.Add("piece_beehive");
+            cart.Add("piece_beehive");
+
+            Assert.False(cart.CanAdd("piece_beehive"));
+        }
     }
 }

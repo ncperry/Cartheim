@@ -30,6 +30,7 @@ namespace Cartheim.Core
         };
 
         public const string Beehive = "piece_beehive";
+        public const int MaxBeehives = 2;
 
         // Kinds of piece a cart holds only one of.
         private static readonly HashSet<string>[] OneOfEach = { Chests, Lights, Beds, Rugs };
@@ -45,7 +46,7 @@ namespace Cartheim.Core
         // The workbench goes in first; everything else is built onto it, and an extension (forge cooler, tanning rack)
         // onto the station it extends.
         public bool CanAdd(string piece, string extends = null) =>
-            (piece == Beehive || !Has(piece)) &&
+            (piece == Beehive ? Count(Beehive) < MaxBeehives : !Has(piece)) &&
             (piece == Workbench || Has(Workbench)) &&
             (extends == null || Has(extends)) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
@@ -100,6 +101,8 @@ namespace Cartheim.Core
         public float Armor => ArmorPerForgeLevel * Level(Forge);
 
         public bool Has(string piece) => built.Any(b => b.piece == piece);
+
+        public int Count(string piece) => built.Count(b => b.piece == piece);
 
         // A station's level, as the game counts it: 1 for the station, plus 1 per extension built onto it.
         public int Level(string station) =>
