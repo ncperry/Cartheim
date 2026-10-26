@@ -12,8 +12,8 @@ namespace Cartheim.Core
     {
         // The tab's name, and the plot inside the fence (metres): its width across the front, with the gate, and its depth.
         public const string Piece = "cartheim_garden";
-        public const float Width = 4f;
-        public const float Depth = 5f;
+        public const float Width = 5f;
+        public const float Depth = 7f;
 
         // A fence piece or the gate: where its middle is, in the garden's own space (its middle at the origin, its front,
         // with the gate, towards -z), and how it's turned (0 along x, 90 along z).
@@ -71,9 +71,9 @@ namespace Cartheim.Core
         }
 
         // Planted with the garden: a crop that has a seed plant (carrots: carrot seeds grow carrots, and a carrot planted
-        // grows seed carrots, for more seeds) fifteen of the crop and five for seed; one without, twenty.
-        public const int Plants = 20;
-        public const int SeedPlants = 5;
+        // grows seed carrots, for more seeds) eighteen of the crop and six for seed; one without, twenty-four.
+        public const int Plants = 24;
+        public const int SeedPlants = 6;
 
         public static (int crops, int seedPlants) Planting(bool hasSeedPlant) =>
             hasSeedPlant ? (Plants - SeedPlants, SeedPlants) : (Plants, 0);

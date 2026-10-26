@@ -40,10 +40,12 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void A_garden_is_four_metres_wide_and_five_deep()
+        public void A_garden_is_five_metres_wide_and_seven_deep_room_for_four_by_six_crops_a_metre_apart()
         {
-            Assert.Equal(4f, Garden.Width);
-            Assert.Equal(5f, Garden.Depth);
+            Assert.Equal(5f, Garden.Width);
+            Assert.Equal(7f, Garden.Depth);
+            // A crop grows only with no fence within its growing radius (half a metre), so about 0.6 m from the fence.
+            Assert.True(Garden.Width - 1.2f >= 3f && Garden.Depth - 1.2f >= 5f);
         }
 
         [Fact]
@@ -73,21 +75,21 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void A_crop_with_a_seed_plant_is_planted_fifteen_and_five()
+        public void A_crop_with_a_seed_plant_is_planted_eighteen_and_six()
         {
-            Assert.Equal((15, 5), Garden.Planting(hasSeedPlant: true));
-            Assert.Equal((20, 0), Garden.Planting(hasSeedPlant: false));
+            Assert.Equal((18, 6), Garden.Planting(hasSeedPlant: true));
+            Assert.Equal((24, 0), Garden.Planting(hasSeedPlant: false));
         }
 
         [Fact]
-        public void Twenty_plants_go_in_five_rows_of_four_each_with_room_to_grow()
+        public void Twenty_four_plants_go_in_six_rows_of_four_each_with_room_to_grow_clear_of_the_fence()
         {
             const float spacing = 1f;
-            var spots = Garden.PlantSpots(20, spacing);
-            Assert.Equal(20, spots.Count);
+            var spots = Garden.PlantSpots(24, spacing);
+            Assert.Equal(24, spots.Count);
             Assert.Equal(4, spots.Select(s => s.x).Distinct().Count());
-            Assert.Equal(5, spots.Select(s => s.z).Distinct().Count());
-            AllInside(spots, margin: 0.4f);
+            Assert.Equal(6, spots.Select(s => s.z).Distinct().Count());
+            AllInside(spots, margin: 0.6f);
             foreach (var a in spots)
                 foreach (var b in spots.Where(b => b != a))
                     Assert.True(System.Math.Sqrt((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z)) >= spacing - 0.001f);
@@ -96,7 +98,7 @@ namespace Cartheim.Core.Tests
         [Fact]
         public void Plants_wanting_more_room_than_the_garden_has_are_squeezed_in_rather_than_planted_in_the_fence()
         {
-            AllInside(Garden.PlantSpots(20, spacing: 2f), margin: 0.4f);
+            AllInside(Garden.PlantSpots(24, spacing: 2f), margin: 0.4f);
         }
 
         private static void AllInside(System.Collections.Generic.List<(float x, float z)> spots, float margin) =>
