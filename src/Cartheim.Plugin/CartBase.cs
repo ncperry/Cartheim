@@ -290,10 +290,11 @@ namespace Cartheim.Plugin
             Refresh();
         }
 
-        // Held still (while the tent is pitched): every part of the cart frozen where it is; let go, each as it was.
+        // Held still (while the tent is pitched): the cart's own body frozen where it is; let go, as it was. Its wheels stay
+        // free on their joints: frozen just after the cart loads, before they'd settled onto their axles, one stayed askew.
         private void Freeze(bool still)
         {
-            foreach (var body in _bodies)
+            foreach (var body in _bodies.Where(b => b && b.gameObject == gameObject))
             {
                 if (!body)
                     continue;
@@ -427,6 +428,9 @@ namespace Cartheim.Plugin
                 return null;
             return _looks.Anchors.TryGetValue(slot, out var anchor) || _looks.Anchors.TryGetValue(GamePieces.PieceIn(slot), out anchor) ? anchor : null;
         }
+
+        // How much smaller the fermenter shows on the cart (as a growler) than it really is; 1 with no look for it.
+        public float FermenterShrink => AnchorFor(GamePieces.Fermenter) is Transform look && look ? look.lossyScale.x : 1f;
 
         // The fermenter riding in the cart, while the mod is on and it is loaded.
         public Fermenter Fermenter

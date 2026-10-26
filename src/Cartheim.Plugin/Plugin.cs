@@ -43,6 +43,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartMaterials));
             _harmony.PatchAll(typeof(CartMaterials.CountTheCart));
             _harmony.PatchAll(typeof(CartCrates));
+            _harmony.PatchAll(typeof(CartFermenter));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
             foreach (var vagon in FindObjectsByType<Vagon>(UnityEngine.FindObjectsSortMode.None))
                 if (!vagon.GetComponent<CartBase>() && vagon.GetComponent<ZNetView>()?.GetZDO() != null)
