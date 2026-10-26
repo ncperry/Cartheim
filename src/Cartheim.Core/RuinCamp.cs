@@ -20,6 +20,13 @@ namespace Cartheim.Core
         public List<((float x, float z) from, (float x, float z) to)> Fence;
         // The tarp (the tent's cloth, when the cart has a tent): over this much of the ruin, low at its -x side, high at +x.
         public float TarpMinX, TarpMaxX, TarpMinZ, TarpMaxZ, TarpLow, TarpHigh;
+        // The floor inside the walls.
+        public float RoomMinX, RoomMaxX, RoomMinZ, RoomMaxZ;
+        // A campfire (burning without wood) with a cooking station over it, tucked into a corner under the tarp's high side.
+        public float FireX, FireZ;
+        // The cart's rug, laid in the room (square, this big each way), and its bed on it, lengthwise along z.
+        public float RugX, RugZ, RugSize;
+        public float BedX, BedZ;
 
         public static bool Near(float distance) => distance <= Reach;
 
@@ -31,15 +38,17 @@ namespace Cartheim.Core
             return Camps.TryGetValue(name, out var camp) ? camp : null;
         }
 
-        // A Black Forest stone house: four stone walls (2.5 m tall on the left, 3.5 m on the right) round a floor 4.6 m by
-        // 2.6 m, an arched doorway in the front, and the back wall broken from its left stub across to the right wall; the
-        // cart stands across that break, with a wood fence round the back of it.
+        // A Black Forest stone house: four stone walls a metre thick (2.5 m tall on the left, 3.5 m on the right) round a
+        // floor 6 m by 4 m, an arched doorway in the front, and the back wall broken from its left stub across to the right
+        // wall. The cart stands across that break facing in (its sconce lights the room), with a wood fence round the back
+        // of it; the campfire is in the front right corner, under the tarp's high side, which stops short of the right wall
+        // so the smoke rising up it gets out; the bed lies on the rug by the left wall.
         private static readonly Dictionary<string, RuinCamp> Camps = new Dictionary<string, RuinCamp>
         {
             ["StoneHouse4"] = new RuinCamp
             {
                 Name = "StoneHouse4",
-                CartX = 0.28f, CartZ = 3.67f, CartYaw = 90f,
+                CartX = 0.28f, CartZ = 3.67f, CartYaw = 270f,
                 DoorX = 0f, DoorZ = -1.8f, DoorYaw = 0f,
                 Fence = new List<((float, float), (float, float))>
                 {
@@ -47,7 +56,11 @@ namespace Cartheim.Core
                     ((-1.7f, 6.0f), (3.5f, 6.0f)),
                     ((3.5f, 6.0f), (3.5f, 4.05f)),
                 },
-                TarpMinX = -4.7f, TarpMaxX = 4.7f, TarpMinZ = -3.0f, TarpMaxZ = 4.4f, TarpLow = 2.55f, TarpHigh = 3.55f,
+                TarpMinX = -4.7f, TarpMaxX = 2.5f, TarpMinZ = -3.0f, TarpMaxZ = 4.4f, TarpLow = 2.55f, TarpHigh = 3.55f,
+                RoomMinX = -3.0f, RoomMaxX = 3.0f, RoomMinZ = -1.3f, RoomMaxZ = 2.7f,
+                FireX = 2.2f, FireZ = -0.5f,
+                RugX = -1.0f, RugZ = 0.7f, RugSize = 3.4f,
+                BedX = -2.0f, BedZ = 0.7f,
             },
         };
     }

@@ -21,7 +21,6 @@ namespace Cartheim.Core.Tests
             var camp = RuinCamp.For("StoneHouse4");
             Assert.InRange(camp.CartX, -0.64f, 2.29f);
             Assert.InRange(camp.CartZ, 3.2f, 4.5f);
-            Assert.Equal(90f, camp.CartYaw);
         }
 
         [Fact]
@@ -42,6 +41,46 @@ namespace Cartheim.Core.Tests
             Assert.Equal((3.5f, 4.05f), last.to);
             // Each run starts where the last ended.
             Assert.All(camp.Fence.Zip(camp.Fence.Skip(1), (a, b) => (a, b)), p => Assert.Equal(p.a.to, p.b.from));
+        }
+
+        [Fact]
+        public void The_cart_faces_into_the_house_so_its_sconce_lights_the_room()
+        {
+            Assert.Equal(270f, RuinCamp.For("StoneHouse4").CartYaw);
+        }
+
+        [Fact]
+        public void The_campfire_is_in_a_corner_of_the_room_under_the_tarp_by_a_smoke_vent()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.InRange(camp.FireX, camp.RoomMinX, camp.RoomMaxX);
+            Assert.InRange(camp.FireZ, camp.RoomMinZ, camp.RoomMaxZ);
+            // Under the tarp, so the rain doesn't put it out...
+            Assert.InRange(camp.FireX, camp.TarpMinX, camp.TarpMaxX - 0.3f);
+            Assert.InRange(camp.FireZ, camp.TarpMinZ, camp.TarpMaxZ);
+            // ...whose high side stops short of the wall, so the smoke rising up it gets out.
+            Assert.True(camp.RoomMaxX - camp.TarpMaxX >= 0.4f);
+            // Tucked into a corner, against the side wall and the front.
+            Assert.True(camp.RoomMaxX - camp.FireX <= 0.9f && camp.FireZ - camp.RoomMinZ <= 0.9f);
+        }
+
+        [Fact]
+        public void The_rug_covers_much_of_the_room_and_the_bed_lies_on_it()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            var half = camp.RugSize / 2f;
+            Assert.True(camp.RugSize >= 3f);
+            Assert.True(camp.RugX - half >= camp.RoomMinX && camp.RugX + half <= camp.RoomMaxX);
+            Assert.True(camp.RugZ - half >= camp.RoomMinZ && camp.RugZ + half <= camp.RoomMaxZ);
+            Assert.InRange(camp.BedX, camp.RugX - half, camp.RugX + half);
+            Assert.InRange(camp.BedZ, camp.RugZ - half, camp.RugZ + half);
+        }
+
+        [Fact]
+        public void The_way_in_from_the_door_is_kept_clear_of_the_fire()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.True(System.Math.Abs(camp.FireX - camp.DoorX) >= 1.5f);
         }
 
         [Fact]

@@ -102,6 +102,8 @@ namespace Cartheim.Plugin
                 _nview.Unregister(TentRpc);
             if (_tent)
                 Destroy(_tent);
+            if (_room)
+                Destroy(_room);
             if (_tarp)
                 Destroy(_tarp);
             Freeze(false);
@@ -242,8 +244,21 @@ namespace Cartheim.Plugin
             if (fermenter && fermenterLook && fermenterLook.GetComponent<FermenterLook>() is FermenterLook look)
                 look.Match(fermenter);
             foreach (var (slot, rider) in _riders)
-                if (rider)
-                    CartRiders.Follow(rider, transform, AnchorFor(slot));
+            {
+                if (!rider)
+                    continue;
+                // Settled in a ruin, the bed stands in the room, as itself, to be slept in there.
+                var inRoom = _bedSpot && GamePieces.Beds.Contains(GamePieces.PieceIn(slot));
+                CartRiders.Follow(rider, transform, inRoom ? _bedSpot : AnchorFor(slot));
+                if (inRoom != _inRoom.Contains(rider))
+                {
+                    CartRiders.ShowInRoom(rider, inRoom);
+                    if (inRoom)
+                        _inRoom.Add(rider);
+                    else
+                        _inRoom.Remove(rider);
+                }
+            }
             KeepSpawnPointOnBed();
             if (_wisp)
                 CartWisp.Float(_wisp, transform);
@@ -602,6 +617,18 @@ namespace Cartheim.Plugin
                 _tarp = null;
             }
             Freeze(wantTent || camp != null);
+            // Settled, the room: its rug laid on the floor and its bed standing on it; the cart's own bed look not shown.
+            if (camp != null && !_room)
+                _room = Room(camp);
+            else if (camp == null && _room)
+            {
+                Destroy(_room);
+                _room = null;
+                _bedSpot = null;
+            }
+            var bedLook = GamePieces.Beds.Select(AnchorFor).FirstOrDefault(a => a);
+            if (bedLook && bedLook.gameObject.activeSelf != (camp == null))
+                bedLook.gameObject.SetActive(camp == null);
             BurnCoal(on);
             _assist = on ? SteamEngine.Assist(Upgrades.Level(SteamEngine.Engine), Coal) : 0f;
             // A hearth built before the steam engine replaced it still burns; the engine burns while it has coal.
@@ -655,7 +682,7 @@ namespace Cartheim.Plugin
             {
                 _bedSpawnAshore = false;
                 profile.SetCustomSpawnPoint(spawn);
-                Debug.Log($"[Cartheim] Cart {Uid()} ashore: the spawn point is back on its bed, at {spawn}");
+                Debug.Log($"[Cartheim] Cart {Uid()} moved (ashore, or into or out of a ruin): the spawn point is back on its bed, at {spawn}");
                 return;
             }
             var distance = Vector3.Distance(profile.GetCustomSpawnPoint(), spawn);
@@ -849,6 +876,44 @@ namespace Cartheim.Plugin
         public bool InRuin => Camp != null;
         // The tarp over its ruin, while it's settled and has a tent.
         public GameObject Tarp => _tarp;
+
+        // The room of the ruin it's settled into, on this game: the rug's look, and where the bed stands.
+        private GameObject _room;
+        private Transform _bedSpot;
+        private readonly HashSet<GameObject> _inRoom = new HashSet<GameObject>();
+
+        // What stands in the room on this game: the rug's look and the bed.
+        public IEnumerable<GameObject> InRoom => (_room ? new[] { _room } : new GameObject[0]).Concat(_inRoom.Where(r => r));
+
+        private GameObject Room(RuinCamp camp)
+        {
+            var turn = RuinTurn;
+            Vector3 At(float x, float z)
+            {
+                var p = RuinAt + turn * new Vector3(x, 0f, z);
+                return new Vector3(p.x, ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(p) : p.y, p.z);
+            }
+            var floor = At(camp.RugX, camp.RugZ);
+            var room = new GameObject("Cartheim room");
+            room.transform.SetPositionAndRotation(floor, turn);
+            // The rug only if the cart has one, laid out centred where the room keeps it (the room's middle here).
+            var rug = GamePieces.Rugs.FirstOrDefault(Upgrades.Has);
+            if (rug != null)
+                CartLooks.Rug(room.transform, rug, new Bounds(Vector3.zero, new Vector3(camp.RugSize, 0f, camp.RugSize)));
+            // The bed only if the cart has one.
+            var bed = GamePieces.Beds.FirstOrDefault(Upgrades.Has);
+            if (bed != null)
+            {
+                // Lengthwise along the room's depth, standing on the floor there.
+                var lengthAlongZ = CartGarden.Measure(GamePieces.Prefab(bed)).Turn;
+                _bedSpot = new GameObject("bed spot").transform;
+                _bedSpot.SetParent(room.transform, false);
+                _bedSpot.position = At(camp.BedX, camp.BedZ);
+                _bedSpot.rotation = turn * Quaternion.Euler(0f, 90f - lengthAlongZ, 0f);
+            }
+            Debug.Log($"[Cartheim] Cart {Uid()}'s room in the {camp.Name}: rug {rug ?? "none"}, bed {bed ?? "none"}");
+            return room;
+        }
         private Vector3 RuinAt => _nview.GetZDO().GetVec3(RuinAtKey, Vector3.zero);
         private Quaternion RuinTurn => Quaternion.Euler(0f, _nview.GetZDO().GetFloat(RuinTurnKey, 0f), 0f);
 
@@ -860,6 +925,7 @@ namespace Cartheim.Plugin
             var turn = Quaternion.Euler(0f, ruinTurn, 0f);
             var spot = ruinAt + turn * new Vector3(camp.CartX, 0f, camp.CartZ);
             spot.y = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(spot) : spot.y;
+            KeepSpawnWithBed();
             SetDown(spot, turn * Quaternion.Euler(0f, camp.CartYaw, 0f));
             var zdo = _nview.GetZDO();
             zdo.Set(RuinKey, camp.Name);
@@ -874,11 +940,20 @@ namespace Cartheim.Plugin
         {
             if (!_nview.IsOwner())
                 _nview.ClaimOwnership();
+            KeepSpawnWithBed();
             CartRuin.TearDown(Uid());
             _nview.GetZDO().Set(RuinKey, "");
             SetDown(at, facing);
             Debug.Log($"[Cartheim] Cart {Uid()} back in cart form at {at}");
             Refresh();
+        }
+
+        // The bed moves (into the ruin's room, or back into the cart) further than the spawn point follows it by itself: if
+        // it's the local player's spawn point now, it's put back on the bed once the bed is in its new place.
+        private void KeepSpawnWithBed()
+        {
+            if (SpawnsOnBed(out var bed, out var profile) && Vector3.Distance(profile.GetCustomSpawnPoint(), bed.GetSpawnPoint()) < SpawnPointDrift)
+                _bedSpawnAshore = true;
         }
 
         // Stood on its wheels at a spot.

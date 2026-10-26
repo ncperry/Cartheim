@@ -53,7 +53,17 @@ namespace Cartheim.Plugin
                 foreach (var run in camp.Fence)
                     foreach (var (x, z, yaw) in FenceRun.Pieces(run.from, run.to, fence.Length))
                         yield return (fence, World(ruin, x, z), Turn(ruin, yaw + fence.Turn));
+            // The campfire in its corner, the cooking station over it.
+            foreach (var name in new[] { Campfire, CookingStation })
+            {
+                var kind = CartGarden.Measure(GamePieces.Prefab(name));
+                if (kind.Prefab)
+                    yield return (kind, World(ruin, camp.FireX, camp.FireZ), Turn(ruin, 0f));
+            }
         }
+
+        private const string Campfire = "fire_pit";
+        private const string CookingStation = "piece_cookingstation";
 
         // The ghost of it all, standing over the ruin: the cart in its place, the door, the fence and the tarp.
         public static GameObject Ghost(CartBase cart, Location ruin)
@@ -85,6 +95,23 @@ namespace Cartheim.Plugin
                 if (tarp)
                     tarp.transform.SetParent(root.transform, true);
             }
+            // The cart's rug laid in the room and its bed on it, if it has them.
+            var rug = GamePieces.Rugs.FirstOrDefault(cart.Upgrades.Has);
+            if (rug != null)
+            {
+                var floor = new GameObject("rug");
+                floor.transform.SetPositionAndRotation(World(ruin, camp.RugX, camp.RugZ), Turn(ruin, 0f));
+                floor.transform.SetParent(root.transform, true);
+                CartLooks.Rug(floor.transform, rug, new Bounds(Vector3.zero, new Vector3(camp.RugSize, 0f, camp.RugSize)));
+            }
+            var bed = GamePieces.Beds.FirstOrDefault(cart.Upgrades.Has);
+            var bedGhost = bed != null ? CartRaft.Ghost(bed) : null;
+            if (bedGhost)
+            {
+                bedGhost.transform.SetPositionAndRotation(World(ruin, camp.BedX, camp.BedZ),
+                    Turn(ruin, 90f - CartGarden.Measure(GamePieces.Prefab(bed)).Turn));
+                bedGhost.transform.SetParent(root.transform, true);
+            }
             Ghostly(root);
             return root;
         }
@@ -109,11 +136,13 @@ namespace Cartheim.Plugin
             SeenThrough.Clear();
         }
 
-        // What a cart's camp has added that's loaded here: its tarp and its pieces.
+        // What a cart's camp has added that's loaded here: its tarp, its room's rug and bed, and its pieces.
         public static IEnumerable<GameObject> CampOf(CartBase cart)
         {
             if (cart.Tarp)
                 yield return cart.Tarp;
+            foreach (var thing in cart.InRoom)
+                yield return thing;
             var uid = cart.Uid();
             if (uid == 0 || ZDOMan.instance == null || !ZNetScene.instance)
                 yield break;
@@ -221,15 +250,13 @@ namespace Cartheim.Plugin
             player.Message(MessageHud.MessageType.Center, "The cart is settled into the ruin");
         }
 
-        // A piece added by a camp: marked as the cart's, and not to be taken apart with the hammer.
+        // A piece added by a camp: marked as the cart's, and kept as a camp's piece.
         private static void Mark(GameObject built)
         {
             var view = built.GetComponent<ZNetView>();
             if (view && view.IsValid() && _campOf != 0)
                 view.GetZDO().Set(CampOfKey, _campOf);
-            var piece = built.GetComponent<Piece>();
-            if (piece)
-                piece.m_canBeRemoved = false;
+            Keep(built);
         }
 
         private static bool IsCamp(Component piece)
@@ -272,12 +299,22 @@ namespace Cartheim.Plugin
         [HarmonyPatch(typeof(Piece), nameof(Piece.DropResources)), HarmonyPrefix]
         private static bool NothingBack(Piece __instance) => !IsCamp(__instance);
 
-        // Loaded again, a camp's piece still can't be taken apart.
+        // Loaded again, a camp's piece is kept so still.
         [HarmonyPatch(typeof(Piece), "Awake"), HarmonyPostfix]
         private static void StillNotByHammer(Piece __instance)
         {
             if (IsCamp(__instance))
-                __instance.m_canBeRemoved = false;
+                Keep(__instance.gameObject);
+        }
+
+        // A camp's piece can't be taken apart with the hammer, and its campfire burns without wood.
+        private static void Keep(GameObject piece)
+        {
+            var p = piece.GetComponent<Piece>();
+            if (p)
+                p.m_canBeRemoved = false;
+            foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
+                fire.m_infiniteFuel = true;
         }
     }
 }

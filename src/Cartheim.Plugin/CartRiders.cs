@@ -78,6 +78,15 @@ namespace Cartheim.Plugin
                 piece.AddComponent<CartRider>();
         }
 
+        // A bed standing in the room of a ruin the cart has settled into: shown and solid as itself; hidden again after.
+        public static void ShowInRoom(GameObject piece, bool shown)
+        {
+            foreach (var renderer in piece.GetComponentsInChildren<Renderer>(true))
+                renderer.enabled = shown;
+            foreach (var collider in piece.GetComponentsInChildren<Collider>(true))
+                collider.enabled = shown;
+        }
+
         public static bool ShowsItself(GameObject piece) => Utils.GetPrefabName(piece) == CartUpgrades.ItemStand;
 
         private static readonly HarmonyLib.AccessTools.FieldRef<ItemStand, GameObject> Mounted =
