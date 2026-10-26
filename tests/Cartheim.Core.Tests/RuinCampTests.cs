@@ -84,6 +84,18 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_sconce_hangs_on_the_outside_of_the_front_wall_either_side_of_the_door()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.Equal(2, camp.Sconces.Count);
+            Assert.Contains(camp.Sconces, x => x < camp.DoorX - 0.65f);
+            Assert.Contains(camp.Sconces, x => x > camp.DoorX + 0.65f);
+            // On the wall's outer face, pointing out, at about head height.
+            Assert.True(camp.SconceZ < camp.DoorZ);
+            Assert.InRange(camp.SconceHeight, 1.5f, 2.2f);
+        }
+
+        [Fact]
         public void A_fence_run_is_covered_end_to_end_with_pieces_turned_along_it()
         {
             var pieces = FenceRun.Pieces((0f, 0f), (0f, 5f), pieceLength: 2f);

@@ -30,6 +30,8 @@ namespace Cartheim.Plugin
             public float Length, Turn, Lift;
             // The middle of its meshes, across, from its pivot (a door hangs off its hinge).
             public Vector3 Middle;
+            // Its meshes' box, in its own space.
+            public Bounds Box;
         }
 
         // A crop to plant: the plant grown from seeds, and the one grown from the crop itself for more seeds (if any).
@@ -123,6 +125,7 @@ namespace Cartheim.Plugin
                 Turn = bounds.size.x >= bounds.size.z ? 0f : 90f,
                 Lift = Mathf.Max(0f, -bounds.min.y),
                 Middle = new Vector3(bounds.center.x, 0f, bounds.center.z),
+                Box = bounds,
             };
         }
 

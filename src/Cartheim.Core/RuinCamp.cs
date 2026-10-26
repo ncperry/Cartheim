@@ -27,6 +27,10 @@ namespace Cartheim.Core
         // The cart's rug, laid in the room (square, this big each way), and its bed on it, lengthwise along z.
         public float RugX, RugZ, RugSize;
         public float BedX, BedZ;
+        // Sconces on the outside of the front wall, either side of the door: where along the wall, the wall's outer face, and
+        // how high their brackets are.
+        public List<float> Sconces;
+        public float SconceZ, SconceHeight;
 
         public static bool Near(float distance) => distance <= Reach;
 
@@ -61,6 +65,7 @@ namespace Cartheim.Core
                 FireX = 2.2f, FireZ = -0.5f,
                 RugX = -1.0f, RugZ = 0.7f, RugSize = 3.4f,
                 BedX = -2.0f, BedZ = 0.7f,
+                Sconces = new List<float> { -1.2f, 1.2f }, SconceZ = -2.3f, SconceHeight = 1.8f,
             },
         };
     }

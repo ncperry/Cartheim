@@ -37,7 +37,8 @@ namespace Cartheim.Plugin
 
         private static Quaternion Turn(Location ruin, float yaw) => Quaternion.Euler(0f, ruin.transform.eulerAngles.y + yaw, 0f);
 
-        // Everything the camp adds, where it goes: the door, then the fence, each piece with how it's turned.
+        // Everything the camp adds, where it goes: the door, the fence, the campfire and its cooking station, and the sconces
+        // by the door, each piece with how it's turned.
         private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing)> Pieces(Location ruin, RuinCamp camp)
         {
             var door = CartGarden.HammerPiece(DoorName);
@@ -60,8 +61,25 @@ namespace Cartheim.Plugin
                 if (kind.Prefab)
                     yield return (kind, World(ruin, camp.FireX, camp.FireZ), Turn(ruin, 0f));
             }
+            foreach (var sconce in Sconces(ruin, camp))
+                yield return sconce;
         }
 
+        // A sconce on the outside of the front wall either side of the door. It points along its own x, its bracket at the
+        // low end: turned to point straight out of the wall, its bracket against the wall's face at the height given.
+        private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing)> Sconces(Location ruin, RuinCamp camp)
+        {
+            var sconce = CartGarden.Measure(GamePieces.Prefab(Sconce));
+            if (!sconce.Prefab)
+                yield break;
+            var facing = Turn(ruin, 90f);
+            var bracket = new Vector3(sconce.Box.min.x, sconce.Box.center.y, sconce.Box.center.z);
+            sconce.Lift = 0f;
+            foreach (var x in camp.Sconces)
+                yield return (sconce, World(ruin, x, camp.SconceZ) + Vector3.up * camp.SconceHeight - facing * bracket, facing);
+        }
+
+        private const string Sconce = "piece_walltorch";
         private const string Campfire = "fire_pit";
         private const string CookingStation = "piece_cookingstation";
 
