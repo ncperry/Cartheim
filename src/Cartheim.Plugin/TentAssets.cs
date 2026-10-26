@@ -161,7 +161,7 @@ namespace Cartheim.Plugin
             var tent = Tent();
             if (!tent)
                 return null;
-            var mesh = tent.sharedMesh;
+            var (mesh, materials) = Cloth(tent);
             var b = mesh.bounds;
             var root = new GameObject(ghost ? "Cartheim tarp ghost" : TarpName);
             root.transform.SetPositionAndRotation(position, rotation);
@@ -179,15 +179,71 @@ namespace Cartheim.Plugin
                 middle = new Vector3(-middle.x, middle.y, -middle.z);
             model.transform.localPosition = (min + max) / 2f - middle;
             model.GetComponent<MeshFilter>().sharedMesh = mesh;
-            model.GetComponent<MeshRenderer>().sharedMaterials = tent.GetComponent<MeshRenderer>().sharedMaterials;
+            model.GetComponent<MeshRenderer>().sharedMaterials = materials;
             if (!ghost)
             {
                 var collider = model.AddComponent<MeshCollider>();
-                collider.sharedMesh = tent.GetComponent<MeshCollider>() is MeshCollider c && c.sharedMesh ? c.sharedMesh : mesh;
+                collider.sharedMesh = mesh;
             }
             if (!ghost)
                 Debug.Log($"[Cartheim] Tarp over the ruin at {position}: the cloth's mesh spans {b.min} to {b.max}, stretched by {scale}{(flip ? ", turned so its lower side is at -x" : "")}");
             return root;
+        }
+
+        // The tent's cloth alone, for a tarp: its poles and spars left out (stretched over a ruin they hang in the air), each
+        // part of the mesh drawn in wood being a pole. Made once. Unreadable, or all one part, the whole tent is used.
+        private static Mesh _cloth;
+        private static Material[] _clothMaterials;
+
+        private static (Mesh mesh, Material[] materials) Cloth(MeshFilter tent)
+        {
+            var whole = tent.sharedMesh;
+            var materials = tent.GetComponent<MeshRenderer>().sharedMaterials;
+            if (_cloth)
+                return (_cloth, _clothMaterials);
+            Debug.Log($"[Cartheim] Tent mesh: {whole.subMeshCount} parts, readable {whole.isReadable}: " +
+                      string.Join(", ", materials.Select((m, i) => $"{i} {(m ? m.name : "none")} ({(i < whole.subMeshCount ? whole.GetIndexCount(i) / 3 : 0)} triangles)")));
+            var keep = Enumerable.Range(0, Mathf.Min(whole.subMeshCount, materials.Length))
+                .Where(i => materials[i] && materials[i].name.IndexOf("wood", System.StringComparison.OrdinalIgnoreCase) < 0).ToList();
+            if (!whole.isReadable || keep.Count == 0 || keep.Count == whole.subMeshCount)
+                return (whole, materials);
+            // Only the vertices the cloth uses, so its bounds are the cloth's.
+            var vertices = whole.vertices;
+            var normals = whole.normals;
+            var uv = whole.uv;
+            var index = new Dictionary<int, int>();
+            var cloth = new Mesh { name = whole.name + " cloth" };
+            var newVertices = new List<Vector3>();
+            var newNormals = new List<Vector3>();
+            var newUv = new List<Vector2>();
+            var parts = keep.Select(part => whole.GetTriangles(part).Select(old =>
+            {
+                if (!index.TryGetValue(old, out var now))
+                {
+                    now = index[old] = newVertices.Count;
+                    newVertices.Add(vertices[old]);
+                    if (normals.Length > old)
+                        newNormals.Add(normals[old]);
+                    if (uv.Length > old)
+                        newUv.Add(uv[old]);
+                }
+                return now;
+            }).ToArray()).ToList();
+            cloth.SetVertices(newVertices);
+            if (newNormals.Count == newVertices.Count)
+                cloth.SetNormals(newNormals);
+            if (newUv.Count == newVertices.Count)
+                cloth.SetUVs(0, newUv);
+            cloth.subMeshCount = parts.Count;
+            for (var i = 0; i < parts.Count; i++)
+                cloth.SetTriangles(parts[i], i);
+            cloth.RecalculateBounds();
+            if (newNormals.Count != newVertices.Count)
+                cloth.RecalculateNormals();
+            _cloth = cloth;
+            _clothMaterials = keep.Select(i => materials[i]).ToArray();
+            Debug.Log($"[Cartheim] Tarp cloth: parts {string.Join(", ", keep)} kept, spanning {cloth.bounds.min} to {cloth.bounds.max}");
+            return (_cloth, _clothMaterials);
         }
 
         // Whether the cloth's mesh is lower along its +x end than its -x end (when it can be read).
