@@ -18,6 +18,9 @@ namespace Cartheim.Plugin
         public static bool IsOpen => _panel;
         private static GameObject _list;
         private static Heightmap.Biome _biome = Heightmap.Biome.BlackForest;
+        // Clicking a building places its whole family in a line instead (WoodHouse1 to 13).
+        private static bool _lineUp;
+        private static string LineUpLabel => _lineUp ? "Line up the family: On" : "Line up the family: Off";
 
         private static readonly Heightmap.Biome[] Biomes =
         {
@@ -50,7 +53,14 @@ namespace Cartheim.Plugin
                     Fill();
                 });
             }
-            Button(_panel.transform, "Cancel", new Vector2(0f, -Height / 2f + 30f), 140f, Close);
+            Button(_panel.transform, "Cancel", new Vector2(110f, -Height / 2f + 30f), 140f, Close);
+            Text lineUp = null;
+            lineUp = Button(_panel.transform, "", new Vector2(-110f, -Height / 2f + 30f), 260f, () =>
+            {
+                _lineUp = !_lineUp;
+                lineUp.text = LineUpLabel;
+            }).GetComponentInChildren<Text>();
+            lineUp.text = LineUpLabel;
             Fill();
             GUIManager.BlockInput(true);
         }
@@ -77,7 +87,10 @@ namespace Cartheim.Plugin
                 Button(_list.transform, $"{name} ({count})", new Vector2(-Width / 2f + 135f + column * 245f, Height / 2f - 170f - row * 36f), 235f, () =>
                 {
                     Close();
-                    CartRaft.BeginBuilding(name);
+                    if (_lineUp)
+                        LineUp(name);
+                    else
+                        CartRaft.BeginBuilding(name);
                 });
             }
             if (names.Count == 0)
@@ -95,6 +108,32 @@ namespace Cartheim.Plugin
             biome == Heightmap.Biome.BlackForest ? "Black Forest" : biome == Heightmap.Biome.AshLands ? "Ashlands" :
             biome == Heightmap.Biome.DeepNorth ? "Deep North" : biome == Heightmap.Biome.Mountain ? "Mountains" : biome.ToString();
 
+
+        // The building's whole family in a line ahead of the player, in number order, each clear of the last, all facing back
+        // towards them, on the ground.
+        private const float LineStart = 10f;
+        private const float LineGap = 4f;
+
+        private static void LineUp(string name)
+        {
+            var player = Player.m_localPlayer;
+            if (!player)
+                return;
+            var family = Cartheim.Core.BuildingFamily.Members(name, Locations().Where(l => l.m_quantity > 0).Select(l => l.m_prefab.Name));
+            var radii = family.Select(n => Location(n)).Select(l => Mathf.Max(l.m_exteriorRadius, l.m_interiorRadius)).ToList();
+            var along = Cartheim.Core.BuildingFamily.Spacing(radii, LineStart, LineGap);
+            var start = player.transform.position;
+            var forward = Vector3.ProjectOnPlane(player.transform.forward, Vector3.up).normalized;
+            var facing = Quaternion.LookRotation(-forward, Vector3.up);
+            for (var i = 0; i < family.Count; i++)
+            {
+                var at = start + forward * along[i];
+                at.y = ZoneSystem.instance.GetGroundHeight(at);
+                Place(family[i], at, facing);
+            }
+            Debug.Log($"[Cartheim] Dev: lined up {family.Count} of {Cartheim.Core.BuildingFamily.Of(name)}, {along.LastOrDefault() + radii.LastOrDefault():0} m long");
+            player.Message(MessageHud.MessageType.Center, $"Lined up {family.Count} {Cartheim.Core.BuildingFamily.Of(name)}, {along.LastOrDefault() + radii.LastOrDefault():0} m");
+        }
         private static readonly System.Reflection.MethodInfo SpawnLocation = AccessTools.Method(typeof(ZoneSystem), "SpawnLocation");
 
         // Spawned as the game spawns its own ruins (kept in the world, not marked as cheated).
