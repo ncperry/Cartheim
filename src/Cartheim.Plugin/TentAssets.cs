@@ -191,7 +191,8 @@ namespace Cartheim.Plugin
         }
 
         // The tent's cloth alone, for a tarp: its poles and spars left out (stretched over a ruin they hang in the air), each
-        // part of the mesh drawn in wood being a pole. Made once. Unreadable, or all one part, the whole tent is used.
+        // part of the mesh but the one drawn in cloth being poles and spars. Made once. Unreadable, or with no cloth part, the
+        // whole tent is used.
         private static Mesh _cloth;
         private static Material[] _clothMaterials;
 
@@ -204,7 +205,7 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Tent mesh: {whole.subMeshCount} parts, readable {whole.isReadable}: " +
                       string.Join(", ", materials.Select((m, i) => $"{i} {(m ? m.name : "none")} ({(i < whole.subMeshCount ? whole.GetIndexCount(i) / 3 : 0)} triangles)")));
             var keep = Enumerable.Range(0, Mathf.Min(whole.subMeshCount, materials.Length))
-                .Where(i => materials[i] && materials[i].name.IndexOf("wood", System.StringComparison.OrdinalIgnoreCase) < 0).ToList();
+                .Where(i => materials[i] && materials[i].name.IndexOf("cloth", System.StringComparison.OrdinalIgnoreCase) >= 0).ToList();
             if (!whole.isReadable || keep.Count == 0 || keep.Count == whole.subMeshCount)
                 return (whole, materials);
             // Only the vertices the cloth uses, so its bounds are the cloth's.
