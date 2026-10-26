@@ -62,14 +62,5 @@ namespace Cartheim.Plugin
             for (var i = 0; i < 8; i++)
                 yield return new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
         }
-
-        private static string Path(Transform t, Transform root)
-        {
-            var names = new List<string>();
-            for (; t && t != root; t = t.parent)
-                names.Add(t.name);
-            names.Reverse();
-            return names.Count > 0 ? string.Join("/", names) : root.name;
-        }
     }
 }
