@@ -117,7 +117,58 @@ namespace Cartheim.Plugin
                     garden.transform.SetParent(root.transform, true);
                 }
             }
+            Ghostly(root);
             return root;
+        }
+
+        // Pale and see-through until it's settled: every material swapped for a transparent one (keeping its texture where
+        // it can), so the ghost can't be taken for the real thing.
+        private static readonly Color GhostTint = new Color(0.75f, 0.9f, 1f, 0.35f);
+        private static Shader _ghostShader;
+
+        private static void Ghostly(GameObject root)
+        {
+            if (!_ghostShader)
+            {
+                _ghostShader = new[] { "Legacy Shaders/Transparent/Diffuse", "Sprites/Default", "UI/Default" }.Select(Shader.Find).FirstOrDefault(s => s);
+                Debug.Log($"[Cartheim] Ruin ghost drawn with {(_ghostShader ? _ghostShader.name : "no transparent shader found")}");
+            }
+            if (!_ghostShader)
+                return;
+            var made = new Dictionary<Material, Material>();
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = renderer.sharedMaterials;
+                for (var i = 0; i < materials.Length; i++)
+                {
+                    var original = materials[i];
+                    if (!original)
+                        continue;
+                    if (!made.TryGetValue(original, out var ghost))
+                    {
+                        ghost = new Material(_ghostShader) { color = GhostTint, renderQueue = 3000 };
+                        if (original.HasProperty("_MainTex") && original.mainTexture)
+                            ghost.mainTexture = original.mainTexture;
+                        made[original] = ghost;
+                    }
+                    materials[i] = ghost;
+                }
+                renderer.sharedMaterials = materials;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            root.AddComponent<GhostMaterials>().Made = made.Values.ToList();
+        }
+
+        // The ghost's own materials, let go with it.
+        private class GhostMaterials : MonoBehaviour
+        {
+            public List<Material> Made;
+
+            private void OnDestroy()
+            {
+                foreach (var material in Made.Where(m => m))
+                    Destroy(material);
+            }
         }
 
         // The cart whose camp pieces are being built.
