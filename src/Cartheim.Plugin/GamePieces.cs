@@ -88,6 +88,8 @@ namespace Cartheim.Plugin
                 [SteamEngine.Boiler] = ("Bigger boiler", "More steam for the steam engine.", new[] { new ItemCount("Iron", 5) }),
                 [SteamEngine.Pistons] = ("Second piston", "More push from the steam engine.", new[] { new ItemCount("Iron", 5) }),
                 // Haldor's cloth tent, pitched beside the cart.
+                [FreyrsBlessing.Piece] = ("Freyr's Blessing", "The god of the harvest smiles on the cart's bees.",
+                    new[] { new ItemCount("Honey", 20), new ItemCount("Barley", 10), new ItemCount("BlackMetal", 5), new ItemCount("LinenThread", 10) }),
                 [Tent.Piece] = ("Tent", "A cloth tent, pitched beside the cart when it stops for the night.",
                     new[] { new ItemCount("DeerHide", 10), new ItemCount("LeatherScraps", 10), new ItemCount("Wood", 2) }),
             };
@@ -105,6 +107,7 @@ namespace Cartheim.Plugin
             yield return ("Wisp", new[] { WispTorch });
             yield return ("Bees (up to two hives)", new[] { CartUpgrades.Beehive });
             yield return ("Brewing", new[] { Fermenter });
+            yield return ("Farming (needs bees and the fermenter)", new[] { FreyrsBlessing.Piece });
             yield return ("Camp", new[] { Tent.Piece });
             yield return ("Item stand (on the roof's front cross)", new[] { CartUpgrades.ItemStand });
             yield return ("Raft (to ford rivers)", new[] { Raft.Piece });
@@ -179,6 +182,11 @@ namespace Cartheim.Plugin
         // The piece's icon, as the build menu shows it.
         public static Sprite Icon(string piece)
         {
+            // Freyr's Blessing and the garden are no game pieces: they show as barley and the cultivator.
+            if (piece == FreyrsBlessing.Piece)
+                return Item("Barley")?.m_itemData.GetIcon();
+            if (piece == Garden.Piece)
+                return Item("Cultivator")?.m_itemData.GetIcon();
             // The tent is no game piece: it shows as a deer hide.
             if (piece == Tent.Piece)
                 return Item("DeerHide")?.m_itemData.GetIcon();
@@ -197,8 +205,8 @@ namespace Cartheim.Plugin
         // Whether the player has learnt the piece for the hammer (by finding its materials), as for building it anywhere.
         public static bool KnownBy(Player player, string piece)
         {
-            // The tent: once the player has found what it's made of.
-            if (piece == Tent.Piece)
+            // The tent and Freyr's Blessing: once the player has found what they're made of.
+            if (piece == Tent.Piece || piece == FreyrsBlessing.Piece)
                 return player.NoCostCheat() || Recipe(piece).All(c => Item(c.Prefab) && player.IsMaterialKnown(Item(c.Prefab).m_itemData.m_shared.m_name));
             var p = Prefab(MadeOf(piece))?.GetComponent<Piece>();
             return p && (player.NoCostCheat() || player.IsRecipeKnown(p.m_name));

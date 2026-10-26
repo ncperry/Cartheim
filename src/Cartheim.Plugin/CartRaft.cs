@@ -14,7 +14,7 @@ namespace Cartheim.Plugin
     [HarmonyPatch]
     internal static class CartRaft
     {
-        private enum Placing { Nothing, Raft, Cart }
+        private enum Placing { Nothing, Raft, Cart, Garden }
 
         private const float AimReach = 40f;
         private const float TurnPerNotch = 22.5f;
@@ -54,6 +54,18 @@ namespace Cartheim.Plugin
         // Shift+E on the cart afloat: place it ashore.
         public static void BeginLanding(CartBase cart) => Begin(cart, Placing.Cart, Ghost("Cart"));
 
+        // From the garden tab: set out a Wayside Garden near the cart, its gate towards the player.
+        public static void BeginGarden(CartBase cart)
+        {
+            var player = Player.m_localPlayer;
+            if (!player || !cart)
+                return;
+            InventoryGui.instance?.Hide();
+            Begin(cart, Placing.Garden, CartGarden.Ghost());
+            if (IsPlacing)
+                _yaw = player.transform.eulerAngles.y;
+        }
+
         private static void Begin(CartBase cart, Placing placing, GameObject ghost)
         {
             Cancel(null);
@@ -68,7 +80,7 @@ namespace Cartheim.Plugin
             var renderers = ghost.GetComponentsInChildren<Renderer>();
             _ghostLift = renderers.Length > 0 ? ghost.transform.position.y - renderers.Min(r => r.bounds.min.y) : 0f;
             _inventoryGone = false;
-            Debug.Log($"[Cartheim] Placing the {(placing == Placing.Raft ? "raft" : "cart ashore")}");
+            Debug.Log($"[Cartheim] Placing the {(placing == Placing.Raft ? "raft" : placing == Placing.Garden ? "garden" : "cart ashore")}");
         }
 
         public static void Cancel(string message)
@@ -86,7 +98,7 @@ namespace Cartheim.Plugin
 
         // A copy of the piece as the game makes its own placement ghosts: made without joining the world, then stripped to its
         // looks (no behaviour or physics), a raft without its mast and sail.
-        private static GameObject Ghost(string piece)
+        internal static GameObject Ghost(string piece)
         {
             var prefab = GamePieces.Prefab(piece);
             if (!prefab)
@@ -172,6 +184,11 @@ namespace Cartheim.Plugin
                     : null;
             }
             var facing = Quaternion.Euler(0f, _yaw, 0f);
+            if (_placing == Placing.Garden)
+            {
+                PlaceGarden(player, new Vector3(hit.point.x, ground, hit.point.z), facing);
+                return;
+            }
             _ghost.SetActive(true);
             Redden(problem != null);
             // The cart's ghost stands on its wheels there, not sunk to its middle.
@@ -188,6 +205,20 @@ namespace Cartheim.Plugin
                 cart.Launch(at, facing);
             else
                 cart.GoAshore(at, facing);
+        }
+
+        // The garden's ghost on the ground, each fence where it would stand; a left click sets it out.
+        private static void PlaceGarden(Player player, Vector3 at, Quaternion facing)
+        {
+            var problem = CartGarden.Problem(at, facing, _cart, player);
+            _ghost.SetActive(true);
+            Redden(problem != null);
+            CartGarden.Pose(_ghost, at, facing);
+            Say(problem ?? "Left click: set out the garden here. Scroll: turn it. Right click: cancel");
+            if (problem != null || !UnityInput.Current.GetMouseButtonDown(0))
+                return;
+            Cancel(null);
+            CartGarden.Place(at, facing, player);
         }
 
         // Red where it can't go, as the game shows its own ghosts.

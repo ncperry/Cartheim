@@ -48,6 +48,8 @@ namespace Cartheim.Core
             (!Rugs.Contains(piece) || Has(Tent.Piece)) &&
             // The item stand hangs on the roof's front cross.
             (piece != ItemStand || RoofLevel > 0) &&
+            // Freyr's Blessing comes to a cart with bees and a fermenter.
+            (piece != FreyrsBlessing.Piece || Has(Beehive) && Has(FreyrsBlessing.Fermenter)) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
 
         public void Add(string piece, string extends = null) => built.Add((piece, extends));

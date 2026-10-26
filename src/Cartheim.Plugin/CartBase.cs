@@ -538,6 +538,8 @@ namespace Cartheim.Plugin
             FindRiders();
             BuildCrates();
             KeepRaft();
+            // Freyr's Blessing on the crops near it.
+            _freyrBlessed = Plugin.Enabled.Value && Upgrades.Has(FreyrsBlessing.Piece) ? CartGarden.Bless(this, _freyrBlessed) : 0L;
             MarkCrates();
             var on = Plugin.Enabled.Value;
             foreach (var (slot, rider) in _riders)
@@ -767,6 +769,8 @@ namespace Cartheim.Plugin
 
         private Ship _raft;
         private float _raftMissingSince = -1f;
+        // The game time Freyr's Blessing last moved the crops near it on (0 when it didn't).
+        private long _freyrBlessed;
 
         public bool HasRaft => Plugin.Enabled.Value && Upgrades.Has(Raft.Piece);
         public bool HasPortal => Plugin.Enabled.Value && Upgrades.Has(Portal.Piece);

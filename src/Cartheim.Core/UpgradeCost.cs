@@ -16,6 +16,10 @@ namespace Cartheim.Core
 
         private const int Nails = 5;
 
+        // Freyr's Blessing isn't nailed on: it costs just its own materials.
+        public static IReadOnlyList<ItemCount> For(string piece, IEnumerable<ItemCount> recipe) =>
+            piece == FreyrsBlessing.Piece ? recipe.ToList() : For(recipe);
+
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
         {
             var items = recipe.ToList();

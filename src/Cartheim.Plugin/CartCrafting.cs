@@ -123,7 +123,7 @@ namespace Cartheim.Plugin
         private static void Build(CartBase cart, Player player, string piece)
         {
             var extends = GamePieces.Extends(piece);
-            var cost = UpgradeCost.For(GamePieces.Recipe(piece));
+            var cost = UpgradeCost.For(piece, GamePieces.Recipe(piece));
             var state = cart.Upgrades.StateOf(piece, extends, cost, GamePieces.Carried(player, cost));
             if (state != UpgradeState.Ready && !(state == UpgradeState.CannotAfford && player.NoCostCheat()))
             {
@@ -152,7 +152,7 @@ namespace Cartheim.Plugin
             recipe.m_item = StandIn(piece);
             recipe.m_amount = 1;
             recipe.m_minStationLevel = 1;
-            recipe.m_resources = UpgradeCost.For(GamePieces.Recipe(piece))
+            recipe.m_resources = UpgradeCost.For(piece, GamePieces.Recipe(piece))
                 .Select(c => new Piece.Requirement { m_resItem = GamePieces.Item(c.Prefab), m_amount = c.Count, m_recover = true })
                 .Where(r => r.m_resItem)
                 .ToArray();
@@ -203,6 +203,7 @@ namespace Cartheim.Plugin
             piece == Tent.Piece ? "\n\n<color=orange>Pitch it beside the cart (on fairly flat ground) with the tent button below the station tabs: it keeps the rain off you and your campfire. The cart stays put until you pack it up.</color>" :
             piece == CartUpgrades.ItemStand ? "\n\n<color=orange>Hangs on the front of the roof. Mount whatever you like on it, as on any item stand.</color>" :
             piece == Raft.Piece ? "\n\n<color=orange>Launch it with the raft button below the station tabs and the cart goes aboard, to be paddled across water (no sail). Afloat, the cart's stations and storage can't be used. Shift+E on the cart puts it ashore and packs the raft away.</color>" :
+            piece == FreyrsBlessing.Piece ? $"\n\n<color=orange>Every crop within {FreyrsBlessing.Reach:0} m of the cart grows half as fast again (in two-thirds of its time), wherever it's planted. The blessing goes with the cart.</color>" :
             piece == Portal.Piece ? "\n\n<color=orange>A small portal on the cart. Its button below the station tabs takes you to the spawn; Shift+E on the sacrificial stones there takes you back to a cart with a portal. Ore and metal can't go through, as with any portal.</color>" :
             "";
 
