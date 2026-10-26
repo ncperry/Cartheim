@@ -151,6 +151,55 @@ namespace Cartheim.Plugin
             return root;
         }
 
+        // The tent's cloth as a tarp over a ruin: its mesh stretched over a box (in the space of a ruin at that position and
+        // turn), its lower side towards the box's -x where the mesh shows which side is lower. Solid like the tent, so the
+        // game's cover checks see a roof.
+        public static GameObject Tarp(Vector3 position, Quaternion rotation, Vector3 min, Vector3 max, bool ghost = false)
+        {
+            var tent = Tent();
+            if (!tent)
+                return null;
+            var mesh = tent.sharedMesh;
+            var b = mesh.bounds;
+            var root = new GameObject(ghost ? "Cartheim tarp ghost" : "Cartheim tarp");
+            root.transform.SetPositionAndRotation(position, rotation);
+            var model = new GameObject("model", typeof(MeshFilter), typeof(MeshRenderer));
+            model.layer = tent.gameObject.layer;
+            model.transform.SetParent(root.transform, false);
+            var flip = LowerAtMaxX(mesh);
+            var size = max - min;
+            var scale = new Vector3(size.x / b.size.x, size.y / b.size.y, size.z / b.size.z);
+            model.transform.localRotation = flip ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
+            model.transform.localScale = scale;
+            // The mesh's bounds land on the box: its middle on the box's middle (turned half round, its middle stays put).
+            var middle = Vector3.Scale(b.center, scale);
+            if (flip)
+                middle = new Vector3(-middle.x, middle.y, -middle.z);
+            model.transform.localPosition = (min + max) / 2f - middle;
+            model.GetComponent<MeshFilter>().sharedMesh = mesh;
+            model.GetComponent<MeshRenderer>().sharedMaterials = tent.GetComponent<MeshRenderer>().sharedMaterials;
+            if (!ghost)
+            {
+                var collider = model.AddComponent<MeshCollider>();
+                collider.sharedMesh = tent.GetComponent<MeshCollider>() is MeshCollider c && c.sharedMesh ? c.sharedMesh : mesh;
+            }
+            if (!ghost)
+                Debug.Log($"[Cartheim] Tarp over the ruin at {position}: the cloth's mesh spans {b.min} to {b.max}, stretched by {scale}{(flip ? ", turned so its lower side is at -x" : "")}");
+            return root;
+        }
+
+        // Whether the cloth's mesh is lower along its +x end than its -x end (when it can be read).
+        private static bool LowerAtMaxX(Mesh mesh)
+        {
+            if (!mesh.isReadable)
+                return false;
+            var vertices = mesh.vertices;
+            var b = mesh.bounds;
+            var nearMin = vertices.Where(v => v.x < b.min.x + b.size.x * 0.2f).Select(v => v.y).DefaultIfEmpty(0f).Max();
+            var nearMax = vertices.Where(v => v.x > b.max.x - b.size.x * 0.2f).Select(v => v.y).DefaultIfEmpty(0f).Max();
+            return nearMax < nearMin;
+        }
+
         // Where a player getting up stands: on the rug, or with none, in the middle of the tent's floor.
         public static Vector3 Middle(GameObject tent) => tent.transform.TransformPoint(tent.GetComponent<TentShape>().WakeAt);
 

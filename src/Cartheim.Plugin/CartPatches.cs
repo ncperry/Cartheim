@@ -32,6 +32,14 @@ namespace Cartheim.Plugin
                 __result = false;
                 return false;
             }
+            // Settled in a ruin, the cart can't be hitched: return it to cart form first.
+            if (!alt && cart && cart.InRuin)
+            {
+                if (!hold)
+                    character.Message(MessageHud.MessageType.Center, "The cart is settled in the ruin: return it to cart form first (in its menu)");
+                __result = false;
+                return false;
+            }
             // With its tent pitched, the cart can't be hitched: pack the tent up first.
             if (!alt && cart && cart.TentUp)
             {

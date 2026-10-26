@@ -14,7 +14,7 @@ namespace Cartheim.Plugin
     [HarmonyPatch]
     internal static class CartRaft
     {
-        private enum Placing { Nothing, Raft, Cart, Garden }
+        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin }
 
         private const float AimReach = 40f;
         private const float TurnPerNotch = 22.5f;
@@ -42,6 +42,11 @@ namespace Cartheim.Plugin
                 player.Message(MessageHud.MessageType.Center, "Pack up the tent first");
                 return;
             }
+            if (cart.InRuin)
+            {
+                player.Message(MessageHud.MessageType.Center, "Return the cart to cart form first");
+                return;
+            }
             if (vagon && vagon.IsAttached(player))
             {
                 player.Message(MessageHud.MessageType.Center, "Unhitch the cart first");
@@ -49,6 +54,34 @@ namespace Cartheim.Plugin
             }
             InventoryGui.instance?.Hide();
             Begin(cart, Placing.Raft, Ghost(Raft.Piece));
+        }
+
+        // The ruin that settling is for (see CartRuin).
+        private static Location _ruin;
+
+        // From the ruin tab: the cart settled into a ruin, everything added to it shown in place over it first.
+        public static void BeginRuin(CartBase cart, Location ruin)
+        {
+            var player = Player.m_localPlayer;
+            if (!player || !cart || !ruin)
+                return;
+            var vagon = cart.GetComponent<Vagon>();
+            var problem = cart.TentUp ? "Pack up the tent first" : vagon && vagon.IsAttached() ? "Unhitch the cart first" : null;
+            if (problem != null)
+            {
+                player.Message(MessageHud.MessageType.Center, problem);
+                return;
+            }
+            InventoryGui.instance?.Hide();
+            Begin(cart, Placing.Ruin, CartRuin.Ghost(cart, ruin, player));
+            _ruin = ruin;
+        }
+
+        // From the ruin tab, settled: put the cart down where it's to stand in cart form, as when putting it ashore.
+        public static void BeginLeavingRuin(CartBase cart)
+        {
+            InventoryGui.instance?.Hide();
+            Begin(cart, Placing.LeaveRuin, Ghost("Cart"));
         }
 
         // Shift+E on the cart afloat: place it ashore.
@@ -154,6 +187,19 @@ namespace Cartheim.Plugin
                 Cancel("Cancelled");
                 return;
             }
+            // Settling into a ruin: the ghost stands over the ruin already; a left click settles the cart.
+            if (_placing == Placing.Ruin)
+            {
+                Say("Left click: settle the cart into the ruin. Right click: cancel");
+                if (!UnityInput.Current.GetMouseButtonDown(0))
+                    return;
+                var settling = _cart;
+                var ruin = _ruin;
+                Cancel(null);
+                if (ruin)
+                    CartRuin.Settle(settling, ruin, player);
+                return;
+            }
             _yaw += UnityInput.Current.mouseScrollDelta.y * TurnPerNotch;
             var camera = GameCamera.instance ? GameCamera.instance.transform : null;
             var mask = LayerMask.GetMask("terrain", "static_solid", "Default");
@@ -176,6 +222,13 @@ namespace Cartheim.Plugin
                     : !Raft.Near(Vector3.Distance(at, _cart.transform.position)) ? "Too far from the cart"
                     : null;
             }
+            else if (_placing == Placing.LeaveRuin)
+            {
+                at = new Vector3(hit.point.x, ground, hit.point.z);
+                problem = !Raft.Ashore(ground, water) ? "Put the cart on dry ground"
+                    : !RuinCamp.Near(Vector3.Distance(at, _cart.transform.position)) ? "Too far from the ruin"
+                    : null;
+            }
             else
             {
                 at = new Vector3(hit.point.x, ground, hit.point.z);
@@ -192,10 +245,12 @@ namespace Cartheim.Plugin
             _ghost.SetActive(true);
             Redden(problem != null);
             // The cart's ghost stands on its wheels there, not sunk to its middle.
-            _ghost.transform.SetPositionAndRotation(_placing == Placing.Cart ? at + Vector3.up * _ghostLift : at, facing);
+            _ghost.transform.SetPositionAndRotation(_placing != Placing.Raft ? at + Vector3.up * _ghostLift : at, facing);
             Say(problem ?? (_placing == Placing.Raft
                 ? "Left click: launch the raft here (the cart goes aboard). Scroll: turn it. Right click: cancel"
-                : "Left click: put the cart ashore here (the raft is packed away). Scroll: turn it. Right click: cancel"));
+                : _placing == Placing.LeaveRuin
+                    ? "Left click: return the cart to cart form here (what was added to the ruin goes). Scroll: turn it. Right click: cancel"
+                    : "Left click: put the cart ashore here (the raft is packed away). Scroll: turn it. Right click: cancel"));
             if (problem != null || !UnityInput.Current.GetMouseButtonDown(0))
                 return;
             var cart = _cart;
@@ -203,6 +258,8 @@ namespace Cartheim.Plugin
             Cancel(null);
             if (placing == Placing.Raft)
                 cart.Launch(at, facing);
+            else if (placing == Placing.LeaveRuin)
+                cart.LeaveRuin(at, facing);
             else
                 cart.GoAshore(at, facing);
         }

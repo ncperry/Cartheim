@@ -102,6 +102,8 @@ namespace Cartheim.Plugin
                 _nview.Unregister(TentRpc);
             if (_tent)
                 Destroy(_tent);
+            if (_tarp)
+                Destroy(_tarp);
             Freeze(false);
             if (_wear)
             {
@@ -269,6 +271,11 @@ namespace Cartheim.Plugin
         {
             if (!HasTent)
                 return;
+            if (InRuin)
+            {
+                player.Message(MessageHud.MessageType.Center, "The cart is settled in a ruin: its tent is the tarp over it");
+                return;
+            }
             if (TentUp)
             {
                 _nview.InvokeRPC(TentRpc, false);
@@ -583,7 +590,18 @@ namespace Cartheim.Plugin
                 Destroy(_tent);
                 _tent = null;
             }
-            Freeze(wantTent);
+            // Settled in a ruin: held still, the tent's cloth over the ruin as a tarp if the cart has a tent.
+            var camp = on ? Camp : null;
+            var wantTarp = camp != null && HasTent;
+            if (wantTarp && !_tarp)
+                _tarp = TentAssets.Tarp(RuinAt, RuinTurn, new Vector3(camp.TarpMinX, camp.TarpLow, camp.TarpMinZ),
+                    new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ));
+            else if (!wantTarp && _tarp)
+            {
+                Destroy(_tarp);
+                _tarp = null;
+            }
+            Freeze(wantTent || camp != null);
             BurnCoal(on);
             _assist = on ? SteamEngine.Assist(Upgrades.Level(SteamEngine.Engine), Coal) : 0f;
             // A hearth built before the steam engine replaced it still burns; the engine burns while it has coal.
@@ -818,6 +836,55 @@ namespace Cartheim.Plugin
             zdo.Set(RaftingKey, true);
             Debug.Log($"[Cartheim] Cart {Uid()} aboard its raft, its wheels on the deck at {deck:0.00}");
             Refresh();
+        }
+
+        // Settled into a ruin (see CartRuin): which kind of ruin, where it stands and how it's turned, kept on the cart, so
+        // every game shows the tarp and holds the cart still.
+        public const string RuinKey = "cartheim_ruin";
+        private const string RuinAtKey = "cartheim_ruin_at";
+        private const string RuinTurnKey = "cartheim_ruin_turn";
+        private GameObject _tarp;
+
+        public RuinCamp Camp => Plugin.Enabled.Value && _nview && _nview.IsValid() ? RuinCamp.For(_nview.GetZDO().GetString(RuinKey, "")) : null;
+        public bool InRuin => Camp != null;
+        private Vector3 RuinAt => _nview.GetZDO().GetVec3(RuinAtKey, Vector3.zero);
+        private Quaternion RuinTurn => Quaternion.Euler(0f, _nview.GetZDO().GetFloat(RuinTurnKey, 0f), 0f);
+
+        // Into its place in the ruin, upright on the ground there.
+        public void Settle(RuinCamp camp, Vector3 ruinAt, float ruinTurn)
+        {
+            if (!_nview.IsOwner())
+                _nview.ClaimOwnership();
+            var turn = Quaternion.Euler(0f, ruinTurn, 0f);
+            var spot = ruinAt + turn * new Vector3(camp.CartX, 0f, camp.CartZ);
+            spot.y = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(spot) : spot.y;
+            SetDown(spot, turn * Quaternion.Euler(0f, camp.CartYaw, 0f));
+            var zdo = _nview.GetZDO();
+            zdo.Set(RuinKey, camp.Name);
+            zdo.Set(RuinAtKey, ruinAt);
+            zdo.Set(RuinTurnKey, ruinTurn);
+            Debug.Log($"[Cartheim] Cart {Uid()} settled into the {camp.Name} at {ruinAt}, standing at {spot}");
+            Refresh();
+        }
+
+        // Back to cart form, where it's put: everything added to the ruin taken away, with nothing back.
+        public void LeaveRuin(Vector3 at, Quaternion facing)
+        {
+            if (!_nview.IsOwner())
+                _nview.ClaimOwnership();
+            CartRuin.TearDown(Uid());
+            _nview.GetZDO().Set(RuinKey, "");
+            SetDown(at, facing);
+            Debug.Log($"[Cartheim] Cart {Uid()} back in cart form at {at}");
+            Refresh();
+        }
+
+        // Stood on its wheels at a spot.
+        private void SetDown(Vector3 at, Quaternion facing)
+        {
+            var lift = transform.position.y - Bottom();
+            transform.SetPositionAndRotation(at + Vector3.up * (lift + 0.1f), facing);
+            Physics.SyncTransforms();
         }
 
         public void GoAshore(Vector3 at, Quaternion facing)

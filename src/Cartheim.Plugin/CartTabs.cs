@@ -77,6 +77,11 @@ namespace Cartheim.Plugin
             // Then the garden, set out by anyone carrying a cultivator.
             if (CartGarden.Carries(Player.m_localPlayer))
                 targets.Add((cart.transform, Cartheim.Core.Garden.Piece, "Wayside Garden: click to set out a stone-fenced, cultivated plot near the cart, planted if you like (costs its fences, gate, torches and seeds)"));
+            // Then a ruin within reach: settle into it, or once settled, return to cart form.
+            if (CartRuin.Near(cart) is Location ruin)
+                targets.Add((ruin, "stone_arch", cart.InRuin
+                    ? "Ruin: click to return the cart to cart form (what was added to the ruin goes, nothing back)"
+                    : "Ruin: click to settle the cart into it (a door, a fence round the cart, a tarp if it has a tent, a garden if you have a cultivator; all free)"));
             // Then the portal, to the spawn.
             if (cart.HasPortal && cart.GetComponent<ZNetView>() is ZNetView view)
                 targets.Add((view, Cartheim.Core.Portal.Piece, "Portal: click to go to the spawn (Shift+E on the sacrificial stones there brings you back to a cart)"));
@@ -118,6 +123,12 @@ namespace Cartheim.Plugin
                     break;
                 case ZNetView _:
                     CartPortal.ToSpawn(player);
+                    break;
+                case Location ruin when CartCrafting.CartOf(player.GetCurrentCraftingStation()) is CartBase settling:
+                    if (settling.InRuin)
+                        CartRaft.BeginLeavingRuin(settling);
+                    else
+                        CartRaft.BeginRuin(settling, ruin);
                     break;
             }
         }
