@@ -723,6 +723,7 @@ namespace Cartheim.Plugin
             raft.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             raft.GetComponent<ZNetView>().GetZDO().Set(RaftKey, Uid());
             _raft = raft.GetComponent<Ship>();
+            MatchRaftHealth();
             Debug.Log($"[Cartheim] Cart {Uid()} launches its raft at {at}");
             Board();
         }
@@ -798,6 +799,17 @@ namespace Cartheim.Plugin
                 _wasKinematic.Clear();
         }
 
+        // The raft is as sturdy as the cart (with its workbench's added health), not a plain raft.
+        private void MatchRaftHealth()
+        {
+            var wear = _raft ? _raft.GetComponent<WearNTear>() : null;
+            if (wear && _wear && !Mathf.Approximately(wear.m_health, _wear.m_health))
+            {
+                Debug.Log($"[Cartheim] Cart {Uid()}'s raft has the cart's health, {_wear.m_health:0} (a raft has {wear.m_health:0})");
+                wear.m_health = _wear.m_health;
+            }
+        }
+
         private void IgnoreRaft()
         {
             if (!_raft)
@@ -830,6 +842,7 @@ namespace Cartheim.Plugin
                 if (_raft)
                 {
                     CartRaft.Dress(_raft);
+                    MatchRaftHealth();
                     _raftMissingSince = -1f;
                 }
                 else if (_nview.IsOwner())

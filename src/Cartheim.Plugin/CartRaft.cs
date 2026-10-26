@@ -64,6 +64,7 @@ namespace Cartheim.Plugin
             _ghost = ghost;
             _yaw = cart.transform.eulerAngles.y;
             _said = null;
+            _red = false;
             _inventoryGone = false;
             Debug.Log($"[Cartheim] Placing the {(placing == Placing.Raft ? "raft" : "cart ashore")}");
         }
@@ -169,6 +170,7 @@ namespace Cartheim.Plugin
             }
             var facing = Quaternion.Euler(0f, _yaw, 0f);
             _ghost.SetActive(true);
+            Redden(problem != null);
             _ghost.transform.SetPositionAndRotation(at, facing);
             Say(problem ?? (_placing == Placing.Raft
                 ? "Left click: launch the raft here (the cart goes aboard). Scroll: turn it. Right click: cancel"
@@ -182,6 +184,26 @@ namespace Cartheim.Plugin
                 cart.Launch(at, facing);
             else
                 cart.GoAshore(at, facing);
+        }
+
+        // Red where it can't go, as the game shows its own ghosts.
+        private static bool _red;
+
+        private static void Redden(bool red)
+        {
+            if (red == _red || !_ghost || !MaterialMan.instance)
+                return;
+            _red = red;
+            if (red)
+            {
+                MaterialMan.instance.SetValue(_ghost, ShaderProps._Color, Color.red);
+                MaterialMan.instance.SetValue(_ghost, ShaderProps._EmissionColor, Color.red * 0.7f);
+            }
+            else
+            {
+                MaterialMan.instance.ResetValue(_ghost, ShaderProps._Color);
+                MaterialMan.instance.ResetValue(_ghost, ShaderProps._EmissionColor);
+            }
         }
 
         private static void Say(string message)
@@ -240,6 +262,14 @@ namespace Cartheim.Plugin
         {
             if (IsPlacing)
                 __result = 0f;
+        }
+
+        // The cart's bees keep quiet (and out of sight) while it's afloat.
+        [HarmonyPatch(typeof(Beehive), "UpdateBees"), HarmonyPostfix]
+        private static void QuietAfloat(Beehive __instance)
+        {
+            if (__instance.m_beeEffect && __instance.m_beeEffect.activeSelf && CartBase.All.Any(c => c && c.Rafting && c.Beehives.Contains(__instance)))
+                __instance.m_beeEffect.SetActive(false);
         }
 
         // The cart's storage can't be opened while it's afloat.
