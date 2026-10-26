@@ -31,10 +31,21 @@ namespace Cartheim.Core
         // how high their brackets are.
         public List<float> Sconces;
         public float SconceZ, SconceHeight;
-        // A wood shield on the wall above the bed (when the player or the cart has a shield): the wall's inner face, along it,
-        // and how high, and how far it stands off the stone (rough, so it bulges in places). The wood shield's styles, as the game numbers them: plain, red and white, blue and white, red and black.
-        public float ShieldX, ShieldZ, ShieldHeight, ShieldOff;
-        public const int RedAndWhite = 1;
+        // A bronze shield on the wall above the bed (when the player or the cart has a shield): the wall's inner face, along it,
+        // and how high.
+        public float ShieldX, ShieldZ, ShieldHeight;
+        public const string Shield = "ShieldBronzeBuckler";
+        // Things of the ruin's own lands hung on item stands round the room, always: the item, the wall's inner face and
+        // along it, how high, and which way it looks (into the room).
+        public List<Hanging> Hangings;
+        // How far what hangs on the walls stands off the stone (rough, so it bulges in places).
+        public const float WallOff = 0.25f;
+
+        public class Hanging
+        {
+            public string Item;
+            public float X, Z, Height, FaceX, FaceZ;
+        }
 
         public static bool Near(float distance) => distance <= Reach;
 
@@ -70,7 +81,15 @@ namespace Cartheim.Core
                 RugX = -1.0f, RugZ = 0.7f, RugSize = 3.4f,
                 BedX = -2.0f, BedZ = 0.7f,
                 Sconces = new List<float> { -1.2f, 1.2f }, SconceZ = -2.3f, SconceHeight = 1.8f,
-                ShieldX = -3.0f, ShieldZ = 0.7f, ShieldHeight = 1.7f, ShieldOff = 0.25f,
+                ShieldX = -3.0f, ShieldZ = 0.7f, ShieldHeight = 1.7f,
+                // Black Forest things: a troll's and a greydwarf brute's heads either side of the door, and a bronze axe on the
+                // right wall past the fire.
+                Hangings = new List<Hanging>
+                {
+                    new Hanging { Item = "TrophyForestTroll", X = -1.9f, Z = -1.3f, Height = 1.9f, FaceZ = 1f },
+                    new Hanging { Item = "TrophyGreydwarfBrute", X = 1.6f, Z = -1.3f, Height = 1.9f, FaceZ = 1f },
+                    new Hanging { Item = "AxeBronze", X = 3.0f, Z = 1.6f, Height = 1.6f, FaceX = -1f },
+                },
             },
         };
     }

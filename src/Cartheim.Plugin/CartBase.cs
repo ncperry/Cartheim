@@ -619,7 +619,12 @@ namespace Cartheim.Plugin
             Freeze(wantTent || camp != null);
             // Settled, the room: its rug laid on the floor and its bed standing on it; the cart's own bed look not shown.
             if (camp != null && !_room)
+            {
                 _room = Room(camp);
+                // The ruin's own lands' things on its walls.
+                foreach (var h in camp.Hangings ?? new List<RuinCamp.Hanging>())
+                    Hang(h.Item, h.X, h.Z, h.Height, new Vector3(h.FaceX, 0f, h.FaceZ));
+            }
             else if (camp == null && _room)
             {
                 Destroy(_room);
@@ -627,10 +632,10 @@ namespace Cartheim.Plugin
                 _shield = null;
                 _bedSpot = null;
             }
-            // A wood shield on the wall above the bed, while the player or the cart has a shield.
+            // A bronze shield on the wall above the bed, while the player or the cart has a shield.
             var wantShield = _room && camp != null && HasShield();
             if (wantShield && !_shield)
-                _shield = WallShield(camp);
+                _shield = Hang(RuinCamp.Shield, camp.ShieldX, camp.ShieldZ, camp.ShieldHeight, Vector3.right);
             else if (!wantShield && _shield)
             {
                 Destroy(_shield);
@@ -896,7 +901,6 @@ namespace Cartheim.Plugin
         public IEnumerable<GameObject> InRoom => (_room ? new[] { _room } : new GameObject[0]).Concat(_inRoom.Where(r => r));
 
         private GameObject _shield;
-        private const string WoodShield = "ShieldWood";
 
         private bool HasShield()
         {
@@ -906,45 +910,85 @@ namespace Cartheim.Plugin
                    CartMaterials.StorageOf(this).Any(c => c.GetInventory().GetAllItems().Any(IsShield));
         }
 
-        // A copy of the wood shield's look, red and white, its face out from the wall into the room, hung on the room
-        // (so it goes, or shows see-through, with it).
-        private GameObject WallShield(RuinCamp camp)
+        // A copy of the look of an item hung on a wall item stand, stand and all, as the game hangs it: only its looks
+        // (nothing to take or break), on the room (so it goes, or shows see-through, with it). Its stand's back stands off
+        // the wall at (x, z) in the ruin's space, the item looking along face, its stand's middle this high off the ground.
+        private GameObject Hang(string item, float x, float z, float height, Vector3 face)
         {
-            var prefab = GamePieces.Prefab(WoodShield);
-            if (!prefab)
+            var standPrefab = GamePieces.Prefab(WallStand);
+            var itemPrefab = GamePieces.Prefab(item);
+            var drop = itemPrefab ? itemPrefab.GetComponent<ItemDrop>() : null;
+            var attach = itemPrefab ? ItemStand.GetAttachPrefab(itemPrefab) : null;
+            var holder = standPrefab ? standPrefab.GetComponent<ItemStand>() : null;
+            if (!holder || !drop || !attach)
+            {
+                Debug.LogWarning($"[Cartheim] Can't hang {item} on the wall: stand {(bool)holder}, item {(bool)drop}, its look {(bool)attach}");
                 return null;
-            // The styled look (as held, where the game sets its style), not the look lying on the ground.
-            var styled = prefab.GetComponentInChildren<ItemStyle>(true);
-            var source = styled ? styled.transform : prefab.transform.Find("attach") ?? prefab.transform;
-            var shield = new GameObject("Cartheim wall shield");
-            var model = new GameObject("model").transform;
-            model.SetParent(shield.transform, false);
+            }
+            var hanging = new GameObject("Cartheim hanging " + item);
+            // Built inactive, so none of the copies' own workings wake.
+            hanging.SetActive(false);
+            var stand = Instantiate(standPrefab, hanging.transform, false);
+            var at = stand.GetComponent<ItemStand>().m_attachOther;
+            var look = Instantiate(ItemStand.GetAttachGameObject(attach), at, false).transform;
+            look.localPosition = attach.transform.localPosition;
+            look.localRotation = attach.transform.localRotation;
+            look.localScale = Vector3.Scale(attach.transform.localScale, drop.m_itemData.GetScale(1f));
+            var offset = drop.m_itemData.m_shared.m_itemStandOffsets.FirstOrDefault(o => (o.m_orientations & holder.m_orientationType) != 0);
+            if (offset != null)
+            {
+                look.localPosition += offset.m_position;
+                look.localRotation *= Quaternion.Euler(offset.m_rotation);
+                look.localScale = Vector3.Scale(look.localScale, offset.m_scale);
+            }
+            foreach (var part in hanging.GetComponentsInChildren<MonoBehaviour>(true))
+                DestroyImmediate(part);
+            foreach (var part in hanging.GetComponentsInChildren<Joint>(true))
+                DestroyImmediate(part);
+            foreach (var part in hanging.GetComponentsInChildren<Collider>(true))
+                DestroyImmediate(part);
+            foreach (var part in hanging.GetComponentsInChildren<Rigidbody>(true))
+                DestroyImmediate(part);
+            // The stand's board, without the item: the item hangs out from its face, so that's the way out from the wall.
+            var board = MeshBounds(hanging.transform, stand.transform, look);
+            var outward = at.position - board.center;
+            outward = Mathf.Abs(outward.x) >= Mathf.Abs(outward.z) ? new Vector3(Mathf.Sign(outward.x), 0f, 0f) : new Vector3(0f, 0f, Mathf.Sign(outward.z));
+            var back = Mathf.Min(Vector3.Dot(board.min, outward), Vector3.Dot(board.max, outward));
+            var turn = RuinTurn;
+            var into = turn * face;
+            var rotation = Quaternion.LookRotation(into) * Quaternion.Inverse(Quaternion.LookRotation(outward));
+            var wall = RuinAt + turn * new Vector3(x, 0f, z) + into * RuinCamp.WallOff;
+            var ground = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(wall) : wall.y;
+            var position = wall - into * back;
+            position.y = ground + height - (rotation * board.center).y;
+            hanging.transform.SetPositionAndRotation(position, rotation);
+            hanging.transform.SetParent(_room.transform, true);
+            hanging.SetActive(true);
+            Debug.Log($"[Cartheim] Hung {item} on the wall: stand's board {board.size}, out along its {outward}");
+            return hanging;
+        }
+
+        private const string WallStand = "itemstand";
+
+        // The bounds, in root's space, of the meshes under one transform, leaving out those under another.
+        private static Bounds MeshBounds(Transform root, Transform under, Transform but)
+        {
             var bounds = new Bounds();
             var first = true;
-            foreach (var renderer in source.GetComponentsInChildren<MeshRenderer>(true))
+            foreach (var renderer in under.GetComponentsInChildren<Renderer>(true))
             {
-                var mesh = renderer.GetComponent<MeshFilter>();
-                if (!mesh || !mesh.sharedMesh || !renderer.enabled)
+                if (renderer.transform.IsChildOf(but))
                     continue;
-                var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
-                part.transform.SetParent(model, false);
-                var place = source.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
-                part.transform.localPosition = place.GetColumn(3);
-                part.transform.localRotation = place.rotation;
-                part.transform.localScale = place.lossyScale;
-                part.GetComponent<MeshFilter>().sharedMesh = mesh.sharedMesh;
-                // Its own materials, the style set on them too (as well as the game's way, below).
-                var materials = renderer.sharedMaterials.Select(m => m ? new Material(m) : null).ToArray();
-                foreach (var material in materials.Where(m => m && m.HasProperty(ShaderProps._Style)))
-                    material.SetFloat(ShaderProps._Style, RuinCamp.RedAndWhite);
-                part.GetComponent<MeshRenderer>().sharedMaterials = materials;
-                Debug.Log($"[Cartheim] Wall shield part {renderer.name} (from {source.name}): {string.Join(", ", materials.Where(m => m).Select(m => $"{m.shader.name}{(m.HasProperty(ShaderProps._Style) ? " styled" : "")}"))}");
-                var b = mesh.sharedMesh.bounds;
-                foreach (var x in new[] { b.min.x, b.max.x })
-                foreach (var y in new[] { b.min.y, b.max.y })
-                foreach (var z in new[] { b.min.z, b.max.z })
+                var mesh = renderer is SkinnedMeshRenderer skinned ? skinned.sharedMesh : renderer.GetComponent<MeshFilter>()?.sharedMesh;
+                if (!mesh)
+                    continue;
+                var place = root.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
+                var b = mesh.bounds;
+                foreach (var px in new[] { b.min.x, b.max.x })
+                foreach (var py in new[] { b.min.y, b.max.y })
+                foreach (var pz in new[] { b.min.z, b.max.z })
                 {
-                    var p = place.MultiplyPoint3x4(new Vector3(x, y, z));
+                    var p = place.MultiplyPoint3x4(new Vector3(px, py, pz));
                     if (first)
                         bounds = new Bounds(p, Vector3.zero);
                     else
@@ -952,21 +996,7 @@ namespace Cartheim.Plugin
                     first = false;
                 }
             }
-            // Its thinnest way is the way its face looks: turned to look into the room (the ruin's +x, off its left wall).
-            var s = bounds.size;
-            var thin = s.x <= s.y && s.x <= s.z ? Vector3.right : s.y <= s.z ? Vector3.up : Vector3.forward;
-            var thickness = Vector3.Scale(s, thin).magnitude;
-            // The model's face looks down its thin axis's negative side: half a turn about the upright brings it round.
-            model.localRotation = Quaternion.AngleAxis(180f, Vector3.up) * Quaternion.FromToRotation(thin, Vector3.right);
-            model.localPosition = -(model.localRotation * bounds.center);
-            var turn = RuinTurn;
-            var wall = RuinAt + turn * new Vector3(camp.ShieldX + camp.ShieldOff + thickness / 2f, 0f, camp.ShieldZ);
-            var ground = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(wall) : wall.y;
-            shield.transform.SetParent(_room.transform, false);
-            shield.transform.SetPositionAndRotation(new Vector3(wall.x, ground + camp.ShieldHeight, wall.z), turn);
-            MaterialMan.instance?.SetValue(shield, ShaderProps._Style, RuinCamp.RedAndWhite);
-            Debug.Log($"[Cartheim] Wood shield on the wall above the bed: size {s}, its face along its {(thin == Vector3.right ? "x" : thin == Vector3.up ? "y" : "z")}");
-            return shield;
+            return bounds;
         }
 
         private GameObject Room(RuinCamp camp)

@@ -96,7 +96,7 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void A_red_and_white_wood_shield_hangs_on_the_wall_above_the_bed()
+        public void A_bronze_shield_hangs_on_the_wall_above_the_bed()
         {
             var camp = RuinCamp.For("StoneHouse4");
             Assert.Equal(camp.RoomMinX, camp.ShieldX);
@@ -104,8 +104,31 @@ namespace Cartheim.Core.Tests
             Assert.Equal(camp.BedZ, camp.ShieldZ);
             Assert.InRange(camp.ShieldHeight, 1.3f, 2.2f);
             // Held off the rough stone a little, so none of it sinks into the wall.
-            Assert.InRange(camp.ShieldOff, 0.15f, 0.4f);
-            Assert.Equal(1, RuinCamp.RedAndWhite);
+            Assert.InRange(RuinCamp.WallOff, 0.15f, 0.4f);
+            Assert.Equal("ShieldBronzeBuckler", RuinCamp.Shield);
+        }
+
+        [Fact]
+        public void Black_forest_trophies_and_bronze_hang_round_the_room_clear_of_the_door()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.Contains(camp.Hangings, h => h.Item == "TrophyForestTroll");
+            Assert.True(camp.Hangings.Count >= 3);
+            foreach (var h in camp.Hangings)
+            {
+                // On the inside of a wall that stands (the back wall is broken: the cart's there), looking into the room.
+                var onLeft = h.X == camp.RoomMinX && h.FaceX == 1f;
+                var onRight = h.X == camp.RoomMaxX && h.FaceX == -1f;
+                var onFront = h.Z == camp.RoomMinZ && h.FaceZ == 1f;
+                Assert.True(onLeft || onRight || onFront, h.Item);
+                Assert.InRange(h.X, camp.RoomMinX, camp.RoomMaxX);
+                Assert.InRange(h.Z, camp.RoomMinZ, camp.RoomMaxZ);
+                Assert.InRange(h.Height, 1.4f, 2.3f);
+                if (onFront)
+                    Assert.True(System.Math.Abs(h.X - camp.DoorX) >= 1.2f, h.Item);
+                // Not where the shield goes.
+                Assert.False(h.X == camp.ShieldX && System.Math.Abs(h.Z - camp.ShieldZ) < 1f, h.Item);
+            }
         }
 
         [Fact]
