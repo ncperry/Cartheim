@@ -9,7 +9,8 @@ using Object = UnityEngine.Object;
 namespace Cartheim.Plugin
 {
     // The game's buildings and ruins, placed by hand in the dev world: picked by the biome they're found in, then put down
-    // as a see-through ghost where the player looks (see CartRaft.BeginBuilding), turned with the scroll wheel, and spawned
+    // as a see-through ghost where the player looks, however big it is (see CartRaft.BeginBuilding), turned with the scroll
+    // wheel, and spawned
     // as the game spawns its own, kept in the world.
     internal static class DevBuildings
     {
@@ -93,17 +94,6 @@ namespace Cartheim.Plugin
         private static string Named(Heightmap.Biome biome) =>
             biome == Heightmap.Biome.BlackForest ? "Black Forest" : biome == Heightmap.Biome.AshLands ? "Ashlands" :
             biome == Heightmap.Biome.DeepNorth ? "Deep North" : biome == Heightmap.Biome.Mountain ? "Mountains" : biome.ToString();
-
-        // Kept to the one zone it stands in, as the game keeps its own (so where the ghost shows is where it goes).
-        public static Vector3 InZone(ZoneSystem.ZoneLocation location, Vector3 at)
-        {
-            var radius = Mathf.Max(location.m_exteriorRadius, location.m_interiorRadius);
-            var zone = ZoneSystem.GetZonePos(ZoneSystem.GetZone(at));
-            at.x = Mathf.Clamp(at.x, zone.x - 32f + radius, zone.x + 32f - radius);
-            at.z = Mathf.Clamp(at.z, zone.z - 32f + radius, zone.z + 32f - radius);
-            at.y = ZoneSystem.instance.GetGroundHeight(at);
-            return at;
-        }
 
         private static readonly System.Reflection.MethodInfo SpawnLocation = AccessTools.Method(typeof(ZoneSystem), "SpawnLocation");
 

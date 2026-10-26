@@ -12,9 +12,9 @@ namespace Cartheim.Plugin
     // on dry ground near its raft, and the raft is packed away. Afloat, the raft has no sail and the cart can't be used:
     // no stations, no storage.
     [HarmonyPatch]
-    internal static class CartRaft
+    internal static partial class CartRaft
     {
-        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp, Stands, Building }
+        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp, Stands, Building, TearDown, Forest }
 
         private const float AimReach = 40f;
         private const float TurnPerNotch = 22.5f;
@@ -239,7 +239,7 @@ namespace Cartheim.Plugin
         }
 
         // One of the game's buildings, placed by hand (in the dev world): a see-through ghost of it where the player looks,
-        // kept to its zone as the game keeps it, turned with the scroll wheel; a left click spawns it there.
+        // turned with the scroll wheel; a left click spawns it there.
         private static string _building;
 
         public static void BeginBuilding(string name)
@@ -303,7 +303,7 @@ namespace Cartheim.Plugin
                 Say("Aim at where it goes");
                 return;
             }
-            var at = DevBuildings.InZone(location, hit.point);
+            var at = hit.point;
             var turn = Quaternion.Euler(0f, _yaw, 0f);
             _ghost.SetActive(true);
             _ghost.transform.SetPositionAndRotation(at, turn);
@@ -381,7 +381,7 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!InventoryGui.IsVisible())
                 _inventoryGone = true;
-            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart && _placing != Placing.Stands && _placing != Placing.Building ? "the cart is gone"
+            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart && !NeedsNoCart ? "the cart is gone"
                 : _inventoryGone && InventoryGui.IsVisible() ? "the inventory opened" : Menu.IsVisible() ? "the menu opened"
                 : Minimap.IsOpen() ? "the map opened" : null;
             if (interrupted != null)
@@ -393,6 +393,17 @@ namespace Cartheim.Plugin
             if (UnityInput.Current.GetMouseButtonDown(1))
             {
                 Cancel("Cancelled");
+                return;
+            }
+            // The dev world's tools: tearing a building down, clearing a forest.
+            if (_placing == Placing.TearDown)
+            {
+                TearingDown();
+                return;
+            }
+            if (_placing == Placing.Forest)
+            {
+                ClearingForest();
                 return;
             }
             // Placing one of the game's buildings (in the dev world).
