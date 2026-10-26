@@ -610,8 +610,7 @@ namespace Cartheim.Plugin
             var camp = on ? Camp : null;
             var wantTarp = camp != null && HasTent;
             if (wantTarp && !_tarp)
-                _tarp = TentAssets.Tarp(RuinAt, RuinTurn, new Vector3(camp.TarpMinX, camp.TarpLow, camp.TarpMinZ),
-                    new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ));
+                _tarp = TentAssets.Tarp(RuinAt, RuinTurn, TarpTuning.BoxFor(camp));
             else if (!wantTarp && _tarp)
             {
                 Destroy(_tarp);
@@ -934,6 +933,18 @@ namespace Cartheim.Plugin
         }
         private Vector3 RuinAt => _nview.GetZDO().GetVec3(RuinAtKey, Vector3.zero);
         private Quaternion RuinTurn => Quaternion.Euler(0f, _nview.GetZDO().GetFloat(RuinTurnKey, 0f), 0f);
+        // Where the ruin it's settled into stands, and how it's turned.
+        public Vector3 RuinPosition => RuinAt;
+        public Quaternion RuinRotation => RuinTurn;
+
+        // The tarp made again (after tuning it).
+        public void RebuildTarp()
+        {
+            if (_tarp)
+                Destroy(_tarp);
+            _tarp = null;
+            Refresh();
+        }
 
         // Into its place in the ruin, upright on the ground there.
         public void Settle(RuinCamp camp, Vector3 ruinAt, float ruinTurn)

@@ -43,6 +43,7 @@ namespace Cartheim.Plugin
                 "Dying at sea respawns you on land. A cart afloat near where you died can come ashore beside you, its raft " +
                 "packed away, rather than staying out on the water: ComesExceptHardcore (not on a world with the Hardcore " +
                 "preset or death penalty), AlwaysComes, or StaysAtSea.");
+            TarpTuning.Bind(Config);
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));
@@ -76,6 +77,7 @@ namespace Cartheim.Plugin
             CartRescue.Update();
             CartGarden.Update();
             CartRuinSurvey.Update();
+            TarpTuning.Update();
         }
 
         // After every Update, where other mods set up the crafting screen's buttons.
@@ -97,6 +99,7 @@ namespace Cartheim.Plugin
             CartRescue.Unregister();
             CartPortal.Unregister();
             CartGarden.Close();
+            TarpTuning.Close();
             TentAssets.Release();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);

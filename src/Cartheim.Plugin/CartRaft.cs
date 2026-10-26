@@ -14,7 +14,7 @@ namespace Cartheim.Plugin
     [HarmonyPatch]
     internal static class CartRaft
     {
-        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin }
+        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp }
 
         private const float AimReach = 40f;
         private const float TurnPerNotch = 22.5f;
@@ -127,6 +127,54 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Placing the {(placing == Placing.Raft ? "raft" : placing == Placing.Garden ? "garden" : "cart ashore")}");
         }
 
+
+        // Tuning a ruin's tarp: picked up as a ghost (the tarp itself shown see-through meanwhile) and put down where the
+        // player looks, as its box says, turned with the scroll wheel by small steps.
+        private static TarpBox _tarpBox;
+        private static System.Action<TarpBox> _tarpDropped;
+        private const float TarpTurnPerNotch = 5f;
+
+        public static void BeginTarp(CartBase cart, TarpBox box, System.Action<TarpBox> dropped)
+        {
+            if (!cart || !cart.InRuin)
+                return;
+            // The ghost made where the tarp is now, its middle at the ghost's own middle (moved and turned from there).
+            var ghost = TentAssets.Tarp(cart.RuinPosition, cart.RuinRotation, box, ghost: true);
+            if (!ghost)
+                return;
+            CartRuin.Ghostly(ghost);
+            Begin(cart, Placing.Tarp, ghost);
+            if (!IsPlacing)
+                return;
+            _tarpBox = box;
+            _tarpDropped = dropped;
+            _yaw = box.Turn;
+            if (cart.Tarp)
+                CartRuin.ShowThrough(new[] { cart.Tarp });
+        }
+
+        private static void DragTarp()
+        {
+            _yaw += UnityInput.Current.mouseScrollDelta.y * TarpTurnPerNotch;
+            var camera = GameCamera.instance ? GameCamera.instance.transform : null;
+            if (!camera || !Aim(camera, LayerMask.GetMask("terrain", "static_solid", "Default", "piece"), out var hit))
+            {
+                Say("Aim at where the tarp's middle goes");
+                return;
+            }
+            // In the ruin's space: where its middle goes, the heights kept as they are.
+            var local = Quaternion.Inverse(_cart.RuinRotation) * (hit.point - _cart.RuinPosition);
+            var box = TarpTune.CentredAt(_tarpBox, local.x, local.z);
+            box.Turn = _yaw;
+            var middle = new Vector3((box.MinX + box.MaxX) / 2f, 0f, (box.MinZ + box.MaxZ) / 2f);
+            _ghost.transform.SetPositionAndRotation(_cart.RuinPosition + _cart.RuinRotation * middle, _cart.RuinRotation * Quaternion.Euler(0f, box.Turn, 0f));
+            Say($"Left click: put the tarp here (its middle at {local.x:0.0}, {local.z:0.0}; turned {box.Turn:0}). Scroll: turn it. Right click: cancel");
+            if (!UnityInput.Current.GetMouseButtonDown(0))
+                return;
+            var dropped = _tarpDropped;
+            Cancel(null);
+            dropped?.Invoke(box);
+        }
         public static void Cancel(string message)
         {
             if (IsPlacing)
@@ -219,6 +267,12 @@ namespace Cartheim.Plugin
                 Cancel(null);
                 if (ruin)
                     CartRuin.Settle(settling, ruin, player);
+                return;
+            }
+            // Dragging a ruin's tarp about (tuning it): its ghost's middle where the player looks, scroll to turn it.
+            if (_placing == Placing.Tarp)
+            {
+                DragTarp();
                 return;
             }
             _yaw += UnityInput.Current.mouseScrollDelta.y * TurnPerNotch;

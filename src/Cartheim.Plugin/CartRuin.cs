@@ -277,8 +277,7 @@ namespace Cartheim.Plugin
             }
             if (cart.HasTent)
             {
-                var tarp = TentAssets.Tarp(ruin.transform.position, Quaternion.Euler(0f, ruin.transform.eulerAngles.y, 0f),
-                    new Vector3(camp.TarpMinX, camp.TarpLow, camp.TarpMinZ), new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ), ghost: true);
+                var tarp = TentAssets.Tarp(ruin.transform.position, Quaternion.Euler(0f, ruin.transform.eulerAngles.y, 0f), TarpTuning.BoxFor(camp), ghost: true);
                 if (tarp)
                     tarp.transform.SetParent(root.transform, true);
             }
@@ -371,7 +370,7 @@ namespace Cartheim.Plugin
         private static readonly Color GhostTint = new Color(0.75f, 0.9f, 1f, 0.35f);
         private static Shader _ghostShader;
 
-        private static void Ghostly(GameObject root)
+        internal static void Ghostly(GameObject root)
         {
             if (!_ghostShader)
             {

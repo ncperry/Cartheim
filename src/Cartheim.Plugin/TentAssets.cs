@@ -156,6 +156,14 @@ namespace Cartheim.Plugin
         // game's cover checks see a roof.
         public const string TarpName = "Cartheim tarp";
 
+        // A ruin's tarp where its box says, in the ruin's own space: turned about its own middle.
+        public static GameObject Tarp(Vector3 ruinAt, Quaternion ruinTurn, Cartheim.Core.TarpBox box, bool ghost = false)
+        {
+            var middle = new Vector3((box.MinX + box.MaxX) / 2f, 0f, (box.MinZ + box.MaxZ) / 2f);
+            return Tarp(ruinAt + ruinTurn * middle, ruinTurn * Quaternion.Euler(0f, box.Turn, 0f),
+                new Vector3(box.MinX, box.Low, box.MinZ) - middle, new Vector3(box.MaxX, box.High, box.MaxZ) - middle, ghost);
+        }
+
         public static GameObject Tarp(Vector3 position, Quaternion rotation, Vector3 min, Vector3 max, bool ghost = false)
         {
             var tent = Tent();

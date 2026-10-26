@@ -20,6 +20,8 @@ namespace Cartheim.Core
         public List<((float x, float z) from, (float x, float z) to)> Fence;
         // The tarp (the tent's cloth, when the cart has a tent): over this much of the ruin, low at its -x side, high at +x.
         public float TarpMinX, TarpMaxX, TarpMinZ, TarpMaxZ, TarpLow, TarpHigh;
+        // And how far it's turned about its middle (degrees).
+        public float TarpTurn;
         // The floor inside the walls.
         public float RoomMinX, RoomMaxX, RoomMinZ, RoomMaxZ;
         // A campfire (burning without wood) with a cooking station over it, tucked into a corner under the tarp's high side.
