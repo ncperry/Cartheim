@@ -185,9 +185,74 @@ namespace Cartheim.Plugin
                 var collider = model.AddComponent<MeshCollider>();
                 collider.sharedMesh = mesh;
             }
+            Pole(root.transform, model.transform, mesh, ghost);
             if (!ghost)
                 Debug.Log($"[Cartheim] Tarp over the ruin at {position}: the cloth's mesh spans {b.min} to {b.max}, stretched by {scale}{(flip ? ", turned so its lower side is at -x" : "")}");
             return root;
+        }
+
+        // A core wood pole holding up the cloth's peak, from the ground: a copy of the game's own pole's looks, stretched to
+        // the height, with a collider round it (none on a ghost).
+        private const string PolePiece = "wood_pole_log_4";
+
+        private static void Pole(Transform tarp, Transform cloth, Mesh mesh, bool ghost)
+        {
+            var prefab = GamePieces.Prefab(PolePiece);
+            if (!prefab || !mesh.isReadable || !ZoneSystem.instance)
+                return;
+            var peak = cloth.TransformPoint(mesh.vertices.OrderByDescending(v => v.y).First());
+            var foot = new Vector3(peak.x, ZoneSystem.instance.GetGroundHeight(peak), peak.z);
+            var height = peak.y - foot.y;
+            if (height <= 0.1f)
+                return;
+            // Its looks as the piece shows them new (not the worn look it changes to).
+            bool Shown(Transform t) => t.GetComponentsInParent<Transform>(true).All(p => p.gameObject.activeSelf);
+            var renderers = prefab.GetComponentsInChildren<MeshRenderer>(true)
+                .Where(r => r.enabled && Shown(r.transform) && r.GetComponent<MeshFilter>()?.sharedMesh).ToList();
+            if (renderers.Count == 0)
+                return;
+            var pole = new GameObject("pole").transform;
+            pole.SetParent(tarp, false);
+            var bounds = new Bounds();
+            var first = true;
+            foreach (var renderer in renderers)
+            {
+                var place = prefab.transform.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
+                var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
+                part.layer = cloth.gameObject.layer;
+                part.transform.SetParent(pole, false);
+                part.transform.localPosition = place.GetColumn(3);
+                part.transform.localRotation = place.rotation;
+                part.transform.localScale = place.lossyScale;
+                part.GetComponent<MeshFilter>().sharedMesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
+                var b = renderer.GetComponent<MeshFilter>().sharedMesh.bounds;
+                foreach (var x in new[] { b.min.x, b.max.x })
+                foreach (var y in new[] { b.min.y, b.max.y })
+                foreach (var z in new[] { b.min.z, b.max.z })
+                {
+                    var p = place.MultiplyPoint3x4(new Vector3(x, y, z));
+                    if (first)
+                        bounds = new Bounds(p, Vector3.zero);
+                    else
+                        bounds.Encapsulate(p);
+                    first = false;
+                }
+            }
+            // Standing on the ground under the peak, its top meeting the cloth.
+            var stretch = height / Mathf.Max(0.01f, bounds.size.y);
+            pole.localScale = new Vector3(1f, stretch, 1f);
+            pole.position = foot - new Vector3(bounds.center.x, bounds.min.y * stretch, bounds.center.z);
+            pole.rotation = Quaternion.identity;
+            if (!ghost)
+            {
+                var collider = pole.gameObject.AddComponent<CapsuleCollider>();
+                collider.center = new Vector3(bounds.center.x, bounds.center.y, bounds.center.z);
+                collider.height = bounds.size.y;
+                collider.radius = Mathf.Min(bounds.size.x, bounds.size.z) / 2f;
+                pole.gameObject.layer = cloth.gameObject.layer;
+                Debug.Log($"[Cartheim] Tarp pole under the peak at {peak}, from the ground at {foot.y:0.00}: {height:0.00} m (the pole is {bounds.size.y:0.00} m)");
+            }
         }
 
         // The tent's cloth alone, for a tarp: its poles and spars left out (stretched over a ruin they hang in the air), each
