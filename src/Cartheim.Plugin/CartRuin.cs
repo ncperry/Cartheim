@@ -139,6 +139,8 @@ namespace Cartheim.Plugin
         // What a cart's camp has added that's loaded here: its tarp, its room's rug and bed, and its pieces.
         public static IEnumerable<GameObject> CampOf(CartBase cart)
         {
+            // The cart itself too, standing where it was settled, as it's about to be put down elsewhere.
+            yield return cart.gameObject;
             if (cart.Tarp)
                 yield return cart.Tarp;
             foreach (var thing in cart.InRoom)
@@ -158,7 +160,7 @@ namespace Cartheim.Plugin
             var kept = thing.GetComponent<GhostMaterials>();
             if (seeThrough && !kept)
             {
-                var originals = thing.GetComponentsInChildren<Renderer>(true).ToDictionary(r => r, r => r.sharedMaterials);
+                var originals = Solid(thing).ToDictionary(r => r, r => (r.sharedMaterials, r.shadowCastingMode));
                 Ghostly(thing);
                 thing.GetComponent<GhostMaterials>().Originals = originals;
             }
@@ -166,12 +168,16 @@ namespace Cartheim.Plugin
             {
                 foreach (var pair in kept.Originals.Where(p => p.Key))
                 {
-                    pair.Key.sharedMaterials = pair.Value;
-                    pair.Key.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                    pair.Key.sharedMaterials = pair.Value.materials;
+                    pair.Key.shadowCastingMode = pair.Value.shadows;
                 }
                 Object.Destroy(kept);
             }
         }
+
+        // What makes a thing's shape (not its flames, smoke or sparks, which stay as they are).
+        private static IEnumerable<Renderer> Solid(GameObject thing) =>
+            thing.GetComponentsInChildren<Renderer>(true).Where(r => r is MeshRenderer || r is SkinnedMeshRenderer);
 
         // Pale and see-through until it's settled: every material swapped for a transparent one (keeping its texture where
         // it can), so the ghost can't be taken for the real thing.
@@ -188,7 +194,7 @@ namespace Cartheim.Plugin
             if (!_ghostShader)
                 return;
             var made = new Dictionary<Material, Material>();
-            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            foreach (var renderer in Solid(root))
             {
                 var materials = renderer.sharedMaterials;
                 for (var i = 0; i < materials.Length; i++)
@@ -215,7 +221,7 @@ namespace Cartheim.Plugin
         private class GhostMaterials : MonoBehaviour
         {
             public List<Material> Made;
-            public Dictionary<Renderer, Material[]> Originals;
+            public Dictionary<Renderer, (Material[] materials, UnityEngine.Rendering.ShadowCastingMode shadows)> Originals;
 
             private void OnDestroy()
             {
