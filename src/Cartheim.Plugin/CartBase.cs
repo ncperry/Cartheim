@@ -743,7 +743,6 @@ namespace Cartheim.Plugin
 
         private Ship _raft;
         private float _raftMissingSince = -1f;
-        private readonly Dictionary<Rigidbody, bool> _wasKinematic = new Dictionary<Rigidbody, bool>();
 
         public bool HasRaft => Plugin.Enabled.Value && Upgrades.Has(Raft.Piece);
         public bool HasPortal => Plugin.Enabled.Value && Upgrades.Has(Portal.Piece);
@@ -818,26 +817,25 @@ namespace Cartheim.Plugin
             return solid.Count > 0 ? solid.Min(c => c.bounds.min.y) : transform.position.y;
         }
 
-        // Every part of the cart moved only by the mod while afloat, and as before once ashore.
+        // Every part of the cart moved only by the mod while afloat, and free once ashore. A cart's bodies are never kinematic
+        // otherwise, so ashore they're let go outright rather than put back as found: found after a hot reload afloat, they
+        // were already held, and "as found" left the cart stuck ashore.
         private void Hold(bool held)
         {
             foreach (var body in _bodies.Where(b => b))
             {
-                if (held && !_wasKinematic.ContainsKey(body))
+                if (held && !body.isKinematic)
                 {
-                    _wasKinematic[body] = body.isKinematic;
                     body.linearVelocity = Vector3.zero;
                     body.angularVelocity = Vector3.zero;
                     body.isKinematic = true;
                 }
-                else if (!held && _wasKinematic.TryGetValue(body, out var was))
+                else if (!held && body.isKinematic)
                 {
-                    body.isKinematic = was;
+                    body.isKinematic = false;
                     body.WakeUp();
                 }
             }
-            if (!held)
-                _wasKinematic.Clear();
         }
 
         // The raft is as sturdy as the cart (with its workbench's added health), not a plain raft.
@@ -898,6 +896,12 @@ namespace Cartheim.Plugin
                         rafting = false;
                     }
                 }
+            }
+            // Ashore, a cart left held (by an older copy of the mod) is let go.
+            if (!rafting && _nview.IsOwner() && _bodies.Any(b => b && b.isKinematic))
+            {
+                Debug.Log($"[Cartheim] Cart {Uid()} is ashore but held still; letting it go");
+                Hold(false);
             }
             Stow(gameObject, rafting);
             foreach (var rider in _riders.Values)
