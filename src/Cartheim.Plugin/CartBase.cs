@@ -624,18 +624,56 @@ namespace Cartheim.Plugin
 
         // A bed that is the local player's spawn point moves it along with the cart, so they wake up wherever the cart went.
         // Only while this player has the cart loaded: if it travels while they are far away, the game won't find the bed.
+        // Afloat, it doesn't: the spawn point stays where the cart was launched from, and goes back to the bed once the cart
+        // is ashore (see SpawnOnBedAshore).
         private void KeepSpawnPointOnBed()
         {
-            var bed = Bed;
-            var profile = Game.instance ? Game.instance.GetPlayerProfile() : null;
-            if (!bed || profile == null || !profile.HaveCustomSpawnPoint())
-                return;
-            if (bed.GetComponent<ZNetView>()?.GetZDO()?.GetLong(ZDOVars.s_owner) != profile.GetPlayerID())
+            if (Rafting || !SpawnsOnBed(out var bed, out var profile))
                 return;
             var spawn = bed.GetSpawnPoint();
+            if (_bedSpawnAshore)
+            {
+                _bedSpawnAshore = false;
+                profile.SetCustomSpawnPoint(spawn);
+                Debug.Log($"[Cartheim] Cart {Uid()} ashore: the spawn point is back on its bed, at {spawn}");
+                return;
+            }
             var distance = Vector3.Distance(profile.GetCustomSpawnPoint(), spawn);
             if (distance > 0.1f && distance < SpawnPointDrift)
                 profile.SetCustomSpawnPoint(spawn);
+        }
+
+        // The cart's bed and the local player's profile, if the bed is theirs and they have a spawn point.
+        private bool SpawnsOnBed(out Bed bed, out PlayerProfile profile)
+        {
+            bed = Bed;
+            profile = Game.instance ? Game.instance.GetPlayerProfile() : null;
+            return bed && profile != null && profile.HaveCustomSpawnPoint() &&
+                   bed.GetComponent<ZNetView>()?.GetZDO()?.GetLong(ZDOVars.s_owner) == profile.GetPlayerID();
+        }
+
+        // Whether a player's spawn point was on the cart's bed when it went afloat (kept on the cart, by player); once it's
+        // ashore, it's put back on the bed.
+        private static string SpawnOnBedKey(long player) => "cartheim_spawn_on_bed_" + player;
+        private bool _bedSpawnAshore;
+
+        private void RememberSpawnOnBed()
+        {
+            if (!SpawnsOnBed(out var bed, out var profile))
+                return;
+            var onBed = Vector3.Distance(profile.GetCustomSpawnPoint(), bed.GetSpawnPoint()) < SpawnPointDrift;
+            _nview.GetZDO().Set(SpawnOnBedKey(profile.GetPlayerID()), onBed);
+            Debug.Log($"[Cartheim] Cart {Uid()} going afloat; the spawn point is {(onBed ? "" : "not ")}on its bed");
+        }
+
+        private void SpawnOnBedAshore()
+        {
+            var profile = Game.instance ? Game.instance.GetPlayerProfile() : null;
+            if (profile == null)
+                return;
+            var key = SpawnOnBedKey(profile.GetPlayerID());
+            _bedSpawnAshore = _nview.GetZDO().GetBool(key);
+            _nview.GetZDO().Set(key, false);
         }
 
         private static readonly AccessTools.FieldRef<ZNetScene, Dictionary<ZDO, ZNetView>> Instances =
@@ -722,6 +760,7 @@ namespace Cartheim.Plugin
             var raft = Instantiate(prefab, at, facing);
             raft.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             raft.GetComponent<ZNetView>().GetZDO().Set(RaftKey, Uid());
+            RememberSpawnOnBed();
             _raft = raft.GetComponent<Ship>();
             MatchRaftHealth();
             Debug.Log($"[Cartheim] Cart {Uid()} launches its raft at {at}");
@@ -754,6 +793,7 @@ namespace Cartheim.Plugin
             var lift = transform.position.y - Bottom();
             transform.SetPositionAndRotation(at + Vector3.up * (lift + 0.1f), facing);
             Physics.SyncTransforms();
+            SpawnOnBedAshore();
             _nview.GetZDO().Set(RaftingKey, false);
             Hold(false);
             if (_raft)
