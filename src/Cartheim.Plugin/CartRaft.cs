@@ -119,7 +119,11 @@ namespace Cartheim.Plugin
         public static void Cancel(string message)
         {
             if (IsPlacing)
+            {
                 Debug.Log("[Cartheim] Stopped placing" + (message != null ? ": " + message : ""));
+                // The click that placed or cancelled is still down: it mustn't then punch or block.
+                _clickHeld = true;
+            }
             if (_ghost)
                 Object.Destroy(_ghost);
             _ghost = null;
@@ -166,8 +170,13 @@ namespace Cartheim.Plugin
             return ghost;
         }
 
+        // Set as placing ends, until both mouse buttons are let go.
+        private static bool _clickHeld;
+
         public static void Update()
         {
+            if (_clickHeld && !IsPlacing && !UnityInput.Current.GetMouseButton(0) && !UnityInput.Current.GetMouseButton(1))
+                _clickHeld = false;
             if (!IsPlacing)
                 return;
             var player = Player.m_localPlayer;
@@ -354,11 +363,11 @@ namespace Cartheim.Plugin
         }
 
         // While placing, clicks place or cancel instead of attacking or blocking, and the scroll wheel turns the ghost
-        // instead of zooming.
+        // instead of zooming; so too the click that ends it, until it's let go.
         [HarmonyPatch(typeof(Player), nameof(Player.SetControls)), HarmonyPrefix]
         private static void NoFighting(ref bool attack, ref bool attackHold, ref bool secondaryAttack, ref bool secondaryAttackHold, ref bool block, ref bool blockHold)
         {
-            if (!IsPlacing)
+            if (!IsPlacing && !_clickHeld)
                 return;
             attack = attackHold = secondaryAttack = secondaryAttackHold = block = blockHold = false;
         }
