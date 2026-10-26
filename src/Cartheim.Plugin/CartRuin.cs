@@ -278,7 +278,8 @@ namespace Cartheim.Plugin
             if (cart.HasTent)
             {
                 var tarp = TentAssets.Tarp(ruin.transform.position, Quaternion.Euler(0f, ruin.transform.eulerAngles.y, 0f),
-                    new Vector3(camp.TarpMinX, camp.TarpLow, camp.TarpMinZ), new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ), ghost: true);
+                    new Vector3(camp.TarpMinX, camp.TarpLow, camp.TarpMinZ), new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ),
+                    new Vector2(camp.PoleX, camp.PoleZ), ghost: true);
                 if (tarp)
                     tarp.transform.SetParent(root.transform, true);
             }

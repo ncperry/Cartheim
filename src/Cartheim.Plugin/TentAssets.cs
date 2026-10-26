@@ -156,7 +156,7 @@ namespace Cartheim.Plugin
         // game's cover checks see a roof.
         public const string TarpName = "Cartheim tarp";
 
-        public static GameObject Tarp(Vector3 position, Quaternion rotation, Vector3 min, Vector3 max, bool ghost = false)
+        public static GameObject Tarp(Vector3 position, Quaternion rotation, Vector3 min, Vector3 max, Vector2? pole, bool ghost = false)
         {
             var tent = Tent();
             if (!tent)
@@ -169,6 +169,16 @@ namespace Cartheim.Plugin
             model.layer = tent.gameObject.layer;
             model.transform.SetParent(root.transform, false);
             var flip = LowerAtMaxX(mesh);
+            // The cloth's peak, and where it is across and back in the box (turned half round, from the other sides).
+            var peak = mesh.isReadable ? mesh.vertices.OrderByDescending(v => v.y).First() : b.center;
+            var across = (flip ? b.max.x - peak.x : peak.x - b.min.x) / b.size.x;
+            var back = (flip ? b.max.z - peak.z : peak.z - b.min.z) / b.size.z;
+            if (pole is Vector2 at)
+            {
+                var (minX, maxX, minZ, maxZ) = TarpFit.PeakAt(min.x, max.x, min.z, max.z, across, back, at.x, at.y);
+                min = new Vector3(minX, min.y, minZ);
+                max = new Vector3(maxX, max.y, maxZ);
+            }
             var size = max - min;
             var scale = new Vector3(size.x / b.size.x, size.y / b.size.y, size.z / b.size.z);
             model.transform.localRotation = flip ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
@@ -185,24 +195,31 @@ namespace Cartheim.Plugin
                 var collider = model.AddComponent<MeshCollider>();
                 collider.sharedMesh = mesh;
             }
-            Pole(root.transform, model.transform, mesh, ghost);
+            if (pole != null)
+                Pole(root.transform, model.transform.TransformPoint(peak), model.layer, ghost);
             if (!ghost)
-                Debug.Log($"[Cartheim] Tarp over the ruin at {position}: the cloth's mesh spans {b.min} to {b.max}, stretched by {scale}{(flip ? ", turned so its lower side is at -x" : "")}");
+                Debug.Log($"[Cartheim] Tarp over the ruin at {position}: the cloth's mesh spans {b.min} to {b.max}, its peak {across:0.00} across and {back:0.00} back, " +
+                          $"fitted to {min} to {max}{(flip ? ", turned so its lower side is at -x" : "")}");
             return root;
         }
 
-        // A core wood pole holding up the cloth's peak, from the ground: a copy of the game's own pole's looks, stretched to
-        // the height, with a collider round it (none on a ghost).
+        // A core wood pole holding up the cloth's peak, standing on whatever is under it (a wall top, here): two of the game's
+        // core wood poles, half their width, one on the other, stretched to the height between; a collider round them (none on
+        // a ghost).
         private const string PolePiece = "wood_pole_log_4";
+        private const float PoleThickness = 0.5f;
 
-        private static void Pole(Transform tarp, Transform cloth, Mesh mesh, bool ghost)
+        private static void Pole(Transform tarp, Vector3 peak, int layer, bool ghost)
         {
             var prefab = GamePieces.Prefab(PolePiece);
-            if (!prefab || !mesh.isReadable || !ZoneSystem.instance)
+            if (!prefab || !ZoneSystem.instance)
                 return;
-            var peak = cloth.TransformPoint(mesh.vertices.OrderByDescending(v => v.y).First());
-            var foot = new Vector3(peak.x, ZoneSystem.instance.GetGroundHeight(peak), peak.z);
-            var height = peak.y - foot.y;
+            // The first solid thing below the peak (not the cloth itself, nor the cart), else the ground.
+            var ground = ZoneSystem.instance.GetGroundHeight(peak);
+            var foot = Physics.RaycastAll(peak - Vector3.up * 0.05f, Vector3.down, peak.y - ground + 0.1f, ~0, QueryTriggerInteraction.Ignore)
+                .Where(h => !h.collider.transform.IsChildOf(tarp) && !h.collider.GetComponentInParent<Character>() && !h.collider.GetComponentInParent<Vagon>())
+                .OrderBy(h => h.distance).Select(h => (float?)h.point.y).FirstOrDefault() ?? ground;
+            var height = peak.y - foot;
             if (height <= 0.1f)
                 return;
             // Its looks as the piece shows them new (not the worn look it changes to).
@@ -211,21 +228,11 @@ namespace Cartheim.Plugin
                 .Where(r => r.enabled && Shown(r.transform) && r.GetComponent<MeshFilter>()?.sharedMesh).ToList();
             if (renderers.Count == 0)
                 return;
-            var pole = new GameObject("pole").transform;
-            pole.SetParent(tarp, false);
             var bounds = new Bounds();
             var first = true;
             foreach (var renderer in renderers)
             {
                 var place = prefab.transform.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
-                var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
-                part.layer = cloth.gameObject.layer;
-                part.transform.SetParent(pole, false);
-                part.transform.localPosition = place.GetColumn(3);
-                part.transform.localRotation = place.rotation;
-                part.transform.localScale = place.lossyScale;
-                part.GetComponent<MeshFilter>().sharedMesh = renderer.GetComponent<MeshFilter>().sharedMesh;
-                part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
                 var b = renderer.GetComponent<MeshFilter>().sharedMesh.bounds;
                 foreach (var x in new[] { b.min.x, b.max.x })
                 foreach (var y in new[] { b.min.y, b.max.y })
@@ -239,19 +246,38 @@ namespace Cartheim.Plugin
                     first = false;
                 }
             }
-            // Standing on the ground under the peak, its top meeting the cloth.
-            var stretch = height / Mathf.Max(0.01f, bounds.size.y);
-            pole.localScale = new Vector3(1f, stretch, 1f);
-            pole.position = foot - new Vector3(bounds.center.x, bounds.min.y * stretch, bounds.center.z);
-            pole.rotation = Quaternion.identity;
+            var pole = new GameObject("pole").transform;
+            pole.SetParent(tarp, false);
+            pole.SetPositionAndRotation(new Vector3(peak.x, foot, peak.z), Quaternion.identity);
+            var piece = height / 2f;
+            var stretch = piece / Mathf.Max(0.01f, bounds.size.y);
+            for (var i = 0; i < 2; i++)
+            {
+                var segment = new GameObject("segment " + i).transform;
+                segment.SetParent(pole, false);
+                segment.localScale = new Vector3(PoleThickness, stretch, PoleThickness);
+                segment.localPosition = new Vector3(-bounds.center.x * PoleThickness, i * piece - bounds.min.y * stretch, -bounds.center.z * PoleThickness);
+                foreach (var renderer in renderers)
+                {
+                    var place = prefab.transform.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
+                    var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
+                    part.layer = layer;
+                    part.transform.SetParent(segment, false);
+                    part.transform.localPosition = place.GetColumn(3);
+                    part.transform.localRotation = place.rotation;
+                    part.transform.localScale = place.lossyScale;
+                    part.GetComponent<MeshFilter>().sharedMesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                    part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
+                }
+            }
             if (!ghost)
             {
                 var collider = pole.gameObject.AddComponent<CapsuleCollider>();
-                collider.center = new Vector3(bounds.center.x, bounds.center.y, bounds.center.z);
-                collider.height = bounds.size.y;
-                collider.radius = Mathf.Min(bounds.size.x, bounds.size.z) / 2f;
-                pole.gameObject.layer = cloth.gameObject.layer;
-                Debug.Log($"[Cartheim] Tarp pole under the peak at {peak}, from the ground at {foot.y:0.00}: {height:0.00} m (the pole is {bounds.size.y:0.00} m)");
+                collider.center = new Vector3(0f, height / 2f, 0f);
+                collider.height = height;
+                collider.radius = Mathf.Min(bounds.size.x, bounds.size.z) * PoleThickness / 2f;
+                pole.gameObject.layer = layer;
+                Debug.Log($"[Cartheim] Tarp pole under the peak at {peak}, standing at {foot:0.00} ({(foot > ground + 0.1f ? "on a wall" : "on the ground")}): two pieces of {piece:0.00} m");
             }
         }
 

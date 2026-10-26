@@ -611,7 +611,7 @@ namespace Cartheim.Plugin
             var wantTarp = camp != null && HasTent;
             if (wantTarp && !_tarp)
                 _tarp = TentAssets.Tarp(RuinAt, RuinTurn, new Vector3(camp.TarpMinX, camp.TarpLow, camp.TarpMinZ),
-                    new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ));
+                    new Vector3(camp.TarpMaxX, camp.TarpHigh, camp.TarpMaxZ), new Vector2(camp.PoleX, camp.PoleZ));
             else if (!wantTarp && _tarp)
             {
                 Destroy(_tarp);
