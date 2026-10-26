@@ -1,68 +1,110 @@
 using System.Collections.Generic;
 using System.Linq;
 using Cartheim.Core;
+using Jotunn.Managers;
 using Splatform;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Cartheim.Plugin
 {
     // The Wayside Garden (see Garden): set out from the cart's tabs by anyone carrying a cultivator, placed as the raft is
-    // (see CartRaft): a square of cultivated ground inside the game's own stone fences, with its wooden fence gate, all
-    // real pieces built by the player. And Freyr's Blessing: a blessed cart makes every crop near it grow faster.
+    // (see CartRaft): a square of cultivated ground inside the game's own stone fences, with its wooden fence gate and a
+    // standing wood torch at each front corner, all real pieces built by the player; planted, if they like, with a crop.
+    // And Freyr's Blessing: a blessed cart makes every crop near it grow faster.
     internal static class CartGarden
     {
         // The game's pieces, by their names in the game's text.
         private const string FenceName = "$piece_stonefence";
         private const string GateName = "$piece_woodfencegate";
+        private const string TorchName = "$piece_groundtorchwood";
         private const string CultivatorItem = "Cultivator";
-        // How far from the cart a garden may be set out.
-        public const float Reach = 20f;
+        // How far from the cart a garden's middle may be.
+        public const float Reach = 30f;
 
-        private static GameObject _fence, _gate, _cultivate;
-        private static float _fenceLength, _fenceTurn, _gateWidth, _gateTurn, _cultivateSpacing;
+        // A game piece used in the garden: its prefab, its length, the turn that lays it along x, and how far its pivot
+        // is above its lowest point (so it stands on the ground, not half in it).
+        private struct Kind
+        {
+            public GameObject Prefab;
+            public float Length, Turn, Lift;
+        }
+
+        // A crop to plant: the plant grown from seeds, and the one grown from the crop itself for more seeds (if any).
+        public class Crop
+        {
+            public string Name;
+            public GameObject Plant, SeedPlant;
+        }
+
+        private static Kind _fence, _gate, _torch;
+        private static GameObject _cultivate;
+        private static float _cultivateSpacing;
+        private static List<Crop> _crops;
+        // The crop being planted with the garden being placed (null: none).
+        private static Crop _crop;
 
         public static bool Carries(Player player) =>
             player && player.GetInventory().GetAllItems().Any(i => i.m_dropPrefab && i.m_dropPrefab.name == CultivatorItem);
 
-        // The fence, gate and cultivating prefabs, and how long the fence and gate are along their own length.
         private static bool Ready()
         {
-            if (_fence && _gate && _cultivate)
+            if (_fence.Prefab && _gate.Prefab && _torch.Prefab && _cultivate)
                 return true;
             var hammer = ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
             var cultivator = ObjectDB.instance?.GetItemPrefab(CultivatorItem)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
             if (!hammer || !cultivator)
                 return false;
-            _fence = hammer.m_pieces.FirstOrDefault(p => p && p.GetComponent<Piece>()?.m_name == FenceName);
-            _gate = hammer.m_pieces.FirstOrDefault(p => p && p.GetComponent<Piece>()?.m_name == GateName);
-            _cultivate = cultivator.m_pieces.FirstOrDefault(p => p && p.GetComponent<TerrainOp>() && p.GetComponent<TerrainOp>().m_settings.m_paintCleared &&
-                                                                p.GetComponent<TerrainOp>().m_settings.m_paintType == TerrainModifier.PaintType.Cultivate);
-            if (!_fence || !_gate || !_cultivate)
+            GameObject Find(string name) => hammer.m_pieces.FirstOrDefault(p => p && p.GetComponent<Piece>()?.m_name == name);
+            _fence = Measure(Find(FenceName));
+            _gate = Measure(Find(GateName));
+            _torch = Measure(Find(TorchName));
+            _cultivate = cultivator.m_pieces.FirstOrDefault(p => p && p.GetComponent<TerrainOp>() is TerrainOp op &&
+                                                                op.m_settings.m_paintCleared && op.m_settings.m_paintType == TerrainModifier.PaintType.Cultivate);
+            _crops = Crops(cultivator.m_pieces);
+            if (!_fence.Prefab || !_gate.Prefab || !_torch.Prefab || !_cultivate)
             {
-                Debug.LogWarning($"[Cartheim] Garden pieces not found: fence {(bool)_fence}, gate {(bool)_gate}, cultivate {(bool)_cultivate}");
+                Debug.LogWarning($"[Cartheim] Garden pieces not found: fence {(bool)_fence.Prefab}, gate {(bool)_gate.Prefab}, torch {(bool)_torch.Prefab}, cultivate {(bool)_cultivate}");
                 return false;
             }
-            (_fenceLength, _fenceTurn) = Length(_fence);
-            (_gateWidth, _gateTurn) = Length(_gate);
-            var op = _cultivate.GetComponent<TerrainOp>().m_settings;
-            _cultivateSpacing = Mathf.Max(0.5f, op.m_paintRadius * 1.2f);
-            Debug.Log($"[Cartheim] Garden: fence {_fence.name} {_fenceLength:0.00} m long (turned {_fenceTurn}), gate {_gate.name} {_gateWidth:0.00} m (turned {_gateTurn}), " +
-                      $"cultivating with {_cultivate.name}, radius {op.m_paintRadius:0.00} (level {op.m_level}, smooth {op.m_smooth}), every {_cultivateSpacing:0.00} m; " +
-                      $"has a ZNetView: {(bool)_cultivate.GetComponent<ZNetView>()}");
+            _cultivateSpacing = Mathf.Max(0.5f, _cultivate.GetComponent<TerrainOp>().m_settings.m_paintRadius * 1.2f);
+            Debug.Log($"[Cartheim] Garden: fence {_fence.Prefab.name} {_fence.Length:0.00} m (turned {_fence.Turn}, lifted {_fence.Lift:0.00}), " +
+                      $"gate {_gate.Prefab.name} {_gate.Length:0.00} m (turned {_gate.Turn}, lifted {_gate.Lift:0.00}), torch {_torch.Prefab.name} (lifted {_torch.Lift:0.00}), " +
+                      $"cultivating every {_cultivateSpacing:0.00} m; crops: {string.Join(", ", _crops.Select(c => $"{c.Name} ({c.Plant.name}{(c.SeedPlant ? " + " + c.SeedPlant.name : "")})"))}");
             return true;
         }
 
-        // A piece's length, by its meshes, and the turn that lays it along x.
-        private static (float length, float turn) Length(GameObject prefab)
+        // The cultivator's plants, paired: "sapling_seedcarrot" (planted from a carrot) goes with "sapling_carrot".
+        private static List<Crop> Crops(List<GameObject> pieces)
         {
+            var plants = pieces.Where(p => p && p.GetComponent<Plant>()).ToList();
+            return plants.Where(p => !p.name.StartsWith("sapling_seed"))
+                .Select(p => new Crop
+                {
+                    Name = PlantName(p),
+                    Plant = p,
+                    SeedPlant = plants.FirstOrDefault(s => s.name == p.name.Replace("sapling_", "sapling_seed")),
+                })
+                .OrderBy(c => c.Name).ToList();
+        }
+
+        private static string PlantName(GameObject plant)
+        {
+            var piece = plant.GetComponent<Piece>();
+            return piece ? Localization.instance.Localize(piece.m_name) : plant.name;
+        }
+
+        private static Kind Measure(GameObject prefab)
+        {
+            if (!prefab)
+                return default;
             var bounds = new Bounds();
             var first = true;
             foreach (var filter in prefab.GetComponentsInChildren<MeshFilter>(true))
             {
                 if (!filter.sharedMesh)
                     continue;
-                var local = filter.sharedMesh.bounds;
-                foreach (var corner in Corners(local))
+                foreach (var corner in Corners(filter.sharedMesh.bounds))
                 {
                     var p = prefab.transform.InverseTransformPoint(filter.transform.TransformPoint(corner));
                     if (first)
@@ -72,7 +114,13 @@ namespace Cartheim.Plugin
                     first = false;
                 }
             }
-            return bounds.size.x >= bounds.size.z ? (bounds.size.x, 0f) : (bounds.size.z, 90f);
+            return new Kind
+            {
+                Prefab = prefab,
+                Length = Mathf.Max(bounds.size.x, bounds.size.z),
+                Turn = bounds.size.x >= bounds.size.z ? 0f : 90f,
+                Lift = Mathf.Max(0f, -bounds.min.y),
+            };
         }
 
         private static IEnumerable<Vector3> Corners(Bounds b)
@@ -81,72 +129,175 @@ namespace Cartheim.Plugin
                 yield return new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
         }
 
-        private static List<Garden.Part> Layout() => Garden.Layout(_fenceLength, _gateWidth);
+        // Everything the garden is made of and planted with, in its own space: what, where, how turned and lifted.
+        private struct Placed
+        {
+            public GameObject Prefab;
+            public float X, Z, Yaw, Lift;
+        }
 
-        public static List<ItemCount> Cost() =>
-            Garden.Cost(GamePieces.Recipe(_fence.name), Layout().Count(p => !p.Gate), GamePieces.Recipe(_gate.name));
+        private static List<Placed> Everything()
+        {
+            var placed = Garden.Layout(_fence.Length, _gate.Length).Select(p =>
+            {
+                var kind = p.Gate ? _gate : _fence;
+                return new Placed { Prefab = kind.Prefab, X = p.X, Z = p.Z, Yaw = p.Yaw + kind.Turn, Lift = kind.Lift };
+            }).ToList();
+            placed.AddRange(Garden.TorchSpots().Select(t => new Placed { Prefab = _torch.Prefab, X = t.x, Z = t.z, Lift = _torch.Lift }));
+            if (_crop != null)
+            {
+                var (crops, seedPlants) = Garden.Planting(_crop.SeedPlant);
+                var spots = Garden.PlantSpots(crops + seedPlants, PlantSpacing(_crop));
+                for (var i = 0; i < spots.Count; i++)
+                    placed.Add(new Placed { Prefab = i < crops ? _crop.Plant : _crop.SeedPlant, X = spots[i].x, Z = spots[i].z });
+            }
+            return placed;
+        }
 
-        // A ghost of the whole garden: a stripped copy of each fence and the gate, kept on the ground by Pose.
+        // As far apart as the roomier of the crop's plants needs to grow.
+        private static float PlantSpacing(Crop crop) =>
+            Mathf.Max(1f, 2f * new[] { crop.Plant, crop.SeedPlant }.Where(p => p).Max(p => p.GetComponent<Plant>().m_growRadius) + 0.2f);
+
+        public static List<ItemCount> Cost()
+        {
+            var parts = new List<(IEnumerable<ItemCount>, int)>
+            {
+                (GamePieces.Recipe(_fence.Prefab.name), Garden.Layout(_fence.Length, _gate.Length).Count(p => !p.Gate)),
+                (GamePieces.Recipe(_gate.Prefab.name), 1),
+                (GamePieces.Recipe(_torch.Prefab.name), Garden.TorchSpots().Count),
+            };
+            if (_crop != null)
+            {
+                var (crops, seedPlants) = Garden.Planting(_crop.SeedPlant);
+                parts.Add((GamePieces.Recipe(_crop.Plant.name), crops));
+                if (_crop.SeedPlant)
+                    parts.Add((GamePieces.Recipe(_crop.SeedPlant.name), seedPlants));
+            }
+            return Garden.Cost(parts.ToArray());
+        }
+
+        // From the garden tab: which crop to plant (or none), then placing.
+        private static GameObject _panel;
+        private const float Width = 420f;
+        private const float RowHeight = 40f;
+
+        public static void Choose(CartBase cart)
+        {
+            Close();
+            if (!Ready() || !cart)
+                return;
+            var options = new List<(string label, Crop crop)> { ("Just the garden", null) };
+            foreach (var crop in _crops)
+            {
+                var (crops, seedPlants) = Garden.Planting(crop.SeedPlant);
+                options.Add((crop.SeedPlant ? $"{crop.Name}: {crops}, and {seedPlants} {PlantName(crop.SeedPlant)}" : $"{crop.Name}: {crops}", crop));
+            }
+            var height = 110f + options.Count * RowHeight;
+            var middle = new Vector2(0.5f, 0.5f);
+            _panel = GUIManager.Instance.CreateWoodpanel(GUIManager.CustomGUIFront.transform, middle, middle, Vector2.zero, Width, height, draggable: false);
+            var title = GUIManager.Instance.CreateText("Plant the garden with?", _panel.transform, middle, middle, new Vector2(0f, height / 2f - 30f),
+                GUIManager.Instance.AveriaSerifBold, 22, GUIManager.Instance.ValheimOrange, true, Color.black, Width - 40f, 30f, false);
+            title.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            for (var i = 0; i < options.Count; i++)
+            {
+                var (label, crop) = options[i];
+                var button = GUIManager.Instance.CreateButton(label, _panel.transform, middle, middle,
+                    new Vector2(0f, height / 2f - 70f - i * RowHeight), Width - 60f, RowHeight - 6f);
+                button.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    Close();
+                    _crop = crop;
+                    CartRaft.BeginGarden(cart);
+                });
+            }
+            var cancel = GUIManager.Instance.CreateButton("Cancel", _panel.transform, middle, middle, new Vector2(0f, -height / 2f + 30f), 140f, 36f);
+            cancel.GetComponent<Button>().onClick.AddListener(Close);
+            GUIManager.BlockInput(true);
+        }
+
+        public static void Close()
+        {
+            if (!_panel)
+                return;
+            Object.Destroy(_panel);
+            _panel = null;
+            GUIManager.BlockInput(false);
+        }
+
+        public static void Update()
+        {
+            if (_panel && BepInEx.UnityInput.Current.GetKeyDown(KeyCode.Escape))
+                Close();
+        }
+
+        // A ghost of the whole garden, kept on the ground by Pose.
         public static GameObject Ghost()
         {
             if (!Ready())
                 return null;
             var root = new GameObject("Cartheim placing the garden");
-            foreach (var part in Layout())
+            foreach (var p in Everything())
             {
-                var piece = CartRaft.Ghost(part.Gate ? _gate.name : _fence.name);
+                var piece = CartRaft.Ghost(p.Prefab.name);
                 if (!piece)
                     continue;
                 piece.transform.SetParent(root.transform, false);
-                piece.transform.localPosition = new Vector3(part.X, 0f, part.Z);
-                piece.transform.localRotation = Quaternion.Euler(0f, part.Yaw + (part.Gate ? _gateTurn : _fenceTurn), 0f);
+                piece.transform.localPosition = new Vector3(p.X, p.Lift, p.Z);
+                piece.transform.localRotation = Quaternion.Euler(0f, p.Yaw, 0f);
+                piece.AddComponent<GhostLift>().Lift = p.Lift;
             }
             return root;
         }
 
-        // Each piece of the ghost on the ground under it.
+        private class GhostLift : MonoBehaviour
+        {
+            public float Lift;
+        }
+
         public static void Pose(GameObject ghost, Vector3 at, Quaternion facing)
         {
             ghost.transform.SetPositionAndRotation(at, facing);
             foreach (Transform piece in ghost.transform)
             {
                 var p = piece.position;
-                piece.position = new Vector3(p.x, Ground(p), p.z);
+                piece.position = new Vector3(p.x, Ground(p) + (piece.GetComponent<GhostLift>()?.Lift ?? 0f), p.z);
             }
         }
+
+        private static float Ground(Vector3 p) => ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(p) : p.y;
 
         private static string ItemName(string prefab) =>
             GamePieces.Item(prefab) is ItemDrop item ? Localization.instance.Localize(item.m_itemData.m_shared.m_name) : prefab;
 
-        private static float Ground(Vector3 p) => ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(p) : p.y;
-
-        // Why the garden can't go there, if it can't: rough ground, water, too far from the cart, or too dear.
+        // Why the garden can't go there, if it can't: rough ground, water, too far from the cart, a crop that won't grow
+        // there, or too dear.
         public static string Problem(Vector3 at, Quaternion facing, CartBase cart, Player player)
         {
-            var half = Garden.Side / 2f + 0.5f;
+            var half = Garden.Side / 2f;
             var heights = new List<float>();
-            for (var x = -1; x <= 1; x++)
-                for (var z = -1; z <= 1; z++)
-                    heights.Add(Ground(at + facing * new Vector3(x * half, 0f, z * half)));
+            for (var x = -2; x <= 2; x++)
+                for (var z = -2; z <= 2; z++)
+                    heights.Add(Ground(at + facing * new Vector3(x * half / 2f, 0f, z * half / 2f)));
             var water = ZoneSystem.instance ? ZoneSystem.instance.m_waterLevel : 30f;
             if (!Raft.Ashore(heights.Min(), water))
                 return "The garden needs dry ground";
-            if (!Tent.FlatEnough(heights.ToArray(), Plugin.TentMaxRise.Value))
+            if (!Tent.FlatEnough(heights.ToArray(), Plugin.GardenMaxRise.Value))
                 return "The ground is too uneven for a garden";
             if (Vector3.Distance(at, cart.transform.position) > Reach)
                 return "Too far from the cart";
+            if (_crop != null && (Heightmap.FindBiome(at) & _crop.Plant.GetComponent<Plant>().m_biome) == 0)
+                return $"{_crop.Name} won't grow here";
             if (!player.NoCostCheat())
             {
                 var cost = Cost();
                 var carried = GamePieces.Carried(player, cost);
-                var missing = cost.Where(c => !carried.TryGetValue(c.Prefab, out var have) || have < c.Count).ToList();
-                if (missing.Count > 0)
-                    return "A garden takes " + string.Join(", ", cost.Select(c => $"{c.Count} {ItemName(c.Prefab)}"));
+                if (cost.Any(c => !carried.TryGetValue(c.Prefab, out var have) || have < c.Count))
+                    return "This garden takes " + string.Join(", ", cost.Select(c => $"{c.Count} {ItemName(c.Prefab)}"));
             }
             return null;
         }
 
-        // Paid for, the ground inside cultivated, and the fence and gate built, as the player's own pieces.
+        // Paid for; the ground inside cultivated; the fence, gate and torches built and the crop planted, as the player's own.
         public static void Place(Vector3 at, Quaternion facing, Player player)
         {
             if (!Ready() || !player)
@@ -159,17 +310,15 @@ namespace Cartheim.Plugin
                 var p = at + facing * new Vector3(x, 0f, z);
                 Cultivate(new Vector3(p.x, Ground(p), p.z));
             }
-            foreach (var part in Layout())
+            foreach (var part in Everything())
             {
-                var prefab = part.Gate ? _gate : _fence;
                 var p = at + facing * new Vector3(part.X, 0f, part.Z);
-                var rotation = facing * Quaternion.Euler(0f, part.Yaw + (part.Gate ? _gateTurn : _fenceTurn), 0f);
-                var built = Object.Instantiate(prefab, new Vector3(p.x, Ground(p), p.z), rotation);
+                var built = Object.Instantiate(part.Prefab, new Vector3(p.x, Ground(p) + part.Lift, p.z), facing * Quaternion.Euler(0f, part.Yaw, 0f));
                 built.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             }
-            _fence.GetComponent<Piece>()?.m_placeEffect.Create(at, facing);
-            Debug.Log($"[Cartheim] Wayside Garden set out at {at}, for {string.Join(", ", cost)}");
-            player.Message(MessageHud.MessageType.Center, "Wayside Garden set out");
+            _fence.Prefab.GetComponent<Piece>()?.m_placeEffect.Create(at, facing);
+            Debug.Log($"[Cartheim] Wayside Garden set out at {at}{(_crop != null ? ", planted with " + _crop.Name : "")}, for {string.Join(", ", cost)}");
+            player.Message(MessageHud.MessageType.Center, _crop != null ? $"Wayside Garden set out and planted with {_crop.Name}" : "Wayside Garden set out");
         }
 
         // The cultivator's own work at one spot, without its sound (a whole garden at once would be a racket).
@@ -202,7 +351,6 @@ namespace Cartheim.Plugin
             if (!ZNet.instance)
                 return lastBlessed;
             var now = ZNet.instance.GetTime().Ticks;
-            var blessed = 0;
             foreach (var plant in SlowUpdate.GetAllInstaces().OfType<Plant>())
             {
                 var view = plant ? plant.GetComponent<ZNetView>() : null;
@@ -215,10 +363,8 @@ namespace Cartheim.Plugin
                 if (lastBlessed == 0 || last != lastBlessed || now <= last)
                     continue;
                 var planted = zdo.GetLong(ZDOVars.s_plantTime, 0L);
-                if (planted == 0)
-                    continue;
-                zdo.Set(ZDOVars.s_plantTime, planted - (long)FreyrsBlessing.Bonus(now - last));
-                blessed++;
+                if (planted != 0)
+                    zdo.Set(ZDOVars.s_plantTime, planted - (long)FreyrsBlessing.Bonus(now - last));
             }
             return now;
         }
