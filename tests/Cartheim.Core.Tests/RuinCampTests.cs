@@ -54,6 +54,24 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void No_garden_spot_with_its_torches_stands_in_the_way_out_of_the_door()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            // A path two and a half metres wide, from the door five metres out.
+            const float pathHalf = 1.25f, pathFrom = -1.8f, pathTo = -6.8f;
+            foreach (var (x, z, yaw) in camp.Gardens)
+            {
+                var turned = System.Math.Abs(yaw - 90f) < 1f || System.Math.Abs(yaw - 270f) < 1f;
+                var across = Garden.Width / 2f + Garden.TorchOut + 0.3f;
+                var along = Garden.Depth / 2f + Garden.TorchOut + 0.3f;
+                var halfX = turned ? along : across;
+                var halfZ = turned ? across : along;
+                var overlaps = x - halfX < pathHalf && x + halfX > -pathHalf && z - halfZ < pathFrom && z + halfZ > pathTo;
+                Assert.False(overlaps, $"the garden at ({x}, {z}) is in the way out of the door");
+            }
+        }
+
+        [Fact]
         public void A_fence_run_is_covered_end_to_end_with_pieces_turned_along_it()
         {
             var pieces = FenceRun.Pieces((0f, 0f), (0f, 5f), pieceLength: 2f);

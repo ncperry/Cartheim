@@ -52,7 +52,8 @@ namespace Cartheim.Plugin
             {
                 var at = World(ruin, x, z);
                 var facing = Turn(ruin, yaw);
-                var half = new Vector3(Garden.Width / 2f + GardenRoom, 1.1f, Garden.Depth / 2f + GardenRoom);
+                // Its torches stand out past its fence.
+                var half = new Vector3(Garden.Width / 2f + Garden.TorchOut + GardenRoom, 1.1f, Garden.Depth / 2f + Garden.TorchOut + GardenRoom);
                 if (!Physics.CheckBox(at + Vector3.up * 1.4f, half, facing, mask, QueryTriggerInteraction.Ignore))
                     return (at, facing);
             }
