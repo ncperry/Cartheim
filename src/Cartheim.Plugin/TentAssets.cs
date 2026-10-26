@@ -137,19 +137,22 @@ namespace Cartheim.Plugin
                 ? collider.sharedMesh
                 : tent.sharedMesh;
             var footprint = Footprint(tent.sharedMesh, bed);
-            root.AddComponent<TentShape>().Footprint = footprint;
+            var shape = root.AddComponent<TentShape>();
+            shape.Footprint = footprint;
+            shape.WakeAt = new Vector3(footprint.center.x, 0f, footprint.center.z);
             if (rug != null)
-                CartLooks.Rug(root.transform, rug, new Bounds(new Vector3(-(RugFromCart + RugSize / 2f), 0f, 0f), new Vector3(RugSize, 0f, RugSize)));
+            {
+                var onRug = new Vector3(-(RugFromCart + RugSize / 2f), 0f, 0f);
+                CartLooks.Rug(root.transform, rug, new Bounds(onRug, new Vector3(RugSize, 0f, RugSize)));
+                // On the rug, out of the way of a campfire in the middle of the tent.
+                shape.WakeAt = onRug;
+            }
             Debug.Log($"[Cartheim] Tent pitched at {position}, covering {footprint.min} to {footprint.max} from the middle of the cart's left side");
             return root;
         }
 
-        // The middle of the tent's floor, where a player getting up stands.
-        public static Vector3 Middle(GameObject tent)
-        {
-            var footprint = tent.GetComponent<TentShape>().Footprint;
-            return tent.transform.TransformPoint(new Vector3(footprint.center.x, 0f, footprint.center.z));
-        }
+        // Where a player getting up stands: on the rug, or with none, in the middle of the tent's floor.
+        public static Vector3 Middle(GameObject tent) => tent.transform.TransformPoint(tent.GetComponent<TentShape>().WakeAt);
 
         // Whether a point (a player's feet, a fire) is under a pitched tent. Its floor follows the ground's average, so a
         // point on lower ground than that still counts.
@@ -168,5 +171,6 @@ namespace Cartheim.Plugin
     internal class TentShape : MonoBehaviour
     {
         public Bounds Footprint;
+        public Vector3 WakeAt;
     }
 }
