@@ -103,10 +103,9 @@ namespace Cartheim.Plugin
                 return;
             InventoryGui.instance?.Hide();
             Begin(cart, Placing.Garden, CartGarden.Ghost());
-            // A tarp over a ruin, and the ruin's walls, show what's behind them while a garden is placed.
+            // A tarp over a ruin shows what's under it, while a garden is placed.
             if (IsPlacing)
-                CartRuin.ShowThrough(CartBase.All.Where(c => c && c.Tarp).Select(c => c.Tarp)
-                    .Concat(CartBase.All.Where(c => c && c.InRuin).SelectMany(CartRuin.WallsOf)).ToList());
+                CartRuin.ShowThrough(CartBase.All.Where(c => c && c.Tarp).Select(c => c.Tarp));
             if (IsPlacing)
                 _yaw = player.transform.eulerAngles.y;
         }
@@ -311,8 +310,7 @@ namespace Cartheim.Plugin
         private static bool Aim(Transform camera, int mask, out RaycastHit hit)
         {
             foreach (var each in Physics.RaycastAll(camera.position, camera.forward, AimReach, mask, QueryTriggerInteraction.Ignore).OrderBy(h => h.distance))
-                // Through tarps, and through whatever is shown see-through for placing (the ruin's walls, say).
-                if (each.collider.transform.root.name != TentAssets.TarpName && !CartRuin.IsSeenThrough(each.collider))
+                if (each.collider.transform.root.name != TentAssets.TarpName)
                 {
                     hit = each;
                     return true;

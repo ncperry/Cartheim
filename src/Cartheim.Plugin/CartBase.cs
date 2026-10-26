@@ -933,8 +933,6 @@ namespace Cartheim.Plugin
             return room;
         }
         private Vector3 RuinAt => _nview.GetZDO().GetVec3(RuinAtKey, Vector3.zero);
-        // Where the ruin it's settled into stands.
-        public Vector3 RuinPosition => RuinAt;
         private Quaternion RuinTurn => Quaternion.Euler(0f, _nview.GetZDO().GetFloat(RuinTurnKey, 0f), 0f);
 
         // Into its place in the ruin, upright on the ground there.

@@ -316,36 +316,6 @@ namespace Cartheim.Plugin
             }
         }
 
-        // The ruin's own stones, where a cart is settled (those loaded here): its walls and its arch, as the game built them,
-        // not any a player has built since.
-        public static IEnumerable<GameObject> WallsOf(CartBase cart)
-        {
-            if (!cart || !cart.InRuin)
-                yield break;
-            var at = cart.RuinPosition;
-            var ruin = AllLocations().Where(l => l && RuinCamp.For(l.name) != null)
-                .OrderBy(l => Vector3.Distance(l.transform.position, at)).FirstOrDefault();
-            var radius = ruin && Vector3.Distance(ruin.transform.position, at) < 1f ? ruin.m_exteriorRadius + 2f : 10f;
-            var found = new HashSet<GameObject>();
-            foreach (var collider in Physics.OverlapSphere(at, radius, ~0, QueryTriggerInteraction.Ignore))
-            {
-                var view = collider.GetComponentInParent<ZNetView>();
-                if (!view || IsCamp(view) || !RuinStones.Any(s => view.name.StartsWith(s)))
-                    continue;
-                var piece = view.GetComponent<Piece>();
-                if (piece && piece.GetCreator() != 0L)
-                    continue;
-                if (found.Add(view.gameObject))
-                    yield return view.gameObject;
-            }
-        }
-
-        private static readonly string[] RuinStones = { "stone_wall", "stone_arch" };
-
-        // Whether this is part of something now shown see-through (so it's looked through, too).
-        public static bool IsSeenThrough(Component part) =>
-            part && SeenThrough.Any(t => t && part.transform.IsChildOf(t.transform));
-
         public static void ShowAsTheyAre()
         {
             foreach (var thing in SeenThrough)
