@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using Cartheim.Core;
 using HarmonyLib;
 using UnityEngine;
@@ -21,6 +22,23 @@ namespace Cartheim.Plugin
                 yield return new KeyValuePair<string, Action>($"{DevCarts.Named(biome)} cart", () => DevCarts.Spawn(biome));
             yield return new KeyValuePair<string, Action>("Place a building", DevBuildings.Choose);
             yield return new KeyValuePair<string, Action>("Item stands", CartRaft.BeginStands);
+        }
+
+        // In the dev world, a key for placing a building (opens the biome panel; again, closes it).
+        private static ConfigEntry<KeyboardShortcut> _placeBuilding;
+
+        public static void Bind(ConfigFile config) =>
+            _placeBuilding = config.Bind("Dev", "Place a building", new KeyboardShortcut(KeyCode.F8),
+                "In the dev world: opens the panel for placing one of the game's buildings, by biome.");
+
+        public static void Update()
+        {
+            if (_placeBuilding == null || !_placeBuilding.Value.IsDown() || !InDevWorld || !Plugin.Enabled.Value)
+                return;
+            if (DevBuildings.IsOpen)
+                DevBuildings.Close();
+            else if (!CartRaft.IsPlacing)
+                DevBuildings.Choose();
         }
 
         // Nothing spawns in the dev world: the game's spawners do nothing there.

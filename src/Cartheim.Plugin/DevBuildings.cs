@@ -14,6 +14,7 @@ namespace Cartheim.Plugin
     internal static class DevBuildings
     {
         private static GameObject _panel;
+        public static bool IsOpen => _panel;
         private static GameObject _list;
         private static Heightmap.Biome _biome = Heightmap.Biome.BlackForest;
 

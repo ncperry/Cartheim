@@ -44,6 +44,7 @@ namespace Cartheim.Plugin
                 "packed away, rather than staying out on the water: ComesExceptHardcore (not on a world with the Hardcore " +
                 "preset or death penalty), AlwaysComes, or StaysAtSea.");
             TarpTuning.Bind(Config);
+            DevButtons.Bind(Config);
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));
@@ -79,6 +80,7 @@ namespace Cartheim.Plugin
             CartGarden.Update();
             CartRuinSurvey.Update();
             DevBuildings.Update();
+            DevButtons.Update();
             TarpTuning.Update();
         }
 
