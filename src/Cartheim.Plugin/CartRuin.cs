@@ -89,8 +89,40 @@ namespace Cartheim.Plugin
             return root;
         }
 
-        // A thing drawn see-through for a while (a tarp while a garden is placed under it), and as it was again after.
-        public static void SeeThrough(GameObject thing, bool seeThrough)
+        // Things drawn see-through for a while (a tarp while a garden is placed under it, a camp while its cart is returned
+        // to cart form), then all as they were again.
+        private static readonly List<GameObject> SeenThrough = new List<GameObject>();
+
+        public static void ShowThrough(IEnumerable<GameObject> things)
+        {
+            foreach (var thing in things.Where(t => t))
+            {
+                SeeThrough(thing, true);
+                SeenThrough.Add(thing);
+            }
+        }
+
+        public static void ShowAsTheyAre()
+        {
+            foreach (var thing in SeenThrough)
+                SeeThrough(thing, false);
+            SeenThrough.Clear();
+        }
+
+        // What a cart's camp has added that's loaded here: its tarp and its pieces.
+        public static IEnumerable<GameObject> CampOf(CartBase cart)
+        {
+            if (cart.Tarp)
+                yield return cart.Tarp;
+            var uid = cart.Uid();
+            if (uid == 0 || ZDOMan.instance == null || !ZNetScene.instance)
+                yield break;
+            foreach (var zdo in Objects(ZDOMan.instance).Values.Where(z => z.GetLong(CampOfKey, 0L) == uid).ToList())
+                if (ZNetScene.instance.FindInstance(zdo) is ZNetView view && view)
+                    yield return view.gameObject;
+        }
+
+        private static void SeeThrough(GameObject thing, bool seeThrough)
         {
             if (!thing)
                 return;

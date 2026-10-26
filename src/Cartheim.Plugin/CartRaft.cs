@@ -82,6 +82,9 @@ namespace Cartheim.Plugin
         {
             InventoryGui.instance?.Hide();
             Begin(cart, Placing.LeaveRuin, Ghost("Cart"));
+            // What the camp added shows see-through, as it's about to go.
+            if (IsPlacing)
+                CartRuin.ShowThrough(CartRuin.CampOf(cart));
         }
 
         // Shift+E on the cart afloat: place it ashore.
@@ -97,8 +100,7 @@ namespace Cartheim.Plugin
             Begin(cart, Placing.Garden, CartGarden.Ghost());
             // A tarp over a ruin shows what's under it, while a garden is placed.
             if (IsPlacing)
-                foreach (var each in CartBase.All.Where(c => c && c.Tarp))
-                    CartRuin.SeeThrough(each.Tarp, true);
+                CartRuin.ShowThrough(CartBase.All.Where(c => c && c.Tarp).Select(c => c.Tarp));
             if (IsPlacing)
                 _yaw = player.transform.eulerAngles.y;
         }
@@ -132,8 +134,7 @@ namespace Cartheim.Plugin
                 Object.Destroy(_ghost);
             _ghost = null;
             _placing = Placing.Nothing;
-            foreach (var each in CartBase.All.Where(c => c && c.Tarp))
-                CartRuin.SeeThrough(each.Tarp, false);
+            CartRuin.ShowAsTheyAre();
             _cart = null;
             if (message != null)
                 Player.m_localPlayer?.Message(MessageHud.MessageType.Center, message);
