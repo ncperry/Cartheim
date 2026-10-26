@@ -18,7 +18,7 @@ namespace Cartheim.Core.Tests
         [InlineData("Seeds", "Ingredients")]
         [InlineData("Textiles", "Hides & drops")]
         [InlineData("MonsterDrops", "Hides & drops")]
-        [InlineData("Trophies", "Hides & drops")]
+        [InlineData("Trophies", "Trophies")]
         [InlineData("Meads", "Meads")]
         [InlineData("Gear", "Gear")]
         [InlineData("Ammo", "Gear")]
@@ -36,9 +36,9 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void There_are_nine_crates_and_the_cart_s_own_storage_is_the_misc_one_shown_last()
+        public void There_are_ten_crates_and_the_cart_s_own_storage_is_the_misc_one_shown_last()
         {
-            Assert.Equal(9, Crates.All.Count);
+            Assert.Equal(10, Crates.All.Count);
             Assert.Equal(Crates.Misc, Crates.All.Last());
         }
 
@@ -46,7 +46,7 @@ namespace Cartheim.Core.Tests
         public void Every_crate_has_its_own_slot_in_the_cart_but_misc_which_is_the_cart_s_storage()
         {
             var slots = Crates.All.Where(c => c != Crates.Misc).Select(c => c.Slot).ToList();
-            Assert.Equal(8, slots.Distinct().Count());
+            Assert.Equal(9, slots.Distinct().Count());
             Assert.All(slots, s => Assert.True(Crates.IsSlot(s)));
             Assert.Null(Crates.Misc.Slot);
             Assert.False(Crates.IsSlot("piece_chest_wood"));
@@ -66,7 +66,7 @@ namespace Cartheim.Core.Tests
         public void A_crate_is_named_for_messages()
         {
             Assert.Equal("the food crate in the cart", Crates.For("Food").InTheCart);
-            Assert.Equal("the hides & drops crate in the cart", Crates.For("Trophies").InTheCart);
+            Assert.Equal("the hides & drops crate in the cart", Crates.For("Textiles").InTheCart);
         }
 
         [Fact]
