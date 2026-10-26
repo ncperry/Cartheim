@@ -91,6 +91,7 @@ namespace Cartheim.Plugin
         private void OnDestroy()
         {
             All.Remove(this);
+            CartRuin.Grassless(this, null);
             // A hot reload makes a new CartBase on the same cart, which registers the same RPC again.
             if (_nview)
                 _nview.Unregister(AddRpc);
@@ -619,28 +620,17 @@ namespace Cartheim.Plugin
             Freeze(wantTent || camp != null);
             // Settled, the room: its rug laid on the floor and its bed standing on it; the cart's own bed look not shown.
             if (camp != null && !_room)
-            {
                 _room = Room(camp);
-                // The ruin's own lands' things on its walls.
-                foreach (var h in camp.Hangings ?? new List<RuinCamp.Hanging>())
-                    Hang(h.Item, h.X, h.Z, h.Height, new Vector3(h.FaceX, 0f, h.FaceZ));
-            }
             else if (camp == null && _room)
             {
                 Destroy(_room);
                 _room = null;
-                _shield = null;
                 _bedSpot = null;
+                CartRuin.Grassless(this, null);
             }
-            // A bronze shield on the wall above the bed, while the player or the cart has a shield.
-            var wantShield = _room && camp != null && HasShield();
-            if (wantShield && !_shield)
-                _shield = Hang(RuinCamp.Shield, camp.ShieldX, camp.ShieldZ, camp.ShieldHeight, Vector3.right);
-            else if (!wantShield && _shield)
-            {
-                Destroy(_shield);
-                _shield = null;
-            }
+            // A bronze shield on its stand above the bed, while the player or the cart has a shield.
+            if (camp != null)
+                CartRuin.HangShield(this, HasShield());
             var bedLook = GamePieces.Beds.Select(AnchorFor).FirstOrDefault(a => a);
             if (bedLook && bedLook.gameObject.activeSelf != (camp == null))
                 bedLook.gameObject.SetActive(camp == null);
@@ -900,7 +890,6 @@ namespace Cartheim.Plugin
         // What stands in the room on this game: the rug's look and the bed.
         public IEnumerable<GameObject> InRoom => (_room ? new[] { _room } : new GameObject[0]).Concat(_inRoom.Where(r => r));
 
-        private GameObject _shield;
 
         private bool HasShield()
         {
@@ -908,95 +897,6 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             return player && player.GetInventory().GetAllItems().Any(IsShield) ||
                    CartMaterials.StorageOf(this).Any(c => c.GetInventory().GetAllItems().Any(IsShield));
-        }
-
-        // A copy of the look of an item hung on a wall item stand, stand and all, as the game hangs it: only its looks
-        // (nothing to take or break), on the room (so it goes, or shows see-through, with it). Its stand's back stands off
-        // the wall at (x, z) in the ruin's space, the item looking along face, its stand's middle this high off the ground.
-        private GameObject Hang(string item, float x, float z, float height, Vector3 face)
-        {
-            var standPrefab = GamePieces.Prefab(WallStand);
-            var itemPrefab = GamePieces.Prefab(item);
-            var drop = itemPrefab ? itemPrefab.GetComponent<ItemDrop>() : null;
-            var attach = itemPrefab ? ItemStand.GetAttachPrefab(itemPrefab) : null;
-            var holder = standPrefab ? standPrefab.GetComponent<ItemStand>() : null;
-            if (!holder || !drop || !attach)
-            {
-                Debug.LogWarning($"[Cartheim] Can't hang {item} on the wall: stand {(bool)holder}, item {(bool)drop}, its look {(bool)attach}");
-                return null;
-            }
-            var hanging = new GameObject("Cartheim hanging " + item);
-            // Built inactive, so none of the copies' own workings wake.
-            hanging.SetActive(false);
-            var stand = Instantiate(standPrefab, hanging.transform, false);
-            var at = stand.GetComponent<ItemStand>().m_attachOther;
-            var look = Instantiate(ItemStand.GetAttachGameObject(attach), at, false).transform;
-            look.localPosition = attach.transform.localPosition;
-            look.localRotation = attach.transform.localRotation;
-            look.localScale = Vector3.Scale(attach.transform.localScale, drop.m_itemData.GetScale(1f));
-            var offset = drop.m_itemData.m_shared.m_itemStandOffsets.FirstOrDefault(o => (o.m_orientations & holder.m_orientationType) != 0);
-            if (offset != null)
-            {
-                look.localPosition += offset.m_position;
-                look.localRotation *= Quaternion.Euler(offset.m_rotation);
-                look.localScale = Vector3.Scale(look.localScale, offset.m_scale);
-            }
-            foreach (var part in hanging.GetComponentsInChildren<MonoBehaviour>(true))
-                DestroyImmediate(part);
-            foreach (var part in hanging.GetComponentsInChildren<Joint>(true))
-                DestroyImmediate(part);
-            foreach (var part in hanging.GetComponentsInChildren<Collider>(true))
-                DestroyImmediate(part);
-            foreach (var part in hanging.GetComponentsInChildren<Rigidbody>(true))
-                DestroyImmediate(part);
-            // The stand's board, without the item: the item hangs out from its face, so that's the way out from the wall.
-            var board = MeshBounds(hanging.transform, stand.transform, look);
-            var outward = at.position - board.center;
-            outward = Mathf.Abs(outward.x) >= Mathf.Abs(outward.z) ? new Vector3(Mathf.Sign(outward.x), 0f, 0f) : new Vector3(0f, 0f, Mathf.Sign(outward.z));
-            var back = Mathf.Min(Vector3.Dot(board.min, outward), Vector3.Dot(board.max, outward));
-            var turn = RuinTurn;
-            var into = turn * face;
-            var rotation = Quaternion.LookRotation(into) * Quaternion.Inverse(Quaternion.LookRotation(outward));
-            var wall = RuinAt + turn * new Vector3(x, 0f, z) + into * RuinCamp.WallOff;
-            var ground = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(wall) : wall.y;
-            var position = wall - into * back;
-            position.y = ground + height - (rotation * board.center).y;
-            hanging.transform.SetPositionAndRotation(position, rotation);
-            hanging.transform.SetParent(_room.transform, true);
-            hanging.SetActive(true);
-            Debug.Log($"[Cartheim] Hung {item} on the wall: stand's board {board.size}, out along its {outward}");
-            return hanging;
-        }
-
-        private const string WallStand = "itemstand";
-
-        // The bounds, in root's space, of the meshes under one transform, leaving out those under another.
-        private static Bounds MeshBounds(Transform root, Transform under, Transform but)
-        {
-            var bounds = new Bounds();
-            var first = true;
-            foreach (var renderer in under.GetComponentsInChildren<Renderer>(true))
-            {
-                if (renderer.transform.IsChildOf(but))
-                    continue;
-                var mesh = renderer is SkinnedMeshRenderer skinned ? skinned.sharedMesh : renderer.GetComponent<MeshFilter>()?.sharedMesh;
-                if (!mesh)
-                    continue;
-                var place = root.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
-                var b = mesh.bounds;
-                foreach (var px in new[] { b.min.x, b.max.x })
-                foreach (var py in new[] { b.min.y, b.max.y })
-                foreach (var pz in new[] { b.min.z, b.max.z })
-                {
-                    var p = place.MultiplyPoint3x4(new Vector3(px, py, pz));
-                    if (first)
-                        bounds = new Bounds(p, Vector3.zero);
-                    else
-                        bounds.Encapsulate(p);
-                    first = false;
-                }
-            }
-            return bounds;
         }
 
         private GameObject Room(RuinCamp camp)
@@ -1013,7 +913,11 @@ namespace Cartheim.Plugin
             // The rug only if the cart has one, laid out centred where the room keeps it (the room's middle here).
             var rug = GamePieces.Rugs.FirstOrDefault(Upgrades.Has);
             if (rug != null)
+            {
                 CartLooks.Rug(room.transform, rug, new Bounds(Vector3.zero, new Vector3(camp.RugSize, 0f, camp.RugSize)));
+                // No grass growing up through it.
+                CartRuin.Grassless(this, (floor, turn, camp.RugSize / 2f));
+            }
             // The bed only if the cart has one.
             var bed = GamePieces.Beds.FirstOrDefault(Upgrades.Has);
             if (bed != null)

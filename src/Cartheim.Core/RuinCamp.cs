@@ -41,6 +41,12 @@ namespace Cartheim.Core
         // How far what hangs on the walls stands off the stone (rough, so it bulges in places).
         public const float WallOff = 0.25f;
 
+        // A suit of bronze armour on an armour stand: where it stands, and how it's turned from the ruin.
+        public float ArmourX, ArmourZ, ArmourYaw;
+        public static readonly string[] Armour = { "HelmetBronze", "ArmorBronzeChest", "ArmorBronzeLegs" };
+        // Thistles growing up through the floor, off the rug.
+        public List<(float x, float z)> Thistles;
+        public const string Thistle = "Pickable_Thistle";
         public class Hanging
         {
             public string Item;
@@ -86,14 +92,15 @@ namespace Cartheim.Core
                 BedX = -2.0f, BedZ = 0.7f,
                 Sconces = new List<float> { -1.2f, 1.2f }, SconceZ = -2.3f, SconceHeight = 1.8f,
                 ShieldX = -3.0f, ShieldZ = 0.7f, ShieldHeight = 1.7f,
-                // Black Forest things: a troll's and a greydwarf brute's heads either side of the door, and a bronze axe on the
-                // right wall past the fire.
+                // Black Forest things: a troll's and a greydwarf brute's heads either side of the door; bronze armour by the
+                // right wall past the fire; thistles in the floor, off the rug.
                 Hangings = new List<Hanging>
                 {
                     new Hanging { Item = "TrophyForestTroll", X = -1.9f, Z = -1.3f, Height = 1.9f, FaceZ = 1f },
                     new Hanging { Item = "TrophyGreydwarfBrute", X = 1.6f, Z = -1.3f, Height = 1.9f, FaceZ = 1f },
-                    new Hanging { Item = "AxeBronze", X = 3.0f, Z = 1.6f, Height = 1.6f, FaceX = -1f },
                 },
+                ArmourX = 2.4f, ArmourZ = 1.6f, ArmourYaw = 270f,
+                Thistles = new List<(float, float)> { (1.2f, 2.3f), (1.4f, 0.9f), (2.7f, 2.4f), (1.0f, -0.8f) },
             },
         };
     }

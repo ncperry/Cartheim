@@ -109,11 +109,11 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void Black_forest_trophies_and_bronze_hang_round_the_room_clear_of_the_door()
+        public void Black_forest_trophies_hang_round_the_room_clear_of_the_door()
         {
             var camp = RuinCamp.For("StoneHouse4");
             Assert.Contains(camp.Hangings, h => h.Item == "TrophyForestTroll");
-            Assert.True(camp.Hangings.Count >= 3);
+            Assert.True(camp.Hangings.Count >= 2);
             foreach (var h in camp.Hangings)
             {
                 // On the inside of a wall that stands (the back wall is broken: the cart's there), looking into the room.
@@ -130,6 +130,43 @@ namespace Cartheim.Core.Tests
                 Assert.False(h.X == camp.ShieldX && System.Math.Abs(h.Z - camp.ShieldZ) < 1f, h.Item);
             }
         }
+
+        [Fact]
+        public void A_suit_of_bronze_armour_stands_by_the_right_wall_looking_into_the_room()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.Equal(new[] { "HelmetBronze", "ArmorBronzeChest", "ArmorBronzeLegs" }, RuinCamp.Armour);
+            Assert.InRange(camp.ArmourX, camp.RoomMaxX - 0.9f, camp.RoomMaxX - 0.3f);
+            Assert.InRange(camp.ArmourZ, camp.RoomMinZ, camp.RoomMaxZ);
+            Assert.Equal(270f, camp.ArmourYaw);
+            // Clear of the fire, and off the rug.
+            Assert.True(Distance(camp.ArmourX, camp.ArmourZ, camp.FireX, camp.FireZ) >= 1.5f);
+            Assert.False(OnRug(camp, camp.ArmourX, camp.ArmourZ));
+        }
+
+        [Fact]
+        public void Thistles_grow_in_the_room_but_not_through_the_rug_nor_in_the_way()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.Equal("Pickable_Thistle", RuinCamp.Thistle);
+            Assert.True(camp.Thistles.Count >= 3);
+            foreach (var (x, z) in camp.Thistles)
+            {
+                Assert.InRange(x, camp.RoomMinX + 0.2f, camp.RoomMaxX - 0.2f);
+                Assert.InRange(z, camp.RoomMinZ + 0.2f, camp.RoomMaxZ - 0.2f);
+                Assert.False(OnRug(camp, x, z), $"{x},{z}");
+                Assert.True(Distance(x, z, camp.FireX, camp.FireZ) >= 1f, $"{x},{z}");
+                Assert.True(Distance(x, z, camp.ArmourX, camp.ArmourZ) >= 0.7f, $"{x},{z}");
+                // Not in the way in from the door.
+                Assert.True(System.Math.Abs(x - camp.DoorX) >= 0.8f, $"{x},{z}");
+            }
+        }
+
+        private static bool OnRug(RuinCamp camp, float x, float z) =>
+            System.Math.Abs(x - camp.RugX) <= camp.RugSize / 2f + 0.1f && System.Math.Abs(z - camp.RugZ) <= camp.RugSize / 2f + 0.1f;
+
+        private static float Distance(float x1, float z1, float x2, float z2) =>
+            (float)System.Math.Sqrt((x1 - x2) * (x1 - x2) + (z1 - z2) * (z1 - z2));
 
         [Fact]
         public void A_fence_run_is_covered_end_to_end_with_pieces_turned_along_it()

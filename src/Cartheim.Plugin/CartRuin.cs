@@ -39,7 +39,7 @@ namespace Cartheim.Plugin
 
         // Everything the camp adds, where it goes: the door, the fence, the campfire and its cooking station, and the sconces
         // by the door, each piece with how it's turned.
-        private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing)> Pieces(Location ruin, RuinCamp camp)
+        private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing, System.Action<GameObject> fill)> Pieces(Location ruin, RuinCamp camp)
         {
             var door = CartGarden.HammerPiece(DoorName);
             var fence = CartGarden.HammerPiece(FenceName);
@@ -48,26 +48,158 @@ namespace Cartheim.Plugin
                 var facing = Turn(ruin, camp.DoorYaw + door.Turn);
                 var at = World(ruin, camp.DoorX, camp.DoorZ);
                 // Its middle in the doorway (a door's pivot is at its hinge).
-                yield return (door, at - facing * door.Middle, facing);
+                yield return (door, at - facing * door.Middle, facing, null);
             }
             if (fence.Prefab)
                 foreach (var run in camp.Fence)
                     foreach (var (x, z, yaw) in FenceRun.Pieces(run.from, run.to, fence.Length))
-                        yield return (fence, World(ruin, x, z), Turn(ruin, yaw + fence.Turn));
+                        yield return (fence, World(ruin, x, z), Turn(ruin, yaw + fence.Turn), null);
             // The campfire in its corner, the cooking station over it.
             foreach (var name in new[] { Campfire, CookingStation })
             {
                 var kind = CartGarden.Measure(GamePieces.Prefab(name));
                 if (kind.Prefab)
-                    yield return (kind, World(ruin, camp.FireX, camp.FireZ), Turn(ruin, 0f));
+                    yield return (kind, World(ruin, camp.FireX, camp.FireZ), Turn(ruin, 0f), null);
             }
             foreach (var sconce in Sconces(ruin, camp))
                 yield return sconce;
+            foreach (var furnishing in Furnishings(ruin, camp))
+                yield return furnishing;
+        }
+
+        // The ruin's own lands' things on the game's own stands, and growing there: trophies on the walls, the shield's stand
+        // above the bed (its shield hung while there's a shield about; see HangShield), bronze armour on its stand, and
+        // thistles up through the floor.
+        private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing, System.Action<GameObject> fill)> Furnishings(Location ruin, RuinCamp camp)
+        {
+            var stand = CartGarden.Measure(GamePieces.Prefab(WallStand));
+            if (stand.Prefab)
+            {
+                stand.Lift = 0f;
+                // A stand's board looks out along its forward: turned to look into the room, its back off the wall, its
+                // middle at the height given.
+                var back = new Vector3(stand.Box.center.x, stand.Box.center.y, stand.Box.min.z);
+                (CartGarden.Kind, Vector3, Quaternion, System.Action<GameObject>) On(float x, float z, float height, float faceX, float faceZ, System.Action<GameObject> fill)
+                {
+                    var facing = Turn(ruin, Mathf.Atan2(faceX, faceZ) * Mathf.Rad2Deg);
+                    var at = World(ruin, x, z) + Vector3.up * height + facing * Vector3.forward * RuinCamp.WallOff - facing * back;
+                    return (stand, at, facing, fill);
+                }
+                foreach (var h in camp.Hangings)
+                    yield return On(h.X, h.Z, h.Height, h.FaceX, h.FaceZ, built => Show(built.GetComponent<ZNetView>()?.GetZDO(), h.Item));
+                yield return On(camp.ShieldX, camp.ShieldZ, camp.ShieldHeight, 1f, 0f, built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(ShieldStandKey, true));
+            }
+            var armour = CartGarden.Measure(GamePieces.Prefab(ArmourStand));
+            if (armour.Prefab)
+                yield return (armour, World(ruin, camp.ArmourX, camp.ArmourZ), Turn(ruin, camp.ArmourYaw), Dress);
+            var thistle = CartGarden.Measure(GamePieces.Prefab(RuinCamp.Thistle));
+            if (thistle.Prefab)
+                for (var i = 0; i < camp.Thistles.Count; i++)
+                    yield return (thistle, World(ruin, camp.Thistles[i].x, camp.Thistles[i].z), Turn(ruin, i * 137f), null);
+        }
+
+        private const string WallStand = "itemstand";
+        private const string ArmourStand = "ArmorStand";
+        private const string ShieldStandKey = "cartheim_shield_stand";
+
+        // An item stand showing an item (none, for null), as the game keeps what's on it.
+        private static void Show(ZDO stand, string item)
+        {
+            if (stand == null)
+                return;
+            stand.Set(ZDOVars.s_item, string.IsNullOrEmpty(item) ? 0 : item.GetStableHashCode());
+            stand.Set(ZDOVars.s_variant, 0);
+            stand.Set(ZDOVars.s_quality, 1);
+        }
+
+        // The armour stand in the bronze armour, each piece in the slot that takes its kind, as the game keeps them.
+        private static void Dress(GameObject built)
+        {
+            var stand = built.GetComponent<ArmorStand>();
+            var zdo = built.GetComponent<ZNetView>()?.GetZDO();
+            if (!stand || zdo == null)
+                return;
+            for (var i = 0; i < stand.m_slots.Count; i++)
+            {
+                var wear = RuinCamp.Armour.FirstOrDefault(a => GamePieces.Item(a) is ItemDrop drop && stand.m_slots[i].m_supportedTypes.Contains(drop.m_itemData.m_shared.m_itemType));
+                if (wear != null)
+                    zdo.Set((i + "_item").GetStableHashCode(), wear.GetStableHashCode());
+            }
+            Debug.Log($"[Cartheim] Armour stand dressed in bronze ({stand.m_slots.Count} slots), facing {built.transform.forward}");
+        }
+
+        // The shield's stand above the bed of a cart's camp, found once, then kept: its shield hung while there's one about.
+        private static readonly Dictionary<long, ZDO> ShieldStands = new Dictionary<long, ZDO>();
+
+        public static void HangShield(CartBase cart, bool shield)
+        {
+            var uid = cart.Uid();
+            if (uid == 0 || ZDOMan.instance == null)
+                return;
+            if (!ShieldStands.TryGetValue(uid, out var stand) || stand == null || !stand.IsValid())
+            {
+                stand = Objects(ZDOMan.instance).Values.FirstOrDefault(z => z.GetLong(CampOfKey, 0L) == uid && z.GetBool(ShieldStandKey));
+                if (stand == null)
+                    return;
+                ShieldStands[uid] = stand;
+            }
+            var want = shield ? RuinCamp.Shield.GetStableHashCode() : 0;
+            if (stand.GetInt(ZDOVars.s_item) != want && stand.IsOwner())
+                Show(stand, shield ? RuinCamp.Shield : null);
+        }
+
+        // Where a settled cart's rug lies (its middle, how it's turned, half its size), no grass grows up through it.
+        private static readonly Dictionary<CartBase, (Vector3 at, Quaternion turn, float half)> Rugs = new Dictionary<CartBase, (Vector3, Quaternion, float)>();
+
+        public static void Grassless(CartBase cart, (Vector3 at, Quaternion turn, float half)? rug)
+        {
+            Rugs.TryGetValue(cart, out var was);
+            if (rug is (Vector3, Quaternion, float) lies)
+                Rugs[cart] = lies;
+            else if (!Rugs.Remove(cart))
+                return;
+            var where = rug ?? was;
+            if (ClutterSystem.instance)
+                ClutterSystem.instance.ResetGrass(where.at, where.half * 1.5f);
+        }
+
+        [HarmonyPatch(typeof(ClutterSystem), nameof(ClutterSystem.GetGroundInfo)), HarmonyPostfix]
+        private static void NoGrassUnderRugs(Vector3 p, ref bool __result)
+        {
+            if (!__result || Rugs.Count == 0)
+                return;
+            foreach (var rug in Rugs.Values)
+            {
+                var local = Quaternion.Inverse(rug.turn) * (p - rug.at);
+                if (Mathf.Abs(local.x) <= rug.half && Mathf.Abs(local.z) <= rug.half)
+                {
+                    __result = false;
+                    return;
+                }
+            }
+        }
+
+        // What's on a camp's stands stays there: nothing taken off, nothing put on.
+        [HarmonyPatch(typeof(ItemStand), nameof(ItemStand.Interact)), HarmonyPrefix]
+        private static bool NothingOffStands(ItemStand __instance, ref bool __result) => Untouched(__instance, ref __result);
+
+        [HarmonyPatch(typeof(ItemStand), nameof(ItemStand.UseItem)), HarmonyPrefix]
+        private static bool NothingOntoStands(ItemStand __instance, ref bool __result) => Untouched(__instance, ref __result);
+
+        [HarmonyPatch(typeof(ArmorStand), "UseItem"), HarmonyPrefix]
+        private static bool ArmourStaysOn(ArmorStand __instance, ref bool __result) => Untouched(__instance, ref __result);
+
+        private static bool Untouched(Component stand, ref bool result)
+        {
+            if (!IsCamp(stand))
+                return true;
+            result = false;
+            return false;
         }
 
         // A sconce on the outside of the front wall either side of the door. It points along its own x, its bracket at the
         // low end: turned to point straight out of the wall, its bracket against the wall's face at the height given.
-        private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing)> Sconces(Location ruin, RuinCamp camp)
+        private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing, System.Action<GameObject> fill)> Sconces(Location ruin, RuinCamp camp)
         {
             var sconce = CartGarden.Measure(GamePieces.Prefab(Sconce));
             if (!sconce.Prefab)
@@ -76,7 +208,7 @@ namespace Cartheim.Plugin
             var bracket = new Vector3(sconce.Box.min.x, sconce.Box.center.y, sconce.Box.center.z);
             sconce.Lift = 0f;
             foreach (var x in camp.Sconces)
-                yield return (sconce, World(ruin, x, camp.SconceZ) + Vector3.up * camp.SconceHeight - facing * bracket, facing);
+                yield return (sconce, World(ruin, x, camp.SconceZ) + Vector3.up * camp.SconceHeight - facing * bracket, facing, null);
         }
 
         private const string Sconce = "piece_walltorch";
@@ -98,7 +230,7 @@ namespace Cartheim.Plugin
                 cartGhost.transform.SetPositionAndRotation(World(ruin, camp.CartX, camp.CartZ) + Vector3.up * lift, Turn(ruin, camp.CartYaw));
                 cartGhost.transform.SetParent(root.transform, true);
             }
-            foreach (var (kind, at, facing) in Pieces(ruin, camp))
+            foreach (var (kind, at, facing, _) in Pieces(ruin, camp))
             {
                 var piece = CartRaft.Ghost(kind.Prefab.name);
                 if (!piece)
@@ -260,11 +392,12 @@ namespace Cartheim.Plugin
             _campOf = cart.Uid();
             try
             {
-                foreach (var (kind, at, facing) in Pieces(ruin, camp))
+                foreach (var (kind, at, facing, fill) in Pieces(ruin, camp))
                 {
                     var built = Object.Instantiate(kind.Prefab, at + Vector3.up * kind.Lift, facing);
                     built.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
                     Mark(built);
+                    fill?.Invoke(built);
                 }
             }
             finally
