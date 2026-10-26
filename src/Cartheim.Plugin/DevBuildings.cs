@@ -112,7 +112,8 @@ namespace Cartheim.Plugin
         // The building's whole family in a line ahead of the player, in number order, each clear of the last, all facing back
         // towards them, on the ground.
         private const float LineStart = 10f;
-        private const float LineGap = 4f;
+        // Room between them to walk round each and leave a cart by it.
+        private const float LineGap = 10f;
 
         private static void LineUp(string name)
         {
