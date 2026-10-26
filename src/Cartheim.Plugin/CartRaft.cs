@@ -14,7 +14,7 @@ namespace Cartheim.Plugin
     [HarmonyPatch]
     internal static class CartRaft
     {
-        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp, Stands }
+        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp, Stands, Building }
 
         private const float AimReach = 40f;
         private const float TurnPerNotch = 22.5f;
@@ -237,6 +237,83 @@ namespace Cartheim.Plugin
             built.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             Debug.Log($"[Cartheim] Item stand ({kind}) put up at {at}");
         }
+
+        // One of the game's buildings, placed by hand (in the dev world): a see-through ghost of it where the player looks,
+        // kept to its zone as the game keeps it, turned with the scroll wheel; a left click spawns it there.
+        private static string _building;
+
+        public static void BeginBuilding(string name)
+        {
+            Cancel(null);
+            var location = DevBuildings.Location(name);
+            if (location == null)
+                return;
+            location.m_prefab.Load();
+            var prefab = location.m_prefab.Asset;
+            if (!prefab)
+                return;
+            // Made inside something switched off, so none of its workings wake, then stripped to its looks.
+            var ghost = new GameObject("Cartheim placing " + name);
+            ghost.SetActive(false);
+            var copy = Object.Instantiate(prefab, ghost.transform, false);
+            copy.transform.localPosition = Vector3.zero;
+            copy.transform.localRotation = Quaternion.identity;
+            // A few times over: a part another needs can only go once that one has.
+            for (var pass = 0; pass < 4; pass++)
+                foreach (var behaviour in copy.GetComponentsInChildren<MonoBehaviour>(true))
+                    Object.DestroyImmediate(behaviour);
+            foreach (var joint in copy.GetComponentsInChildren<Joint>(true))
+                Object.DestroyImmediate(joint);
+            foreach (var collider in copy.GetComponentsInChildren<Collider>(true))
+                Object.DestroyImmediate(collider);
+            foreach (var body in copy.GetComponentsInChildren<Rigidbody>(true))
+                Object.DestroyImmediate(body);
+            foreach (var light in copy.GetComponentsInChildren<Light>(true))
+                Object.DestroyImmediate(light);
+            CartRuin.Ghostly(ghost);
+            // Anything left that joins the world doesn't, as the game's own ghosts don't.
+            ZNetView.m_forceDisableInit = true;
+            try
+            {
+                ghost.SetActive(true);
+            }
+            finally
+            {
+                ZNetView.m_forceDisableInit = false;
+            }
+            _cart = null;
+            _placing = Placing.Building;
+            _ghost = ghost;
+            _building = name;
+            _yaw = Player.m_localPlayer ? Player.m_localPlayer.transform.eulerAngles.y : 0f;
+            _said = null;
+            _red = false;
+            _inventoryGone = false;
+            Debug.Log($"[Cartheim] Placing the building {name}");
+        }
+
+        private static void PlaceBuilding()
+        {
+            _yaw += UnityInput.Current.mouseScrollDelta.y * TurnPerNotch;
+            var camera = GameCamera.instance ? GameCamera.instance.transform : null;
+            var location = DevBuildings.Location(_building);
+            if (!camera || location == null || !Aim(camera, LayerMask.GetMask("terrain", "static_solid", "Default"), out var hit))
+            {
+                _ghost.SetActive(false);
+                Say("Aim at where it goes");
+                return;
+            }
+            var at = DevBuildings.InZone(location, hit.point);
+            var turn = Quaternion.Euler(0f, _yaw, 0f);
+            _ghost.SetActive(true);
+            _ghost.transform.SetPositionAndRotation(at, turn);
+            Say($"Left click: place {_building} here. Scroll: turn it. Right click: cancel");
+            if (!UnityInput.Current.GetMouseButtonDown(0))
+                return;
+            var name = _building;
+            Cancel(null);
+            DevBuildings.Place(name, at, turn);
+        }
         public static void Cancel(string message)
         {
             if (IsPlacing)
@@ -304,7 +381,7 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!InventoryGui.IsVisible())
                 _inventoryGone = true;
-            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart && _placing != Placing.Stands ? "the cart is gone"
+            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart && _placing != Placing.Stands && _placing != Placing.Building ? "the cart is gone"
                 : _inventoryGone && InventoryGui.IsVisible() ? "the inventory opened" : Menu.IsVisible() ? "the menu opened"
                 : Minimap.IsOpen() ? "the map opened" : null;
             if (interrupted != null)
@@ -316,6 +393,12 @@ namespace Cartheim.Plugin
             if (UnityInput.Current.GetMouseButtonDown(1))
             {
                 Cancel("Cancelled");
+                return;
+            }
+            // Placing one of the game's buildings (in the dev world).
+            if (_placing == Placing.Building)
+            {
+                PlaceBuilding();
                 return;
             }
             // Placing item stands (in the dev world): one at each left click, until a right click.

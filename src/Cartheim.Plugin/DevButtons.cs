@@ -17,6 +17,9 @@ namespace Cartheim.Plugin
         {
             if (!InDevWorld || !Plugin.Enabled.Value)
                 yield break;
+            foreach (var biome in new[] { Biome.BlackForest, Biome.Swamp, Biome.Mountains, Biome.Plains })
+                yield return new KeyValuePair<string, Action>($"{DevCarts.Named(biome)} cart", () => DevCarts.Spawn(biome));
+            yield return new KeyValuePair<string, Action>("Place a building", DevBuildings.Choose);
             yield return new KeyValuePair<string, Action>("Item stands", CartRaft.BeginStands);
         }
 

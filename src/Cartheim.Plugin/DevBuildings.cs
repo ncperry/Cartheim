@@ -1,0 +1,142 @@
+using System.Collections.Generic;
+using System.Linq;
+using HarmonyLib;
+using Jotunn.Managers;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+namespace Cartheim.Plugin
+{
+    // The game's buildings and ruins, placed by hand in the dev world: picked by the biome they're found in, then put down
+    // as a see-through ghost where the player looks (see CartRaft.BeginBuilding), turned with the scroll wheel, and spawned
+    // as the game spawns its own, kept in the world.
+    internal static class DevBuildings
+    {
+        private static GameObject _panel;
+        private static GameObject _list;
+        private static Heightmap.Biome _biome = Heightmap.Biome.BlackForest;
+
+        private static readonly Heightmap.Biome[] Biomes =
+        {
+            Heightmap.Biome.Meadows, Heightmap.Biome.BlackForest, Heightmap.Biome.Swamp, Heightmap.Biome.Mountain,
+            Heightmap.Biome.Plains, Heightmap.Biome.Mistlands, Heightmap.Biome.AshLands, Heightmap.Biome.DeepNorth, Heightmap.Biome.Ocean,
+        };
+
+        private const float Width = 760f;
+        private const float Height = 620f;
+
+        public static void Choose()
+        {
+            Close();
+            if (GUIManager.CustomGUIFront == null || !ZoneSystem.instance)
+                return;
+            InventoryGui.instance?.Hide();
+            var middle = new Vector2(0.5f, 0.5f);
+            _panel = GUIManager.Instance.CreateWoodpanel(GUIManager.CustomGUIFront.transform, middle, middle, Vector2.zero, Width, Height, draggable: true);
+            var title = GUIManager.Instance.CreateText("Place a building", _panel.transform, middle, middle, new Vector2(0f, Height / 2f - 30f),
+                GUIManager.Instance.AveriaSerifBold, 22, GUIManager.Instance.ValheimOrange, true, Color.black, Width - 40f, 30f, false);
+            title.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            for (var i = 0; i < Biomes.Length; i++)
+            {
+                var biome = Biomes[i];
+                var column = i % 5;
+                var row = i / 5;
+                Button(_panel.transform, Named(biome), new Vector2(-Width / 2f + 90f + column * 145f, Height / 2f - 75f - row * 40f), 135f, () =>
+                {
+                    _biome = biome;
+                    Fill();
+                });
+            }
+            Button(_panel.transform, "Cancel", new Vector2(0f, -Height / 2f + 30f), 140f, Close);
+            Fill();
+            GUIManager.BlockInput(true);
+        }
+
+        // The biome's buildings, each a button that picks it up as a ghost to place.
+        private static void Fill()
+        {
+            if (_list)
+                Object.Destroy(_list);
+            var middle = new Vector2(0.5f, 0.5f);
+            _list = new GameObject("Buildings", typeof(RectTransform));
+            _list.transform.SetParent(_panel.transform, false);
+            var names = Locations().Where(l => l.m_biome == _biome).Select(l => l.m_prefab.Name).Distinct().OrderBy(n => n).ToList();
+            const int perColumn = 11;
+            for (var i = 0; i < names.Count && i < perColumn * 3; i++)
+            {
+                var name = names[i];
+                var column = i / perColumn;
+                var row = i % perColumn;
+                Button(_list.transform, name, new Vector2(-Width / 2f + 135f + column * 245f, Height / 2f - 170f - row * 36f), 235f, () =>
+                {
+                    Close();
+                    CartRaft.BeginBuilding(name);
+                });
+            }
+            if (names.Count == 0)
+                GUIManager.Instance.CreateText($"No buildings in the {Named(_biome)}", _list.transform, middle, middle, Vector2.zero,
+                    GUIManager.Instance.AveriaSerifBold, 16, Color.white, true, Color.black, Width - 40f, 30f, false);
+            Debug.Log($"[Cartheim] Dev buildings in the {Named(_biome)}: {string.Join(", ", names)}");
+        }
+
+        public static IEnumerable<ZoneSystem.ZoneLocation> Locations() =>
+            ZoneSystem.instance ? ZoneSystem.instance.m_locations.Where(l => l != null && l.m_enable && l.m_prefab.IsValid) : Enumerable.Empty<ZoneSystem.ZoneLocation>();
+
+        public static ZoneSystem.ZoneLocation Location(string name) => Locations().FirstOrDefault(l => l.m_prefab.Name == name);
+
+        private static string Named(Heightmap.Biome biome) =>
+            biome == Heightmap.Biome.BlackForest ? "Black Forest" : biome == Heightmap.Biome.AshLands ? "Ashlands" :
+            biome == Heightmap.Biome.DeepNorth ? "Deep North" : biome == Heightmap.Biome.Mountain ? "Mountains" : biome.ToString();
+
+        // Kept to the one zone it stands in, as the game keeps its own (so where the ghost shows is where it goes).
+        public static Vector3 InZone(ZoneSystem.ZoneLocation location, Vector3 at)
+        {
+            var radius = Mathf.Max(location.m_exteriorRadius, location.m_interiorRadius);
+            var zone = ZoneSystem.GetZonePos(ZoneSystem.GetZone(at));
+            at.x = Mathf.Clamp(at.x, zone.x - 32f + radius, zone.x + 32f - radius);
+            at.z = Mathf.Clamp(at.z, zone.z - 32f + radius, zone.z + 32f - radius);
+            at.y = ZoneSystem.instance.GetGroundHeight(at);
+            return at;
+        }
+
+        private static readonly System.Reflection.MethodInfo SpawnLocation = AccessTools.Method(typeof(ZoneSystem), "SpawnLocation");
+
+        // Spawned as the game spawns its own ruins (kept in the world, not marked as cheated).
+        public static void Place(string name, Vector3 at, Quaternion turn)
+        {
+            var location = Location(name);
+            if (location == null || SpawnLocation == null)
+                return;
+            SpawnLocation.Invoke(ZoneSystem.instance, new object[]
+            {
+                location, Random.Range(0, 99999), at, turn, ZoneSystem.SpawnMode.Full, new List<GameObject>(), false,
+            });
+            Debug.Log($"[Cartheim] Dev building {name} placed at {at}, turned {turn.eulerAngles.y:0}");
+        }
+
+        public static void Update()
+        {
+            if (_panel && BepInEx.UnityInput.Current.GetKeyDown(KeyCode.Escape))
+                Close();
+        }
+
+        public static void Close()
+        {
+            if (!_panel)
+                return;
+            Object.Destroy(_panel);
+            _panel = null;
+            _list = null;
+            GUIManager.BlockInput(false);
+        }
+
+        private static GameObject Button(Transform parent, string text, Vector2 at, float width, System.Action onClick)
+        {
+            var middle = new Vector2(0.5f, 0.5f);
+            var button = GUIManager.Instance.CreateButton(text, parent, middle, middle, at, width, 32f);
+            button.GetComponent<Button>().onClick.AddListener(() => onClick());
+            return button;
+        }
+    }
+}

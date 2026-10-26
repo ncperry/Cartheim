@@ -78,6 +78,7 @@ namespace Cartheim.Plugin
             CartRescue.Update();
             CartGarden.Update();
             CartRuinSurvey.Update();
+            DevBuildings.Update();
             TarpTuning.Update();
         }
 
@@ -100,6 +101,7 @@ namespace Cartheim.Plugin
             CartRescue.Unregister();
             CartPortal.Unregister();
             CartGarden.Close();
+            DevBuildings.Close();
             TarpTuning.Close();
             TentAssets.Release();
             foreach (var cart in CartBase.All.ToArray())
