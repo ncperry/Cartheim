@@ -24,6 +24,9 @@ namespace Cartheim.Plugin
         private static GameObject _ghost;
         private static float _yaw;
         private static string _said;
+        // Whether the inventory screen (closed to place the raft, which takes it a frame or two) has gone; opened again, it
+        // cancels placing.
+        private static bool _inventoryGone;
 
         public static bool IsPlacing => _placing != Placing.Nothing;
 
@@ -61,11 +64,14 @@ namespace Cartheim.Plugin
             _ghost = ghost;
             _yaw = cart.transform.eulerAngles.y;
             _said = null;
+            _inventoryGone = false;
             Debug.Log($"[Cartheim] Placing the {(placing == Placing.Raft ? "raft" : "cart ashore")}");
         }
 
         public static void Cancel(string message)
         {
+            if (IsPlacing)
+                Debug.Log("[Cartheim] Stopped placing" + (message != null ? ": " + message : ""));
             if (_ghost)
                 Object.Destroy(_ghost);
             _ghost = null;
@@ -90,7 +96,9 @@ namespace Cartheim.Plugin
             if (!IsPlacing)
                 return;
             var player = Player.m_localPlayer;
-            if (!player || player.IsDead() || !_cart || InventoryGui.IsVisible() || Menu.IsVisible() || Minimap.IsOpen())
+            if (!InventoryGui.IsVisible())
+                _inventoryGone = true;
+            if (!player || player.IsDead() || !_cart || (_inventoryGone && InventoryGui.IsVisible()) || Menu.IsVisible() || Minimap.IsOpen())
             {
                 Cancel(null);
                 return;
