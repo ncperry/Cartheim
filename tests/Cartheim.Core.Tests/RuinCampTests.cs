@@ -96,6 +96,17 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_red_and_white_wood_shield_hangs_on_the_wall_above_the_bed()
+        {
+            var camp = RuinCamp.For("StoneHouse4");
+            Assert.Equal(camp.RoomMinX, camp.ShieldX);
+            Assert.True(System.Math.Abs(camp.ShieldX - camp.BedX) <= 1.2f);
+            Assert.Equal(camp.BedZ, camp.ShieldZ);
+            Assert.InRange(camp.ShieldHeight, 1.3f, 2.2f);
+            Assert.Equal(1, RuinCamp.RedAndWhite);
+        }
+
+        [Fact]
         public void A_fence_run_is_covered_end_to_end_with_pieces_turned_along_it()
         {
             var pieces = FenceRun.Pieces((0f, 0f), (0f, 5f), pieceLength: 2f);

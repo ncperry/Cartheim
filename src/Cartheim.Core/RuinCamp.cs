@@ -31,6 +31,10 @@ namespace Cartheim.Core
         // how high their brackets are.
         public List<float> Sconces;
         public float SconceZ, SconceHeight;
+        // A wood shield on the wall above the bed (when the player or the cart has a shield): the wall's inner face, along it,
+        // and how high. The wood shield's styles, as the game numbers them: plain, red and white, blue and white, red and black.
+        public float ShieldX, ShieldZ, ShieldHeight;
+        public const int RedAndWhite = 1;
 
         public static bool Near(float distance) => distance <= Reach;
 
@@ -66,6 +70,7 @@ namespace Cartheim.Core
                 RugX = -1.0f, RugZ = 0.7f, RugSize = 3.4f,
                 BedX = -2.0f, BedZ = 0.7f,
                 Sconces = new List<float> { -1.2f, 1.2f }, SconceZ = -2.3f, SconceHeight = 1.8f,
+                ShieldX = -3.0f, ShieldZ = 0.7f, ShieldHeight = 1.7f,
             },
         };
     }

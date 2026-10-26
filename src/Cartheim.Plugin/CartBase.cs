@@ -624,7 +624,17 @@ namespace Cartheim.Plugin
             {
                 Destroy(_room);
                 _room = null;
+                _shield = null;
                 _bedSpot = null;
+            }
+            // A wood shield on the wall above the bed, while the player or the cart has a shield.
+            var wantShield = _room && camp != null && HasShield();
+            if (wantShield && !_shield)
+                _shield = WallShield(camp);
+            else if (!wantShield && _shield)
+            {
+                Destroy(_shield);
+                _shield = null;
             }
             var bedLook = GamePieces.Beds.Select(AnchorFor).FirstOrDefault(a => a);
             if (bedLook && bedLook.gameObject.activeSelf != (camp == null))
@@ -884,6 +894,72 @@ namespace Cartheim.Plugin
 
         // What stands in the room on this game: the rug's look and the bed.
         public IEnumerable<GameObject> InRoom => (_room ? new[] { _room } : new GameObject[0]).Concat(_inRoom.Where(r => r));
+
+        private GameObject _shield;
+        private const string WoodShield = "ShieldWood";
+
+        private bool HasShield()
+        {
+            bool IsShield(ItemDrop.ItemData item) => item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield;
+            var player = Player.m_localPlayer;
+            return player && player.GetInventory().GetAllItems().Any(IsShield) ||
+                   CartMaterials.StorageOf(this).Any(c => c.GetInventory().GetAllItems().Any(IsShield));
+        }
+
+        // A copy of the wood shield's look, red and white, its face out from the wall into the room, hung on the room
+        // (so it goes, or shows see-through, with it).
+        private GameObject WallShield(RuinCamp camp)
+        {
+            var prefab = GamePieces.Prefab(WoodShield);
+            if (!prefab)
+                return null;
+            var source = prefab.transform.Find("attach") ?? prefab.transform;
+            var shield = new GameObject("Cartheim wall shield");
+            var model = new GameObject("model").transform;
+            model.SetParent(shield.transform, false);
+            var bounds = new Bounds();
+            var first = true;
+            foreach (var renderer in source.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var mesh = renderer.GetComponent<MeshFilter>();
+                if (!mesh || !mesh.sharedMesh || !renderer.enabled)
+                    continue;
+                var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
+                part.transform.SetParent(model, false);
+                var place = source.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
+                part.transform.localPosition = place.GetColumn(3);
+                part.transform.localRotation = place.rotation;
+                part.transform.localScale = place.lossyScale;
+                part.GetComponent<MeshFilter>().sharedMesh = mesh.sharedMesh;
+                part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
+                var b = mesh.sharedMesh.bounds;
+                foreach (var x in new[] { b.min.x, b.max.x })
+                foreach (var y in new[] { b.min.y, b.max.y })
+                foreach (var z in new[] { b.min.z, b.max.z })
+                {
+                    var p = place.MultiplyPoint3x4(new Vector3(x, y, z));
+                    if (first)
+                        bounds = new Bounds(p, Vector3.zero);
+                    else
+                        bounds.Encapsulate(p);
+                    first = false;
+                }
+            }
+            // Its thinnest way is the way its face looks: turned to look into the room (the ruin's +x, off its left wall).
+            var s = bounds.size;
+            var thin = s.x <= s.y && s.x <= s.z ? Vector3.right : s.y <= s.z ? Vector3.up : Vector3.forward;
+            var thickness = Vector3.Scale(s, thin).magnitude;
+            model.localRotation = Quaternion.FromToRotation(thin, Vector3.right);
+            model.localPosition = -(model.localRotation * bounds.center);
+            var turn = RuinTurn;
+            var wall = RuinAt + turn * new Vector3(camp.ShieldX + thickness / 2f, 0f, camp.ShieldZ);
+            var ground = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(wall) : wall.y;
+            shield.transform.SetParent(_room.transform, false);
+            shield.transform.SetPositionAndRotation(new Vector3(wall.x, ground + camp.ShieldHeight, wall.z), turn);
+            MaterialMan.instance?.SetValue(shield, ShaderProps._Style, RuinCamp.RedAndWhite);
+            Debug.Log($"[Cartheim] Wood shield on the wall above the bed: size {s}, its face along its {(thin == Vector3.right ? "x" : thin == Vector3.up ? "y" : "z")}");
+            return shield;
+        }
 
         private GameObject Room(RuinCamp camp)
         {

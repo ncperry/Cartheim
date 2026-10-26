@@ -42,7 +42,7 @@ namespace Cartheim.Plugin
         }
 
         // The cart's storage: its own, its crates, then each container built into it.
-        private static List<Container> StorageOf(CartBase cart)
+        internal static List<Container> StorageOf(CartBase cart)
         {
             var storage = new List<Container>();
             var vagon = cart.GetComponent<Vagon>();
