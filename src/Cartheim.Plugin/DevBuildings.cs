@@ -61,14 +61,18 @@ namespace Cartheim.Plugin
             var middle = new Vector2(0.5f, 0.5f);
             _list = new GameObject("Buildings", typeof(RectTransform));
             _list.transform.SetParent(_panel.transform, false);
-            var names = Locations().Where(l => l.m_biome == _biome).Select(l => l.m_prefab.Name).Distinct().OrderBy(n => n).ToList();
+            // Only what the world generator places (some are switched on but never placed), with how many this world has.
+            var inWorld = ZoneSystem.instance.m_locationInstances.Values.Where(i => i.m_location != null && i.m_location.m_prefab.IsValid)
+                .GroupBy(i => i.m_location.m_prefab.Name).ToDictionary(g => g.Key, g => g.Count());
+            var names = Locations().Where(l => (l.m_biome & _biome) != 0 && l.m_quantity > 0).Select(l => l.m_prefab.Name).Distinct().OrderBy(n => n).ToList();
             const int perColumn = 11;
             for (var i = 0; i < names.Count && i < perColumn * 3; i++)
             {
                 var name = names[i];
                 var column = i / perColumn;
                 var row = i % perColumn;
-                Button(_list.transform, name, new Vector2(-Width / 2f + 135f + column * 245f, Height / 2f - 170f - row * 36f), 235f, () =>
+                var count = inWorld.TryGetValue(name, out var n) ? n : 0;
+                Button(_list.transform, $"{name} ({count})", new Vector2(-Width / 2f + 135f + column * 245f, Height / 2f - 170f - row * 36f), 235f, () =>
                 {
                     Close();
                     CartRaft.BeginBuilding(name);
@@ -77,7 +81,7 @@ namespace Cartheim.Plugin
             if (names.Count == 0)
                 GUIManager.Instance.CreateText($"No buildings in the {Named(_biome)}", _list.transform, middle, middle, Vector2.zero,
                     GUIManager.Instance.AveriaSerifBold, 16, Color.white, true, Color.black, Width - 40f, 30f, false);
-            Debug.Log($"[Cartheim] Dev buildings in the {Named(_biome)}: {string.Join(", ", names)}");
+            Debug.Log($"[Cartheim] Dev buildings in the {Named(_biome)} (how many in this world): {string.Join(", ", names.Select(nm => $"{nm} ({(inWorld.TryGetValue(nm, out var c) ? c : 0)})"))}");
         }
 
         public static IEnumerable<ZoneSystem.ZoneLocation> Locations() =>
