@@ -956,7 +956,8 @@ namespace Cartheim.Plugin
             var s = bounds.size;
             var thin = s.x <= s.y && s.x <= s.z ? Vector3.right : s.y <= s.z ? Vector3.up : Vector3.forward;
             var thickness = Vector3.Scale(s, thin).magnitude;
-            model.localRotation = Quaternion.FromToRotation(thin, Vector3.right);
+            // The model's face looks down its thin axis's negative side: half a turn about the upright brings it round.
+            model.localRotation = Quaternion.AngleAxis(180f, Vector3.up) * Quaternion.FromToRotation(thin, Vector3.right);
             model.localPosition = -(model.localRotation * bounds.center);
             var turn = RuinTurn;
             var wall = RuinAt + turn * new Vector3(camp.ShieldX + thickness / 2f, 0f, camp.ShieldZ);
