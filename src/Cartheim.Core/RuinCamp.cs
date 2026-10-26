@@ -44,7 +44,7 @@ namespace Cartheim.Core
         // A suit of bronze armour on an armour stand: where it stands, and how it's turned from the ruin.
         public float ArmourX, ArmourZ, ArmourYaw;
         public static readonly string[] Armour = { "HelmetBronze", "ArmorBronzeChest", "ArmorBronzeLegs" };
-        // Thistles growing up through the floor, off the rug.
+        // Thistles growing up through the floor behind the armour, against the wall.
         public List<(float x, float z)> Thistles;
         public const string Thistle = "Pickable_Thistle";
         public class Hanging
@@ -100,7 +100,7 @@ namespace Cartheim.Core
                     new Hanging { Item = "TrophyGreydwarfBrute", X = 1.6f, Z = -1.3f, Height = 1.9f, FaceZ = 1f },
                 },
                 ArmourX = 2.4f, ArmourZ = 1.6f, ArmourYaw = 270f,
-                Thistles = new List<(float, float)> { (1.2f, 2.3f), (1.4f, 0.9f), (2.7f, 2.4f), (1.0f, -0.8f) },
+                Thistles = new List<(float, float)> { (2.7f, 2.4f), (2.7f, 0.8f) },
             },
         };
     }

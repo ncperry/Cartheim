@@ -145,16 +145,20 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void Thistles_grow_in_the_room_but_not_through_the_rug_nor_in_the_way()
+        public void Two_thistles_grow_behind_the_armour_against_the_wall_one_either_side()
         {
             var camp = RuinCamp.For("StoneHouse4");
             Assert.Equal("Pickable_Thistle", RuinCamp.Thistle);
-            Assert.True(camp.Thistles.Count >= 3);
+            Assert.Equal(2, camp.Thistles.Count);
+            // Behind the armour (it looks into the room, its back to the right wall), one to either side of it.
+            Assert.Contains(camp.Thistles, t => t.z > camp.ArmourZ + 0.4f);
+            Assert.Contains(camp.Thistles, t => t.z < camp.ArmourZ - 0.4f);
             foreach (var (x, z) in camp.Thistles)
             {
                 Assert.InRange(x, camp.RoomMinX + 0.2f, camp.RoomMaxX - 0.2f);
                 Assert.InRange(z, camp.RoomMinZ + 0.2f, camp.RoomMaxZ - 0.2f);
                 Assert.False(OnRug(camp, x, z), $"{x},{z}");
+                Assert.True(x > camp.ArmourX && camp.RoomMaxX - x <= 0.4f, $"{x},{z}");
                 Assert.True(Distance(x, z, camp.FireX, camp.FireZ) >= 1f, $"{x},{z}");
                 Assert.True(Distance(x, z, camp.ArmourX, camp.ArmourZ) >= 0.7f, $"{x},{z}");
                 // Not in the way in from the door.

@@ -179,21 +179,58 @@ namespace Cartheim.Plugin
             }
         }
 
-        // What's on a camp's stands stays there: nothing taken off, nothing put on.
+        // What's on a camp's stands stays there, and its thistles grow on: nothing taken off or put on, nothing picked, and
+        // nothing to say so when looked at.
         [HarmonyPatch(typeof(ItemStand), nameof(ItemStand.Interact)), HarmonyPrefix]
         private static bool NothingOffStands(ItemStand __instance, ref bool __result) => Untouched(__instance, ref __result);
 
         [HarmonyPatch(typeof(ItemStand), nameof(ItemStand.UseItem)), HarmonyPrefix]
         private static bool NothingOntoStands(ItemStand __instance, ref bool __result) => Untouched(__instance, ref __result);
 
-        [HarmonyPatch(typeof(ArmorStand), "UseItem"), HarmonyPrefix]
-        private static bool ArmourStaysOn(ArmorStand __instance, ref bool __result) => Untouched(__instance, ref __result);
+        // The armour stand's slots and its pose are switches on it.
+        [HarmonyPatch(typeof(Switch), nameof(Switch.Interact)), HarmonyPrefix]
+        private static bool ArmourStaysOn(Switch __instance, ref bool __result) => Untouched(__instance, ref __result);
 
-        private static bool Untouched(Component stand, ref bool result)
+        [HarmonyPatch(typeof(Switch), nameof(Switch.UseItem)), HarmonyPrefix]
+        private static bool NoArmourPutOn(Switch __instance, ref bool __result) => Untouched(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Pickable), nameof(Pickable.Interact)), HarmonyPrefix]
+        private static bool NotPicked(Pickable __instance, ref bool __result) => Untouched(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Pickable), nameof(Pickable.UseItem)), HarmonyPrefix]
+        private static bool NothingUsedOnThistles(Pickable __instance, ref bool __result) => Untouched(__instance, ref __result);
+
+        [HarmonyPatch(typeof(ItemStand), nameof(ItemStand.GetHoverText)), HarmonyPrefix]
+        private static bool StandSaysNothing(ItemStand __instance, ref string __result) => Unsaid(__instance, ref __result);
+
+        [HarmonyPatch(typeof(ItemStand), nameof(ItemStand.GetHoverName)), HarmonyPrefix]
+        private static bool StandUnnamed(ItemStand __instance, ref string __result) => Unsaid(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Switch), nameof(Switch.GetHoverText)), HarmonyPrefix]
+        private static bool ArmourSaysNothing(Switch __instance, ref string __result) => Unsaid(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Switch), nameof(Switch.GetHoverName)), HarmonyPrefix]
+        private static bool ArmourUnnamed(Switch __instance, ref string __result) => Unsaid(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Pickable), nameof(Pickable.GetHoverText)), HarmonyPrefix]
+        private static bool ThistleSaysNothing(Pickable __instance, ref string __result) => Unsaid(__instance, ref __result);
+
+        [HarmonyPatch(typeof(Pickable), nameof(Pickable.GetHoverName)), HarmonyPrefix]
+        private static bool ThistleUnnamed(Pickable __instance, ref string __result) => Unsaid(__instance, ref __result);
+
+        private static bool Untouched(Component thing, ref bool result)
         {
-            if (!IsCamp(stand))
+            if (!IsCamp(thing))
                 return true;
             result = false;
+            return false;
+        }
+
+        private static bool Unsaid(Component thing, ref string result)
+        {
+            if (!IsCamp(thing))
+                return true;
+            result = "";
             return false;
         }
 
@@ -418,7 +455,7 @@ namespace Cartheim.Plugin
 
         private static bool IsCamp(Component piece)
         {
-            var zdo = piece ? piece.GetComponent<ZNetView>()?.GetZDO() : null;
+            var zdo = piece ? piece.GetComponentInParent<ZNetView>()?.GetZDO() : null;
             return zdo != null && zdo.GetLong(CampOfKey, 0L) != 0;
         }
 
