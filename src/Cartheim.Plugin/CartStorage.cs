@@ -274,6 +274,36 @@ namespace Cartheim.Plugin
             return false;
         }
 
+        // Alt+click on something in the cart (a crate, or a container built in) takes the whole stack into the player's
+        // inventory, as much of it as fits.
+        [HarmonyPatch(typeof(InventoryGui), "OnSelectedItem"), HarmonyPrefix]
+        private static bool AltTakeFromCart(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData item)
+        {
+            var alt = BepInEx.UnityInput.Current.GetKey(KeyCode.LeftAlt) || BepInEx.UnityInput.Current.GetKey(KeyCode.RightAlt);
+            var player = Player.m_localPlayer;
+            if (!alt || item == null || !player || grid == __instance.m_playerGrid || DragItem(__instance) != null || !Plugin.Enabled.Value)
+                return true;
+            var from = grid.GetInventory();
+            string where;
+            if (CartCrates.Find(from, out _, out var crate))
+                where = $"the {crate.Name.ToLowerInvariant()} crate";
+            else if (Shown.Any(s => s.grid == grid))
+                where = "the cart";
+            else
+                return true;
+            if (item.m_shared.m_questItem)
+                return false;
+            var name = Localization.instance.Localize(item.m_shared.m_name);
+            var had = item.m_stack;
+            player.GetInventory().MoveItemToThis(from, item);
+            var taken = from.ContainsItem(item) ? had - item.m_stack : had;
+            __instance.m_moveItemEffects.Create(__instance.transform.position, Quaternion.identity);
+            var message = taken == 0 ? $"No room in your inventory for {name}" : $"{taken} {name} taken from {where}";
+            Debug.Log($"[Cartheim] Alt+click in the cart: {message}");
+            player.Message(MessageHud.MessageType.Center, message);
+            return false;
+        }
+
         // A copy of the game's container panel, its grid emptied and wired to the inventory screen, its buttons (take all,
         // other mods' sort and stack) left out: they act on the cart's own storage.
         private static void Show(InventoryGui gui, Container container)
