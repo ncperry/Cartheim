@@ -62,13 +62,12 @@ namespace Cartheim.Plugin
             var spot = cart.position + spots[0];
             // With the tent pitched, they wake up under it.
             if (__state.TentFloor is Vector3 tent)
-                spot = new Vector3(tent.x, ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(tent) : tent.y, tent.z);
+                spot = new Vector3(tent.x, StandingHeight(tent, tent.y + LookFromAboveTent), tent.z);
             else
                 foreach (var offset in spots)
                 {
                     var candidate = cart.position + offset;
-                    if (ZoneSystem.instance)
-                        candidate.y = ZoneSystem.instance.GetGroundHeight(candidate);
+                    candidate.y = StandingHeight(candidate, cart.position.y + LookFromAboveCart);
                     if (Clear(candidate, cart))
                     {
                         spot = candidate;
@@ -85,6 +84,21 @@ namespace Cartheim.Plugin
             }
             Debug.Log($"[Cartheim] Out of the cart's bed (cart at {cart.position}), put beside it at {spot}");
             __state.StartCoroutine(ReportWhereTheyStand(__instance, spot));
+        }
+
+        // Where to look down from for what to stand on: above the cart's middle, under any tree; above the tent's floor,
+        // under its canopy.
+        private const float LookFromAboveCart = 2f;
+        private const float LookFromAboveTent = 1f;
+
+        // The height of what a player would stand on there: rock, a floor or the ground, whichever is highest below where
+        // it's looked for from. The ground alone runs on under rocks, which put them inside one.
+        private static float StandingHeight(Vector3 at, float lookFrom)
+        {
+            if (!ZoneSystem.instance)
+                return at.y;
+            var ground = ZoneSystem.instance.GetGroundHeight(at);
+            return ZoneSystem.instance.GetSolidHeight(new Vector3(at.x, lookFrom, at.z), out var solid, 0) ? Mathf.Max(ground, solid) : ground;
         }
 
         private static readonly AccessTools.FieldRef<Character, Rigidbody> Body = AccessTools.FieldRefAccess<Character, Rigidbody>("m_body");

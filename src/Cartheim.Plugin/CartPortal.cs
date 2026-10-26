@@ -45,20 +45,119 @@ namespace Cartheim.Plugin
             player.TeleportTo(spawn + Vector3.up, player.transform.rotation, true);
         }
 
-        // Every cart in the world with a portal built, as saved (near or far).
-        private static List<(ZDO zdo, string label)> PortalCarts()
+        // A cart to go to: its name, where it is and which way it faces.
+        private struct PortalCart
+        {
+            public string Name;
+            public Vector3 At;
+            public Quaternion Facing;
+        }
+
+        // Every cart with a portal built that this game knows of, as saved (near or far). The server knows them all; a player
+        // on a dedicated server only those they've been near, so they ask the server (when it runs Cartheim too).
+        private static List<PortalCart> KnownPortalCarts()
         {
             var zdos = new List<ZDO>();
             var index = 0;
             while (ZDOMan.instance != null && !ZDOMan.instance.GetAllZDOsWithPrefabIterative("Cart", zdos, ref index))
             {
             }
-            var carts = zdos.Where(z => CartUpgrades.Load(z.GetString(CartBase.SaveKey, "")).Has(Portal.Piece)).ToList();
-            var labels = Portal.Labels(carts.Select(z => z.GetString(NameKey, "A cart")));
-            return carts.Select((z, i) => (z, labels[i])).ToList();
+            return zdos.Where(z => CartUpgrades.Load(z.GetString(CartBase.SaveKey, "")).Has(Portal.Piece))
+                .Select(z => new PortalCart { Name = z.GetString(NameKey, "A cart"), At = z.GetPosition(), Facing = z.GetRotation() })
+                .ToList();
         }
 
-        private static void ToCart(Player player, ZDO cart, string label)
+        private const string AskRpc = "Cartheim_WhichPortalCarts";
+        private const string AnswerRpc = "Cartheim_PortalCartsAre";
+        // How long to wait for the server's list before going by this game's own.
+        private const float AnswerWait = 2f;
+        private static ZRoutedRpc _registeredWith;
+        private static float _askedAt = -1f;
+
+        private static readonly System.Reflection.FieldInfo FunctionsField = AccessTools.Field(typeof(ZRoutedRpc), "m_functions");
+
+        private static void Register()
+        {
+            var rpc = ZRoutedRpc.instance;
+            if (rpc == null || rpc == _registeredWith)
+                return;
+            _registeredWith = rpc;
+            var functions = (System.Collections.IDictionary)FunctionsField.GetValue(rpc);
+            functions.Remove(AskRpc.GetStableHashCode());
+            functions.Remove(AnswerRpc.GetStableHashCode());
+            rpc.Register(AskRpc, RPC_Ask);
+            rpc.Register<ZPackage>(AnswerRpc, RPC_Answer);
+        }
+
+        public static void Unregister()
+        {
+            if (_registeredWith != null)
+            {
+                var functions = (System.Collections.IDictionary)FunctionsField.GetValue(_registeredWith);
+                functions.Remove(AskRpc.GetStableHashCode());
+                functions.Remove(AnswerRpc.GetStableHashCode());
+            }
+            _registeredWith = null;
+        }
+
+        // The server: its list, to whoever asked.
+        private static void RPC_Ask(long sender)
+        {
+            var carts = KnownPortalCarts();
+            var package = new ZPackage();
+            package.Write(carts.Count);
+            foreach (var cart in carts)
+            {
+                package.Write(cart.Name);
+                package.Write(cart.At);
+                package.Write(cart.Facing);
+            }
+            ZRoutedRpc.instance.InvokeRoutedRPC(sender, AnswerRpc, package);
+        }
+
+        private static void RPC_Answer(long sender, ZPackage package)
+        {
+            if (_askedAt < 0f)
+                return;
+            _askedAt = -1f;
+            var carts = new List<PortalCart>();
+            var count = package.ReadInt();
+            for (var i = 0; i < count; i++)
+                carts.Add(new PortalCart { Name = package.ReadString(), At = package.ReadVector3(), Facing = package.ReadQuaternion() });
+            Debug.Log($"[Cartheim] The server knows {carts.Count} cart(s) with a portal");
+            Offer(carts);
+        }
+
+        private static void AskForCarts()
+        {
+            if (ZNet.instance.IsServer())
+            {
+                Offer(KnownPortalCarts());
+                return;
+            }
+            _askedAt = Time.time;
+            ZRoutedRpc.instance.InvokeRoutedRPC(AskRpc);
+        }
+
+        // No cart: said so; one: straight there; several: picked by name.
+        private static void Offer(List<PortalCart> carts)
+        {
+            var player = Player.m_localPlayer;
+            if (!player)
+                return;
+            var labels = Portal.Labels(carts.Select(c => c.Name));
+            for (var i = 0; i < carts.Count; i++)
+                carts[i] = new PortalCart { Name = labels[i], At = carts[i].At, Facing = carts[i].Facing };
+            Debug.Log($"[Cartheim] At the sacrificial stones, carts with a portal: {string.Join(", ", labels)}");
+            if (carts.Count == 0)
+                player.Message(MessageHud.MessageType.Center, "No cart has a portal");
+            else if (carts.Count == 1)
+                ToCart(player, carts[0]);
+            else
+                Choose(player, carts);
+        }
+
+        private static void ToCart(Player player, PortalCart cart)
         {
             if (!player)
                 return;
@@ -67,10 +166,9 @@ namespace Cartheim.Plugin
                 player.Message(MessageHud.MessageType.Center, "$msg_noteleport");
                 return;
             }
-            var facing = cart.GetRotation();
-            var at = cart.GetPosition() + facing * Vector3.right * BesideCart + Vector3.up;
-            Debug.Log($"[Cartheim] From the spawn to {label}, at {at}");
-            player.TeleportTo(at, facing, true);
+            var at = cart.At + cart.Facing * Vector3.right * BesideCart + Vector3.up;
+            Debug.Log($"[Cartheim] From the spawn to {cart.Name}, at {at}");
+            player.TeleportTo(at, cart.Facing, true);
         }
 
         private static bool AtSacrificialStones(ItemStand stand) => stand && stand.GetComponentInParent<BossStone>();
@@ -84,15 +182,7 @@ namespace Cartheim.Plugin
             __result = true;
             if (hold)
                 return false;
-            var player = (Player)user;
-            var carts = PortalCarts();
-            Debug.Log($"[Cartheim] At the sacrificial stones, carts with a portal: {string.Join(", ", carts.Select(c => c.label))}");
-            if (carts.Count == 0)
-                player.Message(MessageHud.MessageType.Center, "No cart has a portal");
-            else if (carts.Count == 1)
-                ToCart(player, carts[0].zdo, carts[0].label);
-            else
-                Choose(player, carts);
+            AskForCarts();
             return false;
         }
 
@@ -108,7 +198,7 @@ namespace Cartheim.Plugin
         private const float Width = 360f;
         private const float RowHeight = 44f;
 
-        private static void Choose(Player player, List<(ZDO zdo, string label)> carts)
+        private static void Choose(Player player, List<PortalCart> carts)
         {
             Close();
             var height = 110f + carts.Count * RowHeight;
@@ -119,13 +209,13 @@ namespace Cartheim.Plugin
             title.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
             for (var i = 0; i < carts.Count; i++)
             {
-                var (zdo, label) = carts[i];
-                var button = GUIManager.Instance.CreateButton(label, _panel.transform, middle, middle,
+                var cart = carts[i];
+                var button = GUIManager.Instance.CreateButton(cart.Name, _panel.transform, middle, middle,
                     new Vector2(0f, height / 2f - 75f - i * RowHeight), Width - 60f, RowHeight - 6f);
                 button.GetComponent<Button>().onClick.AddListener(() =>
                 {
                     Close();
-                    ToCart(Player.m_localPlayer, zdo, label);
+                    ToCart(Player.m_localPlayer, cart);
                 });
             }
             var cancel = GUIManager.Instance.CreateButton("Cancel", _panel.transform, middle, middle, new Vector2(0f, -height / 2f + 30f), 140f, 36f);
@@ -142,11 +232,18 @@ namespace Cartheim.Plugin
             GUIManager.BlockInput(false);
         }
 
-        // Escape closes the list.
+        // Escape closes the list. A server that hasn't answered (it doesn't run Cartheim): this game's own list.
         public static void Update()
         {
+            Register();
             if (_panel && BepInEx.UnityInput.Current.GetKeyDown(KeyCode.Escape))
                 Close();
+            if (_askedAt >= 0f && Time.time - _askedAt > AnswerWait)
+            {
+                _askedAt = -1f;
+                Debug.Log("[Cartheim] The server didn't list the carts (it may not run Cartheim); going by the carts this game knows");
+                Offer(KnownPortalCarts());
+            }
         }
     }
 }

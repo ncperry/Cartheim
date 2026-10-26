@@ -779,6 +779,12 @@ namespace Cartheim.Plugin
             var prefab = GamePieces.Prefab(Raft.Piece);
             if (!player || !prefab || Uid() == 0)
                 return;
+            // Already launched (by another player a moment ago): never a second raft.
+            if (Rafting)
+            {
+                player.Message(MessageHud.MessageType.Center, "The cart is already on its raft");
+                return;
+            }
             if (!_nview.IsOwner())
                 _nview.ClaimOwnership();
             var raft = Instantiate(prefab, at, facing);

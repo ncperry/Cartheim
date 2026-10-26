@@ -220,11 +220,23 @@ namespace Cartheim.Plugin
             Player.m_localPlayer?.Message(MessageHud.MessageType.Center, message);
         }
 
-        // No sail: paddled only, as fast as paddling goes.
+        // Kept level: the waves lift each corner of a raft on its own, rocking it, and the cart on it with it. Level, it only
+        // turns and bobs.
+        private const RigidbodyConstraints Level = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        // No sail: paddled only, as fast as paddling goes; and level.
         public static void Dress(Ship raft)
         {
             if (!raft)
                 return;
+            var body = raft.GetComponent<Rigidbody>();
+            if (body && (body.constraints & Level) != Level)
+            {
+                var turn = raft.transform.eulerAngles.y;
+                body.constraints |= Level;
+                body.angularVelocity = new Vector3(0f, body.angularVelocity.y, 0f);
+                raft.transform.rotation = Quaternion.Euler(0f, turn, 0f);
+            }
             if (raft.m_mastObject && raft.m_mastObject.activeSelf)
                 raft.m_mastObject.SetActive(false);
             if (raft.m_sailObject && raft.m_sailObject.activeSelf)

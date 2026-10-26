@@ -91,6 +91,8 @@ namespace Cartheim.Plugin
             CartStorage.DestroyTabs();
             CartRaft.Cancel(null);
             CartPortal.Close();
+            CartRescue.Unregister();
+            CartPortal.Unregister();
             TentAssets.Release();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);

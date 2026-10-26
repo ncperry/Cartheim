@@ -39,5 +39,37 @@ namespace Cartheim.Core.Tests
             Assert.True(SeaRescue.Near(SeaRescue.Reach));
             Assert.False(SeaRescue.Near(SeaRescue.Reach + 1f));
         }
+
+        [Fact]
+        public void A_cart_with_someone_still_alive_near_it_stays_with_them()
+        {
+            Assert.True(SeaRescue.Adrift(othersAliveNear: 0));
+            Assert.False(SeaRescue.Adrift(othersAliveNear: 1));
+        }
+
+        [Fact]
+        public void It_washes_ashore_by_its_builder_or_by_whoever_died_when_it_has_none()
+        {
+            Assert.Equal(7L, SeaRescue.ComesTo(builder: 7L, died: 9L));
+            Assert.Equal(9L, SeaRescue.ComesTo(builder: 0L, died: 9L));
+        }
+
+        [Fact]
+        public void The_game_of_whoever_died_brings_it_or_the_server_once_they_have_left()
+        {
+            Assert.True(SeaRescue.Brings(died: true, diedOnline: true, server: false));
+            Assert.False(SeaRescue.Brings(died: false, diedOnline: true, server: true));
+            Assert.True(SeaRescue.Brings(died: false, diedOnline: false, server: true));
+            Assert.False(SeaRescue.Brings(died: false, diedOnline: false, server: false));
+        }
+
+        [Fact]
+        public void It_waits_while_another_player_is_with_it()
+        {
+            const long me = 1L, other = 2L;
+            Assert.False(SeaRescue.WithSomeoneElse(owner: 0L, me));
+            Assert.False(SeaRescue.WithSomeoneElse(owner: me, me));
+            Assert.True(SeaRescue.WithSomeoneElse(owner: other, me));
+        }
     }
 }
