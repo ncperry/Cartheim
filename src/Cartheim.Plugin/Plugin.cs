@@ -74,6 +74,7 @@ namespace Cartheim.Plugin
             CartPortal.Update();
             CartRescue.Update();
             CartGarden.Update();
+            CartRuinSurvey.Update();
         }
 
         // After every Update, where other mods set up the crafting screen's buttons.
