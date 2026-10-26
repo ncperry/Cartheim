@@ -103,6 +103,8 @@ namespace Cartheim.Core.Tests
             Assert.True(System.Math.Abs(camp.ShieldX - camp.BedX) <= 1.2f);
             Assert.Equal(camp.BedZ, camp.ShieldZ);
             Assert.InRange(camp.ShieldHeight, 1.3f, 2.2f);
+            // Held off the rough stone a little, so none of it sinks into the wall.
+            Assert.InRange(camp.ShieldOff, 0.15f, 0.4f);
             Assert.Equal(1, RuinCamp.RedAndWhite);
         }
 

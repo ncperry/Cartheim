@@ -960,7 +960,7 @@ namespace Cartheim.Plugin
             model.localRotation = Quaternion.AngleAxis(180f, Vector3.up) * Quaternion.FromToRotation(thin, Vector3.right);
             model.localPosition = -(model.localRotation * bounds.center);
             var turn = RuinTurn;
-            var wall = RuinAt + turn * new Vector3(camp.ShieldX + thickness / 2f, 0f, camp.ShieldZ);
+            var wall = RuinAt + turn * new Vector3(camp.ShieldX + camp.ShieldOff + thickness / 2f, 0f, camp.ShieldZ);
             var ground = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(wall) : wall.y;
             shield.transform.SetParent(_room.transform, false);
             shield.transform.SetPositionAndRotation(new Vector3(wall.x, ground + camp.ShieldHeight, wall.z), turn);
