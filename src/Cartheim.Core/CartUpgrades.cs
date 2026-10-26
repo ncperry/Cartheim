@@ -46,6 +46,8 @@ namespace Cartheim.Core
             (piece != SteamEngine.Engine || SteamEngine.Needs.All(Has)) &&
             // A rug lies under the tent.
             (!Rugs.Contains(piece) || Has(Tent.Piece)) &&
+            // The item stand hangs on the roof's front cross.
+            (piece != ItemStand || RoofLevel > 0) &&
             !OneOfEach.Any(kind => kind.Contains(piece) && built.Any(b => kind.Contains(b.piece)));
 
         public void Add(string piece, string extends = null) => built.Add((piece, extends));
@@ -78,6 +80,7 @@ namespace Cartheim.Core
 
         public float Health(float ownHealth) => ownHealth + HealthPerWorkbenchLevel * Level(Workbench);
 
+        public const string ItemStand = "itemstand";
         public const string ThatchRoof = "cartheim_roof_thatch";
         public const string ShingleRoof = "cartheim_roof_shingle";
         public const string GraustenRoof = "cartheim_roof_grausten";

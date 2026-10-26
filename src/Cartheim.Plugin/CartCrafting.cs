@@ -199,6 +199,7 @@ namespace Cartheim.Plugin
             piece == CartUpgrades.Beehive ? "\n\n<color=orange>Up to two per cart. Its bees are always happy.</color>" :
             piece == GamePieces.Fermenter ? "\n\n<color=orange>Ferments under the cart's roof, wherever the cart goes.</color>" :
             piece == Tent.Piece ? "\n\n<color=orange>Pitch it beside the cart (on fairly flat ground) with the tent button below the station tabs: it keeps the rain off you and your campfire. The cart stays put until you pack it up.</color>" :
+            piece == CartUpgrades.ItemStand ? "\n\n<color=orange>Hangs on the front of the roof. Mount whatever you like on it, as on any item stand.</color>" :
             "";
 
         // Valheim Inventory's craft counter (how many Craft makes) doesn't apply to upgrades: each is built once. Runs after

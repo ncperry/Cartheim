@@ -46,10 +46,20 @@ namespace Cartheim.Plugin
 
         public static void Hide(GameObject piece)
         {
+            // An item stand shows as itself (with what's mounted on it) where it rides; its colliders only catch the player's
+            // look, so it can be hovered and used, never bumping the cart.
+            var showsItself = ShowsItself(piece);
             foreach (var renderer in piece.GetComponentsInChildren<Renderer>(true))
-                renderer.enabled = false;
+                renderer.enabled = showsItself;
             foreach (var collider in piece.GetComponentsInChildren<Collider>(true))
-                collider.enabled = false;
+            {
+                collider.enabled = showsItself;
+                if (!showsItself)
+                    continue;
+                if (collider is MeshCollider mesh)
+                    mesh.convex = true;
+                collider.isTrigger = true;
+            }
             var wear = piece.GetComponent<WearNTear>();
             if (wear)
                 Object.Destroy(wear);
@@ -68,6 +78,15 @@ namespace Cartheim.Plugin
                 piece.AddComponent<CartRider>();
         }
 
+        public static bool ShowsItself(GameObject piece) => Utils.GetPrefabName(piece) == CartUpgrades.ItemStand;
+
+        private static void ShowOnly(GameObject piece, bool shown)
+        {
+            foreach (var renderer in piece.GetComponentsInChildren<Renderer>())
+                if (renderer.enabled != shown)
+                    renderer.enabled = shown;
+        }
+
         // Lights and mist-clearing follow the mod switch; the piece itself stays, so nothing is lost while it is off.
         public static void SetWorking(GameObject piece, bool on)
         {
@@ -82,11 +101,15 @@ namespace Cartheim.Plugin
         // Where it rides: on its model when the cart shows one (so a bed is slept in where it shows), else in the cart's bed.
         public static void Follow(GameObject piece, Transform cart, Transform model = null)
         {
+            // An item stand shows only on its spot (not while the cart shows no looks).
+            if (ShowsItself(piece))
+                ShowOnly(piece, model);
             if (model)
             {
                 piece.transform.SetPositionAndRotation(model.position, model.rotation);
-                // A light (a sconce) is shrunk with its model, so its flame stays where the model's bracket is.
-                if (piece.GetComponentInChildren<Light>(true))
+                // A light (a sconce) is shrunk with its model, so its flame stays where the model's bracket is; an item stand to
+                // its spot's size.
+                if (piece.GetComponentInChildren<Light>(true) || ShowsItself(piece))
                     piece.transform.localScale = model.lossyScale;
             }
             else

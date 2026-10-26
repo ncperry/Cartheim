@@ -49,6 +49,9 @@ namespace Cartheim.Plugin
             // tent, shown with it.)
             if (roof != null)
                 shown.Add(roof);
+            // The item stand hangs on the roof's front cross, so after it.
+            if (roof != null && upgrades.Has(CartUpgrades.ItemStand))
+                shown.Add(CartUpgrades.ItemStand);
             if (upgrades.Has(Sconce))
                 shown.Add(Sconce);
             if (upgrades.Has(FeyLights))
@@ -81,6 +84,11 @@ namespace Cartheim.Plugin
                 if (piece == FeyLights)
                 {
                     FeyLightsAcrossTheFront(bed);
+                    continue;
+                }
+                if (piece == CartUpgrades.ItemStand)
+                {
+                    ItemStandOnTheFrontCross();
                     continue;
                 }
                 if (GamePieces.BeehiveSlots.Contains(piece))
@@ -189,6 +197,9 @@ namespace Cartheim.Plugin
         // The middle of the chest's lid, once the chest stands in the cart.
         private Vector3? _chestTop;
 
+        // Where the logs of the roof's front cross meet, once a roof is built.
+        private Vector3? _frontCross;
+
         // The top of the roof, down its middle, once a roof is built.
         private Vector3? _ridge;
         // How steeply the roof rises (up per across).
@@ -263,6 +274,28 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Fey lights across the front: size {b.size}, scale {fit.Scale:0.00}{(fit.Turned ? ", turned" : "")}");
         }
 
+        // The item stand on the front face of the roof's front cross, below where its logs meet, facing out the front. The real
+        // stand shows there itself (see CartRiders), so what's mounted on it shows and is put up and taken down as on any.
+        private const float ItemStandSize = 0.45f;
+        private const float ItemStandBelowCross = 0.3f;
+        private const float ItemStandOut = 0.08f;
+
+        private void ItemStandOnTheFrontCross()
+        {
+            var prefab = GamePieces.Prefab(CartUpgrades.ItemStand);
+            var size = prefab ? BoundsOf(prefab.GetComponentsInChildren<MeshFilter>(true), prefab.transform) : null;
+            if (_frontCross == null || size == null)
+                return;
+            var b = size.Value;
+            var spot = new GameObject("Cartheim item stand spot").transform;
+            spot.SetParent(Root.transform, false);
+            spot.localPosition = _frontCross.Value + new Vector3(0f, -ItemStandBelowCross, ItemStandOut);
+            spot.localRotation = Quaternion.identity;
+            spot.localScale = Vector3.one * Mathf.Min(1f, ItemStandSize / Mathf.Max(b.size.x, b.size.y, b.size.z));
+            Anchors[CartUpgrades.ItemStand] = spot;
+            Debug.Log($"[Cartheim] Item stand on the front cross: size {b.size}, scale {spot.localScale.x:0.00}");
+        }
+
         // The sconce on the outer face of the back post on the workbench's side, near its top, pointing away from the cart.
         // Its flame (on the hidden sconce riding with this model) burns there.
         private void SconceOnBackPost(Bounds bed, GameObject model)
@@ -325,6 +358,8 @@ namespace Cartheim.Plugin
             foreach (var end in new[] { -1f, 1f })
             {
                 var onRidge = ridge + new Vector3(0f, 0f, end * alongRidge * slope.Width / 2f);
+                if (end > 0f)
+                    _frontCross = onRidge;
                 GableCross(onRidge, scale);
                 // A beam down each edge of this end, eave to ridge, on the same line as the cross's logs.
                 foreach (var side in new[] { -1f, 1f })
