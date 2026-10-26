@@ -154,6 +154,8 @@ namespace Cartheim.Plugin
         // The tent's cloth as a tarp over a ruin: its mesh stretched over a box (in the space of a ruin at that position and
         // turn), its lower side towards the box's -x where the mesh shows which side is lower. Solid like the tent, so the
         // game's cover checks see a roof.
+        public const string TarpName = "Cartheim tarp";
+
         public static GameObject Tarp(Vector3 position, Quaternion rotation, Vector3 min, Vector3 max, bool ghost = false)
         {
             var tent = Tent();
@@ -161,7 +163,7 @@ namespace Cartheim.Plugin
                 return null;
             var mesh = tent.sharedMesh;
             var b = mesh.bounds;
-            var root = new GameObject(ghost ? "Cartheim tarp ghost" : "Cartheim tarp");
+            var root = new GameObject(ghost ? "Cartheim tarp ghost" : TarpName);
             root.transform.SetPositionAndRotation(position, rotation);
             var model = new GameObject("model", typeof(MeshFilter), typeof(MeshRenderer));
             model.layer = tent.gameObject.layer;

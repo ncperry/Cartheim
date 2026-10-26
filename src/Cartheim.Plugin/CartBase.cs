@@ -847,6 +847,8 @@ namespace Cartheim.Plugin
 
         public RuinCamp Camp => Plugin.Enabled.Value && _nview && _nview.IsValid() ? RuinCamp.For(_nview.GetZDO().GetString(RuinKey, "")) : null;
         public bool InRuin => Camp != null;
+        // The tarp over its ruin, while it's settled and has a tent.
+        public GameObject Tarp => _tarp;
         private Vector3 RuinAt => _nview.GetZDO().GetVec3(RuinAtKey, Vector3.zero);
         private Quaternion RuinTurn => Quaternion.Euler(0f, _nview.GetZDO().GetFloat(RuinTurnKey, 0f), 0f);
 

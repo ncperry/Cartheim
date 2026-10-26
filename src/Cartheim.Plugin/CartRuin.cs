@@ -9,18 +9,15 @@ namespace Cartheim.Plugin
 {
     // A cart settled into a ruin (see RuinCamp): from the cart's tabs, within reach of a ruin the mod knows, a ghost of
     // everything shows over the ruin, and a click settles the cart into its place there, adding a wood door in the ruin's
-    // doorway, a wood fence round the cart, the cart's tent as a tarp over the ruin (if it has a tent; see CartBase), and
-    // a garden beside it (if the player has a cultivator, on them or in the cart): its ground levelled and cultivated,
-    // nothing planted. All free, all real pieces, marked as the camp's: the hammer can't take them apart, they drop
-    // nothing when broken, and they go when the cart returns to cart form.
+    // doorway, a wood fence round the cart, and the cart's tent as a tarp over the ruin (if it has a tent; see CartBase).
+    // All free, all real pieces, marked as the camp's: the hammer can't take them apart, they drop nothing when broken,
+    // and they go when the cart returns to cart form. (A garden is set out from the cart's tabs, as anywhere.)
     [HarmonyPatch]
     internal static class CartRuin
     {
         private const string CampOfKey = "cartheim_camp_of";
         private const string DoorName = "$piece_wooddoor";
         private const string FenceName = "$piece_woodfence";
-        // How much room a garden needs round it, beyond its fence, to be set out there.
-        private const float GardenRoom = 0.3f;
 
         private static readonly AccessTools.FieldRef<List<Location>> AllLocations =
             AccessTools.StaticFieldRefAccess<List<Location>>(AccessTools.Field(typeof(Location), "s_allLocations"));
@@ -32,10 +29,6 @@ namespace Cartheim.Plugin
             cart ? AllLocations().Where(l => l && RuinCamp.For(l.name) != null && RuinCamp.Near(Vector3.Distance(l.transform.position, cart.transform.position)))
                 .OrderBy(l => Vector3.Distance(l.transform.position, cart.transform.position)).FirstOrDefault() : null;
 
-        // A garden by a ruin: for a player with a cultivator, on them or in the cart.
-        private static bool WithGarden(Player player) =>
-            player && GamePieces.Carried(player, new[] { new ItemCount("Cultivator", 1) }).TryGetValue("Cultivator", out var have) && have > 0;
-
         private static Vector3 World(Location ruin, float x, float z)
         {
             var p = ruin.transform.position + Quaternion.Euler(0f, ruin.transform.eulerAngles.y, 0f) * new Vector3(x, 0f, z);
@@ -43,22 +36,6 @@ namespace Cartheim.Plugin
         }
 
         private static Quaternion Turn(Location ruin, float yaw) => Quaternion.Euler(0f, ruin.transform.eulerAngles.y + yaw, 0f);
-
-        // The first of the ruin's garden spots with nothing in the way (rocks and trees, which differ from ruin to ruin).
-        private static (Vector3 at, Quaternion facing)? GardenSpot(Location ruin, RuinCamp camp)
-        {
-            var mask = LayerMask.GetMask("static_solid", "piece", "vehicle");
-            foreach (var (x, z, yaw) in camp.Gardens)
-            {
-                var at = World(ruin, x, z);
-                var facing = Turn(ruin, yaw);
-                // Its torches stand out past its fence.
-                var half = new Vector3(Garden.Width / 2f + Garden.TorchOut + GardenRoom, 1.1f, Garden.Depth / 2f + Garden.TorchOut + GardenRoom);
-                if (!Physics.CheckBox(at + Vector3.up * 1.4f, half, facing, mask, QueryTriggerInteraction.Ignore))
-                    return (at, facing);
-            }
-            return null;
-        }
 
         // Everything the camp adds, where it goes: the door, then the fence, each piece with how it's turned.
         private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing)> Pieces(Location ruin, RuinCamp camp)
@@ -78,8 +55,8 @@ namespace Cartheim.Plugin
                         yield return (fence, World(ruin, x, z), Turn(ruin, yaw + fence.Turn));
         }
 
-        // The ghost of it all, standing over the ruin: the cart in its place, the door, the fence, the tarp and the garden.
-        public static GameObject Ghost(CartBase cart, Location ruin, Player player)
+        // The ghost of it all, standing over the ruin: the cart in its place, the door, the fence and the tarp.
+        public static GameObject Ghost(CartBase cart, Location ruin)
         {
             var camp = RuinCamp.For(ruin.name);
             if (camp == null || !CartGarden.Ready())
@@ -108,18 +85,31 @@ namespace Cartheim.Plugin
                 if (tarp)
                     tarp.transform.SetParent(root.transform, true);
             }
-            if (WithGarden(player) && GardenSpot(ruin, camp) is var spot && spot.HasValue)
-            {
-                CartGarden.Unplanted();
-                var garden = CartGarden.Ghost();
-                if (garden)
-                {
-                    CartGarden.Pose(garden, spot.Value.at, spot.Value.facing);
-                    garden.transform.SetParent(root.transform, true);
-                }
-            }
             Ghostly(root);
             return root;
+        }
+
+        // A thing drawn see-through for a while (a tarp while a garden is placed under it), and as it was again after.
+        public static void SeeThrough(GameObject thing, bool seeThrough)
+        {
+            if (!thing)
+                return;
+            var kept = thing.GetComponent<GhostMaterials>();
+            if (seeThrough && !kept)
+            {
+                var originals = thing.GetComponentsInChildren<Renderer>(true).ToDictionary(r => r, r => r.sharedMaterials);
+                Ghostly(thing);
+                thing.GetComponent<GhostMaterials>().Originals = originals;
+            }
+            else if (!seeThrough && kept)
+            {
+                foreach (var pair in kept.Originals.Where(p => p.Key))
+                {
+                    pair.Key.sharedMaterials = pair.Value;
+                    pair.Key.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                }
+                Object.Destroy(kept);
+            }
         }
 
         // Pale and see-through until it's settled: every material swapped for a transparent one (keeping its texture where
@@ -164,6 +154,7 @@ namespace Cartheim.Plugin
         private class GhostMaterials : MonoBehaviour
         {
             public List<Material> Made;
+            public Dictionary<Renderer, Material[]> Originals;
 
             private void OnDestroy()
             {
@@ -190,11 +181,6 @@ namespace Cartheim.Plugin
                     built.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
                     Mark(built);
                 }
-                var spot = WithGarden(player) ? GardenSpot(ruin, camp) : null;
-                if (spot.HasValue)
-                    CartGarden.PlaceForCamp(spot.Value.at, spot.Value.facing, player);
-                else if (WithGarden(player))
-                    player.Message(MessageHud.MessageType.Center, "No room for a garden beside this ruin");
             }
             finally
             {
@@ -204,7 +190,7 @@ namespace Cartheim.Plugin
         }
 
         // A piece added by a camp: marked as the cart's, and not to be taken apart with the hammer.
-        public static void Mark(GameObject built)
+        private static void Mark(GameObject built)
         {
             var view = built.GetComponent<ZNetView>();
             if (view && view.IsValid() && _campOf != 0)

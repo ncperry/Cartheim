@@ -20,8 +20,6 @@ namespace Cartheim.Core
         public List<((float x, float z) from, (float x, float z) to)> Fence;
         // The tarp (the tent's cloth, when the cart has a tent): over this much of the ruin, low at its -x side, high at +x.
         public float TarpMinX, TarpMaxX, TarpMinZ, TarpMaxZ, TarpLow, TarpHigh;
-        // Where a garden may go, in order of choice: its middle and its turn (its gate towards the ruin).
-        public List<(float x, float z, float yaw)> Gardens;
 
         public static bool Near(float distance) => distance <= Reach;
 
@@ -50,8 +48,6 @@ namespace Cartheim.Core
                     ((3.5f, 6.0f), (3.5f, 4.05f)),
                 },
                 TarpMinX = -4.7f, TarpMaxX = 4.7f, TarpMinZ = -3.0f, TarpMaxZ = 4.4f, TarpLow = 2.55f, TarpHigh = 3.55f,
-                // Either side, or out in front well to one side of the door (its torches too), never in the way out.
-                Gardens = new List<(float, float, float)> { (-7.8f, 0.7f, 270f), (7.8f, 0.7f, 90f), (-4.4f, -6.1f, 180f), (4.4f, -6.1f, 180f) },
             },
         };
     }

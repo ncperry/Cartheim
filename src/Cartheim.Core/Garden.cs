@@ -61,7 +61,7 @@ namespace Cartheim.Core
                 .GroupBy(c => c.Prefab).Select(g => new ItemCount(g.Key, g.Sum(c => c.Count))).ToList();
 
         // A standing wood torch just outside each front corner, either side of the gate.
-        public const float TorchOut = 0.6f;
+        private const float TorchOut = 0.6f;
 
         public static List<(float x, float z)> TorchSpots()
         {

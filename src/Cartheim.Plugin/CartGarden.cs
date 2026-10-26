@@ -40,8 +40,8 @@ namespace Cartheim.Plugin
         }
 
         private static Kind _fence, _gate, _torch;
-        private static GameObject _cultivate, _level;
-        private static float _cultivateSpacing, _levelSpacing;
+        private static GameObject _cultivate;
+        private static float _cultivateSpacing;
         private static List<Crop> _crops;
         // The crop being planted with the garden being placed (null: none).
         private static Crop _crop;
@@ -64,10 +64,6 @@ namespace Cartheim.Plugin
             _cultivate = cultivator.m_pieces.FirstOrDefault(p => p && p.GetComponent<TerrainOp>() is TerrainOp op &&
                                                                 op.m_settings.m_paintCleared && op.m_settings.m_paintType == TerrainModifier.PaintType.Cultivate);
             _crops = Crops(cultivator.m_pieces);
-            // The hoe's "level ground", for a garden by a ruin.
-            var hoe = ObjectDB.instance.GetItemPrefab("Hoe")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
-            _level = hoe ? hoe.m_pieces.FirstOrDefault(p => p && p.GetComponent<TerrainOp>() is TerrainOp op && op.m_settings.m_level && !op.m_settings.m_raise) : null;
-            _levelSpacing = _level ? Mathf.Max(0.5f, _level.GetComponent<TerrainOp>().m_settings.m_levelRadius * 1.2f) : 1f;
             if (!_fence.Prefab || !_gate.Prefab || !_torch.Prefab || !_cultivate)
             {
                 Debug.LogWarning($"[Cartheim] Garden pieces not found: fence {(bool)_fence.Prefab}, gate {(bool)_gate.Prefab}, torch {(bool)_torch.Prefab}, cultivate {(bool)_cultivate}");
@@ -76,7 +72,7 @@ namespace Cartheim.Plugin
             _cultivateSpacing = Mathf.Max(0.5f, _cultivate.GetComponent<TerrainOp>().m_settings.m_paintRadius * 1.2f);
             Debug.Log($"[Cartheim] Garden: fence {_fence.Prefab.name} {_fence.Length:0.00} m (turned {_fence.Turn}, lifted {_fence.Lift:0.00}), " +
                       $"gate {_gate.Prefab.name} {_gate.Length:0.00} m (turned {_gate.Turn}, lifted {_gate.Lift:0.00}), torch {_torch.Prefab.name} (lifted {_torch.Lift:0.00}), " +
-                      $"cultivating every {_cultivateSpacing:0.00} m, levelling with {(_level ? _level.name : "nothing")} every {_levelSpacing:0.00} m; crops: {string.Join(", ", _crops.Select(c => $"{c.Name} ({c.Plant.name}{(c.SeedPlant ? " + " + c.SeedPlant.name : "")})"))}");
+                      $"cultivating every {_cultivateSpacing:0.00} m; crops: {string.Join(", ", _crops.Select(c => $"{c.Name} ({c.Plant.name}{(c.SeedPlant ? " + " + c.SeedPlant.name : "")})"))}");
             return true;
         }
 
@@ -326,33 +322,12 @@ namespace Cartheim.Plugin
             var cost = Cost();
             if (!player.NoCostCheat())
                 GamePieces.Take(player, cost);
-            Build(at, facing, player, null);
+            Build(at, facing, player);
             Debug.Log($"[Cartheim] Wayside Garden set out at {at}{(_crop != null ? ", planted with " + _crop.Name : "")}, for {string.Join(", ", cost)}");
             player.Message(MessageHud.MessageType.Center, _crop != null ? $"Wayside Garden set out and planted with {_crop.Name}" : "Wayside Garden set out");
         }
 
-        // A garden by a ruin the cart has settled into: free, unplanted, its ground levelled first, its pieces the camp's
-        // (see CartRuin.Mark), to go again when the cart leaves.
-        public static void PlaceForCamp(Vector3 at, Quaternion facing, Player player)
-        {
-            _crop = null;
-            if (!Ready() || !player)
-                return;
-            if (_level)
-            {
-                var points = Garden.CultivatePoints(_levelSpacing).Select(p => at + facing * new Vector3(p.x, 0f, p.z)).ToList();
-                var height = points.Average(Ground);
-                foreach (var p in points)
-                    Apply(_level, new Vector3(p.x, height, p.z));
-            }
-            Build(at, facing, player, CartRuin.Mark);
-            Debug.Log($"[Cartheim] Garden by the ruin set out at {at}");
-        }
-
-        // Unplanted, for the ghost of a garden by a ruin.
-        public static void Unplanted() => _crop = null;
-
-        private static void Build(Vector3 at, Quaternion facing, Player player, System.Action<GameObject> mark)
+        private static void Build(Vector3 at, Quaternion facing, Player player)
         {
             foreach (var (x, z) in Garden.CultivatePoints(_cultivateSpacing))
             {
@@ -364,12 +339,11 @@ namespace Cartheim.Plugin
                 var p = at + facing * new Vector3(part.X, 0f, part.Z);
                 var built = Object.Instantiate(part.Prefab, new Vector3(p.x, Ground(p) + part.Lift, p.z), facing * Quaternion.Euler(0f, part.Yaw, 0f));
                 built.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
-                mark?.Invoke(built);
             }
             _fence.Prefab.GetComponent<Piece>()?.m_placeEffect.Create(at, facing);
         }
 
-        // The cultivator's or hoe's own work at one spot, without its sound (a whole garden at once would be a racket).
+        // The cultivator's own work at one spot, without its sound (a whole garden at once would be a racket).
         private static void Apply(GameObject terrainOp, Vector3 at)
         {
             var wasActive = terrainOp.activeSelf;

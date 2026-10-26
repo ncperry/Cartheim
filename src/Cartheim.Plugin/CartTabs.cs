@@ -81,7 +81,7 @@ namespace Cartheim.Plugin
             if (CartRuin.Near(cart) is Location ruin)
                 targets.Add((ruin, "stone_arch", cart.InRuin
                     ? "Ruin: click to return the cart to cart form (what was added to the ruin goes, nothing back)"
-                    : "Ruin: click to settle the cart into it (a door, a fence round the cart, a tarp if it has a tent, a garden if you have a cultivator; all free)"));
+                    : "Ruin: click to settle the cart into it (a door, a fence round the cart, and a tarp if it has a tent; all free)"));
             // Then the portal, to the spawn.
             if (cart.HasPortal && cart.GetComponent<ZNetView>() is ZNetView view)
                 targets.Add((view, Cartheim.Core.Portal.Piece, "Portal: click to go to the spawn (Shift+E on the sacrificial stones there brings you back to a cart)"));

@@ -73,7 +73,7 @@ namespace Cartheim.Plugin
                 return;
             }
             InventoryGui.instance?.Hide();
-            Begin(cart, Placing.Ruin, CartRuin.Ghost(cart, ruin, player));
+            Begin(cart, Placing.Ruin, CartRuin.Ghost(cart, ruin));
             _ruin = ruin;
         }
 
@@ -95,6 +95,10 @@ namespace Cartheim.Plugin
                 return;
             InventoryGui.instance?.Hide();
             Begin(cart, Placing.Garden, CartGarden.Ghost());
+            // A tarp over a ruin shows what's under it, while a garden is placed.
+            if (IsPlacing)
+                foreach (var each in CartBase.All.Where(c => c && c.Tarp))
+                    CartRuin.SeeThrough(each.Tarp, true);
             if (IsPlacing)
                 _yaw = player.transform.eulerAngles.y;
         }
@@ -128,6 +132,8 @@ namespace Cartheim.Plugin
                 Object.Destroy(_ghost);
             _ghost = null;
             _placing = Placing.Nothing;
+            foreach (var each in CartBase.All.Where(c => c && c.Tarp))
+                CartRuin.SeeThrough(each.Tarp, false);
             _cart = null;
             if (message != null)
                 Player.m_localPlayer?.Message(MessageHud.MessageType.Center, message);
@@ -212,7 +218,7 @@ namespace Cartheim.Plugin
             _yaw += UnityInput.Current.mouseScrollDelta.y * TurnPerNotch;
             var camera = GameCamera.instance ? GameCamera.instance.transform : null;
             var mask = LayerMask.GetMask("terrain", "static_solid", "Default");
-            if (!camera || !Physics.Raycast(camera.position, camera.forward, out var hit, AimReach, mask))
+            if (!camera || !Aim(camera, mask, out var hit))
             {
                 _ghost.SetActive(false);
                 Say("Aim at where it goes");
@@ -285,6 +291,19 @@ namespace Cartheim.Plugin
                 return;
             Cancel(null);
             CartGarden.Place(at, facing, player);
+        }
+
+        // What's aimed at, looking through a tarp over a ruin (so a garden can be placed beside or under it).
+        private static bool Aim(Transform camera, int mask, out RaycastHit hit)
+        {
+            foreach (var each in Physics.RaycastAll(camera.position, camera.forward, AimReach, mask, QueryTriggerInteraction.Ignore).OrderBy(h => h.distance))
+                if (each.collider.transform.root.name != TentAssets.TarpName)
+                {
+                    hit = each;
+                    return true;
+                }
+            hit = default;
+            return false;
         }
 
         // Red where it can't go, as the game shows its own ghosts.
