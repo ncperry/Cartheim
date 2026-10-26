@@ -38,16 +38,29 @@ namespace Cartheim.Plugin
             var root = location.transform;
             Debug.Log($"[Cartheim] Ruin survey: {root.name} at {root.position}, turned {root.eulerAngles.y:0.0}, noBuild {location.m_noBuild}, " +
                       $"exterior radius {location.m_exteriorRadius:0.0}, interior {location.m_hasInterior}");
-            foreach (var collider in root.GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger))
+            // A ruin's stones are spawned as objects of their own, not under it: everything solid within its radius (but the
+            // ground, creatures and loose items), each object once, in the ruin's own space.
+            var terrain = LayerMask.NameToLayer("terrain");
+            var colliders = Physics.OverlapSphere(root.position, location.m_exteriorRadius + 2f, ~0, QueryTriggerInteraction.Ignore)
+                .Where(c => c.enabled && c.gameObject.layer != terrain && !c.GetComponentInParent<Character>() && !c.GetComponentInParent<ItemDrop>())
+                .ToList();
+            foreach (var group in colliders.GroupBy(c => (c.GetComponentInParent<ZNetView>() ? c.GetComponentInParent<ZNetView>().transform : c.transform.root)))
             {
-                var b = collider.bounds;
-                var min = root.InverseTransformPoint(b.min);
-                var max = root.InverseTransformPoint(b.max);
-                var mesh = (collider as MeshCollider)?.sharedMesh?.name;
-                Debug.Log($"[Cartheim] Ruin survey:   {Path(collider.transform, root)} ({collider.GetType().Name}{(mesh != null ? " " + mesh : "")}, " +
-                          $"layer {LayerMask.LayerToName(collider.gameObject.layer)}): local {collider.transform.localPosition}, turned {collider.transform.localEulerAngles.y:0}, " +
-                          $"spans {Vector3.Min(min, max)} to {Vector3.Max(min, max)}");
+                var obj = group.Key;
+                var bounds = group.Select(c => c.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+                var corners = Corners(bounds).Select(root.InverseTransformPoint).ToList();
+                var min = corners.Aggregate(Vector3.Min);
+                var max = corners.Aggregate(Vector3.Max);
+                Debug.Log($"[Cartheim] Ruin survey:   {obj.name} (layer {LayerMask.LayerToName(obj.gameObject.layer)}, {group.Count()} colliders): " +
+                          $"at {root.InverseTransformPoint(obj.position)}, turned {Mathf.DeltaAngle(root.eulerAngles.y, obj.eulerAngles.y):0}, " +
+                          $"spans {min} to {max}");
             }
+        }
+
+        private static IEnumerable<Vector3> Corners(Bounds b)
+        {
+            for (var i = 0; i < 8; i++)
+                yield return new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
         }
 
         private static string Path(Transform t, Transform root)
