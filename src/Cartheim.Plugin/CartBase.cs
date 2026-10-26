@@ -844,6 +844,14 @@ namespace Cartheim.Plugin
             Refresh();
         }
 
+        // How the game's own cart interpolates the body of that name.
+        private static RigidbodyInterpolation GameInterpolation(Rigidbody body)
+        {
+            var prefab = GamePieces.Prefab("Cart");
+            var own = prefab ? prefab.GetComponentsInChildren<Rigidbody>(true).FirstOrDefault(b => b.name == body.name) : null;
+            return own ? own.interpolation : RigidbodyInterpolation.Interpolate;
+        }
+
         // The lowest point of the cart's own solid parts (its wheels).
         private float Bottom()
         {
@@ -854,10 +862,15 @@ namespace Cartheim.Plugin
         // Every part of the cart moved only by the mod while afloat, and free once ashore. A cart's bodies are never kinematic
         // otherwise, so ashore they're let go outright rather than put back as found: found after a hot reload afloat, they
         // were already held, and "as found" left the cart stuck ashore.
+        // Held, a body isn't interpolated either: the mod sets where the cart is every frame, and interpolating drew it
+        // between that and where physics last had it, so it rocked on its raft. Ashore it's interpolated as the game has it.
         private void Hold(bool held)
         {
             foreach (var body in _bodies.Where(b => b))
             {
+                var interpolation = held ? RigidbodyInterpolation.None : GameInterpolation(body);
+                if (body.interpolation != interpolation)
+                    body.interpolation = interpolation;
                 if (held && !body.isKinematic)
                 {
                     body.linearVelocity = Vector3.zero;
