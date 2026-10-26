@@ -14,7 +14,7 @@ namespace Cartheim.Plugin
     [HarmonyPatch]
     internal static class CartRaft
     {
-        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp }
+        private enum Placing { Nothing, Raft, Cart, Garden, Ruin, LeaveRuin, Tarp, Stands }
 
         private const float AimReach = 40f;
         private const float TurnPerNotch = 22.5f;
@@ -175,6 +175,68 @@ namespace Cartheim.Plugin
             Cancel(null);
             dropped?.Invoke(box);
         }
+
+        // Item stands put up where the player looks, as many as they like (for marking out supports, in the dev world): on a
+        // wall, hanging on it, its board against it; on a floor, standing on it. Free, and built as the player's own, so the
+        // hammer takes them down.
+        private const string WallStand = "itemstand";
+        private const string FloorStand = "itemstandh";
+        private static string _standKind;
+
+        public static void BeginStands()
+        {
+            Cancel(null);
+            InventoryGui.instance?.Hide();
+            var ghost = Ghost(WallStand);
+            if (!ghost)
+                return;
+            _cart = null;
+            _placing = Placing.Stands;
+            _ghost = ghost;
+            _standKind = WallStand;
+            _said = null;
+            _red = false;
+            _inventoryGone = false;
+            Debug.Log("[Cartheim] Placing item stands");
+        }
+
+        private static void PlaceStands()
+        {
+            var camera = GameCamera.instance ? GameCamera.instance.transform : null;
+            if (!camera || !Aim(camera, LayerMask.GetMask("terrain", "static_solid", "Default", "piece"), out var hit))
+            {
+                _ghost.SetActive(false);
+                Say("Aim at a wall or the floor");
+                return;
+            }
+            var kind = DevWorld.OnFloor(hit.normal.y) ? FloorStand : WallStand;
+            if (kind != _standKind)
+            {
+                Object.Destroy(_ghost);
+                _ghost = Ghost(kind);
+                _standKind = kind;
+                if (!_ghost)
+                {
+                    Cancel(null);
+                    return;
+                }
+            }
+            var shape = CartGarden.Measure(GamePieces.Prefab(kind));
+            // On a wall: its board's back against it, looking out. On a floor: upright, turned to face the player.
+            var facing = kind == WallStand
+                ? Quaternion.LookRotation(hit.normal, Vector3.up)
+                : Quaternion.Euler(0f, camera.eulerAngles.y + 180f, 0f);
+            var at = kind == WallStand ? hit.point - facing * new Vector3(0f, 0f, shape.Box.min.z) : hit.point + Vector3.up * shape.Lift;
+            _ghost.SetActive(true);
+            _ghost.transform.SetPositionAndRotation(at, facing);
+            Say("Left click: put up an item stand here. Right click: done");
+            if (!UnityInput.Current.GetMouseButtonDown(0))
+                return;
+            var player = Player.m_localPlayer;
+            var built = Object.Instantiate(GamePieces.Prefab(kind), at, facing);
+            built.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
+            Debug.Log($"[Cartheim] Item stand ({kind}) put up at {at}");
+        }
         public static void Cancel(string message)
         {
             if (IsPlacing)
@@ -242,7 +304,7 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!InventoryGui.IsVisible())
                 _inventoryGone = true;
-            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart ? "the cart is gone"
+            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart && _placing != Placing.Stands ? "the cart is gone"
                 : _inventoryGone && InventoryGui.IsVisible() ? "the inventory opened" : Menu.IsVisible() ? "the menu opened"
                 : Minimap.IsOpen() ? "the map opened" : null;
             if (interrupted != null)
@@ -254,6 +316,12 @@ namespace Cartheim.Plugin
             if (UnityInput.Current.GetMouseButtonDown(1))
             {
                 Cancel("Cancelled");
+                return;
+            }
+            // Placing item stands (in the dev world): one at each left click, until a right click.
+            if (_placing == Placing.Stands)
+            {
+                PlaceStands();
                 return;
             }
             // Settling into a ruin: the ghost stands over the ruin already; a left click settles the cart.
