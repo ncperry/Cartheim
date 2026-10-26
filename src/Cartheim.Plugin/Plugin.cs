@@ -1,5 +1,6 @@
 using BepInEx;
 using BepInEx.Configuration;
+using Cartheim.Core;
 using HarmonyLib;
 
 namespace Cartheim.Plugin
@@ -20,6 +21,9 @@ namespace Cartheim.Plugin
         // How uneven the ground may be where the tent is pitched.
         public static ConfigEntry<float> TentMaxRise;
 
+        // What becomes of a cart afloat when its player dies at sea.
+        public static ConfigEntry<SeaDeath> AtSeaDeath;
+
         private readonly CartTabs _cartTabs = new CartTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
@@ -35,6 +39,10 @@ namespace Cartheim.Plugin
             TentMaxRise = Config.Bind("Cart", "Tent ground rise", 0.6f,
                 "How much higher (in metres) the ground may be at one place than another where the tent would stand; " +
                 "on rougher ground it can't be pitched.");
+            AtSeaDeath = Config.Bind("Difficulty", "Cart after dying at sea", SeaDeath.ComesExceptHardcore,
+                "Dying at sea respawns you on land. A cart afloat near where you died can come ashore beside you, its raft " +
+                "packed away, rather than staying out on the water: ComesExceptHardcore (not on a world with the Hardcore " +
+                "preset or death penalty), AlwaysComes, or StaysAtSea.");
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));
@@ -46,6 +54,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartFermenter));
             _harmony.PatchAll(typeof(CartRaft));
             _harmony.PatchAll(typeof(CartPortal));
+            _harmony.PatchAll(typeof(CartRescue));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
             foreach (var vagon in FindObjectsByType<Vagon>(UnityEngine.FindObjectsSortMode.None))
                 if (!vagon.GetComponent<CartBase>() && vagon.GetComponent<ZNetView>()?.GetZDO() != null)
@@ -63,6 +72,7 @@ namespace Cartheim.Plugin
             CartStorage.Update();
             CartRaft.Update();
             CartPortal.Update();
+            CartRescue.Update();
         }
 
         // After every Update, where other mods set up the crafting screen's buttons.

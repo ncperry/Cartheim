@@ -676,6 +676,30 @@ namespace Cartheim.Plugin
             _nview.GetZDO().Set(key, false);
         }
 
+        // Brought ashore after its player died at sea: the spawn point back on the bed if it was there when the cart went
+        // afloat. The game, not finding the bed where it had been, dropped the spawn point, so it's set outright. False
+        // until the bed has loaded.
+        public bool RestoreBedSpawn()
+        {
+            var profile = Game.instance ? Game.instance.GetPlayerProfile() : null;
+            if (profile == null || !_nview || !_nview.IsValid())
+                return false;
+            var key = SpawnOnBedKey(profile.GetPlayerID());
+            if (!_bedSpawnAshore && !_nview.GetZDO().GetBool(key))
+                return true;
+            var bed = Bed;
+            if (!bed)
+                return false;
+            _bedSpawnAshore = false;
+            _nview.GetZDO().Set(key, false);
+            if (bed.GetComponent<ZNetView>()?.GetZDO()?.GetLong(ZDOVars.s_owner) == profile.GetPlayerID())
+            {
+                profile.SetCustomSpawnPoint(bed.GetSpawnPoint());
+                Debug.Log($"[Cartheim] Cart {Uid()} came ashore after a death at sea: the spawn point is back on its bed");
+            }
+            return true;
+        }
+
         private static readonly AccessTools.FieldRef<ZNetScene, Dictionary<ZDO, ZNetView>> Instances =
             AccessTools.FieldRefAccess<ZNetScene, Dictionary<ZDO, ZNetView>>("m_instances");
 
@@ -733,7 +757,7 @@ namespace Cartheim.Plugin
         // Afloat on its raft (see CartRaft): the cart rides it where it stands on its deck, every part of it held still
         // (kinematic), touching nothing of the raft. The raft is marked with the cart's id, so the cart finds it again after
         // a world load; one gone for good (sunk) leaves the cart where it is, free again.
-        private const string RaftingKey = "cartheim_rafting";
+        public const string RaftingKey = "cartheim_rafting";
         public const string RaftKey = "cartheim_raft_of";
         private const string RaftAtKey = "cartheim_raft_at";
         private const string RaftFacingKey = "cartheim_raft_facing";
@@ -931,10 +955,10 @@ namespace Cartheim.Plugin
                 }
         }
 
-        private const string UidKey = "cartheim_uid";
+        public const string UidKey = "cartheim_uid";
 
         // The cart's own id, kept in its save data; 0 until its owner has given it one.
-        private long Uid() => _nview && _nview.IsValid() ? _nview.GetZDO().GetLong(UidKey) : 0;
+        public long Uid() => _nview && _nview.IsValid() ? _nview.GetZDO().GetLong(UidKey) : 0;
 
         private void EnsureUid()
         {
