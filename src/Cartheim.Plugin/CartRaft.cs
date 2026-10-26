@@ -81,13 +81,40 @@ namespace Cartheim.Plugin
                 Player.m_localPlayer?.Message(MessageHud.MessageType.Center, message);
         }
 
-        // The piece's meshes (a raft without its mast and sail), nothing to bump into.
+        // A copy of the piece as the game makes its own placement ghosts: made without joining the world, then stripped to its
+        // looks (no behaviour or physics), a raft without its mast and sail.
         private static GameObject Ghost(string piece)
         {
-            var ship = GamePieces.Prefab(piece)?.GetComponent<Ship>();
-            var ghost = CartLooks.Model(piece, null, ship ? new[] { ship.m_mastObject, ship.m_sailObject } : null);
-            if (ghost)
-                ghost.name = "Cartheim placing " + piece;
+            var prefab = GamePieces.Prefab(piece);
+            if (!prefab)
+                return null;
+            GameObject ghost;
+            ZNetView.m_forceDisableInit = true;
+            try
+            {
+                ghost = Object.Instantiate(prefab);
+            }
+            finally
+            {
+                ZNetView.m_forceDisableInit = false;
+            }
+            ghost.name = "Cartheim placing " + piece;
+            var ship = ghost.GetComponent<Ship>();
+            if (ship)
+            {
+                if (ship.m_mastObject)
+                    ship.m_mastObject.SetActive(false);
+                if (ship.m_sailObject)
+                    ship.m_sailObject.SetActive(false);
+            }
+            foreach (var joint in ghost.GetComponentsInChildren<Joint>(true))
+                Object.DestroyImmediate(joint);
+            foreach (var body in ghost.GetComponentsInChildren<Rigidbody>(true))
+                Object.DestroyImmediate(body);
+            foreach (var collider in ghost.GetComponentsInChildren<Collider>(true))
+                Object.Destroy(collider);
+            foreach (var behaviour in ghost.GetComponentsInChildren<MonoBehaviour>(true))
+                Object.Destroy(behaviour);
             return ghost;
         }
 
@@ -98,8 +125,12 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!InventoryGui.IsVisible())
                 _inventoryGone = true;
-            if (!player || player.IsDead() || !_cart || (_inventoryGone && InventoryGui.IsVisible()) || Menu.IsVisible() || Minimap.IsOpen())
+            var interrupted = !player ? "no player" : player.IsDead() ? "the player died" : !_cart ? "the cart is gone"
+                : _inventoryGone && InventoryGui.IsVisible() ? "the inventory opened" : Menu.IsVisible() ? "the menu opened"
+                : Minimap.IsOpen() ? "the map opened" : null;
+            if (interrupted != null)
             {
+                Debug.Log($"[Cartheim] Placing interrupted: {interrupted}");
                 Cancel(null);
                 return;
             }
