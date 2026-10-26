@@ -20,9 +20,6 @@ namespace Cartheim.Core
         public List<((float x, float z) from, (float x, float z) to)> Fence;
         // The tarp (the tent's cloth, when the cart has a tent): over this much of the ruin, low at its -x side, high at +x.
         public float TarpMinX, TarpMaxX, TarpMinZ, TarpMaxZ, TarpLow, TarpHigh;
-        // A core wood pole under the tarp's peak, standing on a wall top: the tarp is fitted so its peak is over it (see
-        // TarpFit), keeping its front edge and its width.
-        public float PoleX, PoleZ;
         // The floor inside the walls.
         public float RoomMinX, RoomMaxX, RoomMinZ, RoomMaxZ;
         // A campfire (burning without wood) with a cooking station over it, tucked into a corner under the tarp's high side.
@@ -89,7 +86,6 @@ namespace Cartheim.Core
                     ((3.5f, 6.0f), (3.5f, 4.05f)),
                 },
                 TarpMinX = -4.7f, TarpMaxX = 2.5f, TarpMinZ = -2.3f, TarpMaxZ = 4.4f, TarpLow = 2.55f, TarpHigh = 3.55f,
-                PoleX = -1.0f, PoleZ = 3.2f,
                 RoomMinX = -3.0f, RoomMaxX = 3.0f, RoomMinZ = -1.3f, RoomMaxZ = 2.7f,
                 FireX = 2.2f, FireZ = -0.5f,
                 RugX = -1.0f, RugZ = 0.7f, RugSize = 3.4f,
@@ -132,23 +128,6 @@ namespace Cartheim.Core
                 pieces.Add((from.x + dx * along, from.z + dz * along, yaw));
             }
             return pieces;
-        }
-    }
-}
-
-namespace Cartheim.Core
-{
-    // A tarp's box moved and stretched so the cloth's peak (where it is across and back in the cloth, 0 to 1) lands over a
-    // pole: slid across, keeping its width; stretched back from its front edge, which stays.
-    public static class TarpFit
-    {
-        public static (float minX, float maxX, float minZ, float maxZ) PeakAt(float minX, float maxX, float minZ, float maxZ,
-            float peakAcross, float peakBack, float poleX, float poleZ)
-        {
-            var width = maxX - minX;
-            var newMinX = poleX - peakAcross * width;
-            var newMaxZ = peakBack > 0.05f && poleZ > minZ ? minZ + (poleZ - minZ) / peakBack : maxZ;
-            return (newMinX, newMinX + width, minZ, newMaxZ);
         }
     }
 }

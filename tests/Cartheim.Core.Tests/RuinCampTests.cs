@@ -174,38 +174,6 @@ namespace Cartheim.Core.Tests
         private static float Distance(float x1, float z1, float x2, float z2) =>
             (float)System.Math.Sqrt((x1 - x2) * (x1 - x2) + (z1 - z2) * (z1 - z2));
 
-
-        [Fact]
-        public void The_tarps_pole_stands_on_the_back_walls_stub_under_its_peak()
-        {
-            var camp = RuinCamp.For("StoneHouse4");
-            // The stub of the broken back wall: x -3.35 to -0.64 inside, z 2 to 4.4.
-            Assert.InRange(camp.PoleX, -3.0f, -0.9f);
-            Assert.InRange(camp.PoleZ, 2.3f, 4.0f);
-        }
-
-        [Fact]
-        public void A_tarp_is_fitted_so_its_peak_is_over_the_pole_keeping_its_front_edge_and_its_width()
-        {
-            // The cloth's peak a quarter of the way across and half way back.
-            var (minX, maxX, minZ, maxZ) = TarpFit.PeakAt(-4f, 4f, -2f, 2f, peakAcross: 0.25f, peakBack: 0.5f, poleX: 0f, poleZ: 3f);
-            Assert.Equal(-2f, minX, 3);
-            Assert.Equal(6f, maxX, 3);
-            Assert.Equal(-2f, minZ, 3);
-            Assert.Equal(8f, maxZ, 3);
-        }
-
-        [Fact]
-        public void Fitted_over_the_pole_the_tarp_still_covers_the_fire_and_leaves_the_vent()
-        {
-            var camp = RuinCamp.For("StoneHouse4");
-            // The cloth's peak, as the tent's cloth has it (turned for the tarp): about half way across, 63% of the way back.
-            var (minX, maxX, minZ, maxZ) = TarpFit.PeakAt(camp.TarpMinX, camp.TarpMaxX, camp.TarpMinZ, camp.TarpMaxZ, 0.51f, 0.63f, camp.PoleX, camp.PoleZ);
-            Assert.InRange(camp.FireX, minX, maxX - 0.3f);
-            Assert.InRange(camp.FireZ, minZ, maxZ);
-            Assert.True(camp.RoomMaxX - maxX >= 0.4f);
-            Assert.Equal(camp.TarpMinZ, minZ);
-        }
         [Fact]
         public void A_fence_run_is_covered_end_to_end_with_pieces_turned_along_it()
         {
