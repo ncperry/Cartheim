@@ -24,9 +24,6 @@ namespace Cartheim.Plugin
         // What becomes of a cart afloat when its player dies at sea.
         public static ConfigEntry<SeaDeath> AtSeaDeath;
 
-        // How uneven the ground may be where a Wayside Garden is set out.
-        public static ConfigEntry<float> GardenMaxRise;
-
         private readonly CartTabs _cartTabs = new CartTabs();
         private Harmony _harmony;
         private bool _loggedPieces;
@@ -46,9 +43,6 @@ namespace Cartheim.Plugin
                 "Dying at sea respawns you on land. A cart afloat near where you died can come ashore beside you, its raft " +
                 "packed away, rather than staying out on the water: ComesExceptHardcore (not on a world with the Hardcore " +
                 "preset or death penalty), AlwaysComes, or StaysAtSea.");
-            GardenMaxRise = Config.Bind("Cart", "Garden ground rise", 2.5f,
-                "How much higher (in metres) the ground may be at one place than another across a Wayside Garden (20 m " +
-                "square); on rougher ground it can't be set out. Its fences follow the ground.");
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(CartPatches));
             _harmony.PatchAll(typeof(CartCrafting));

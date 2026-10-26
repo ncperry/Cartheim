@@ -20,7 +20,7 @@ namespace Cartheim.Plugin
         private const string TorchName = "$piece_groundtorchwood";
         private const string CultivatorItem = "Cultivator";
         // How far from the cart a garden's middle may be.
-        public const float Reach = 30f;
+        public const float Reach = 20f;
 
         // A game piece used in the garden: its prefab, its length, the turn that lays it along x, and how far its pivot
         // is above its lowest point (so it stands on the ground, not half in it).
@@ -167,13 +167,26 @@ namespace Cartheim.Plugin
                 (GamePieces.Recipe(_torch.Prefab.name), Garden.TorchSpots().Count),
             };
             if (_crop != null)
-            {
-                var (crops, seedPlants) = Garden.Planting(_crop.SeedPlant);
-                parts.Add((GamePieces.Recipe(_crop.Plant.name), crops));
-                if (_crop.SeedPlant)
-                    parts.Add((GamePieces.Recipe(_crop.SeedPlant.name), seedPlants));
-            }
+                parts.AddRange(Planting(_crop));
             return Garden.Cost(parts.ToArray());
+        }
+
+        // The seeds (and crops planted for seed) a crop's planting takes.
+        private static List<(IEnumerable<ItemCount>, int)> Planting(Crop crop)
+        {
+            var (crops, seedPlants) = Garden.Planting(crop.SeedPlant);
+            var parts = new List<(IEnumerable<ItemCount>, int)> { (GamePieces.Recipe(crop.Plant.name), crops) };
+            if (crop.SeedPlant)
+                parts.Add((GamePieces.Recipe(crop.SeedPlant.name), seedPlants));
+            return parts;
+        }
+
+        // Whether the player has (with the cart's storage) the seeds to plant it.
+        private static bool HasSeedsFor(Player player, Crop crop)
+        {
+            var cost = Garden.Cost(Planting(crop).ToArray());
+            var carried = GamePieces.Carried(player, cost);
+            return player.NoCostCheat() || cost.All(c => carried.TryGetValue(c.Prefab, out var have) && have >= c.Count);
         }
 
         // From the garden tab: which crop to plant (or none), then placing.
@@ -187,7 +200,8 @@ namespace Cartheim.Plugin
             if (!Ready() || !cart)
                 return;
             var options = new List<(string label, Crop crop)> { ("Just the garden", null) };
-            foreach (var crop in _crops)
+            // Only crops the player has the seeds for.
+            foreach (var crop in _crops.Where(c => HasSeedsFor(Player.m_localPlayer, c)))
             {
                 var (crops, seedPlants) = Garden.Planting(crop.SeedPlant);
                 options.Add((crop.SeedPlant ? $"{crop.Name}: {crops}, and {seedPlants} {PlantName(crop.SeedPlant)}" : $"{crop.Name}: {crops}", crop));
@@ -273,15 +287,15 @@ namespace Cartheim.Plugin
         // there, or too dear.
         public static string Problem(Vector3 at, Quaternion facing, CartBase cart, Player player)
         {
-            var half = Garden.Side / 2f;
             var heights = new List<float>();
-            for (var x = -2; x <= 2; x++)
-                for (var z = -2; z <= 2; z++)
-                    heights.Add(Ground(at + facing * new Vector3(x * half / 2f, 0f, z * half / 2f)));
+            for (var x = -1; x <= 1; x++)
+                for (var z = -1; z <= 1; z++)
+                    heights.Add(Ground(at + facing * new Vector3(x * Garden.Width / 2f, 0f, z * Garden.Depth / 2f)));
             var water = ZoneSystem.instance ? ZoneSystem.instance.m_waterLevel : 30f;
             if (!Raft.Ashore(heights.Min(), water))
                 return "The garden needs dry ground";
-            if (!Tent.FlatEnough(heights.ToArray(), Plugin.GardenMaxRise.Value))
+            // As flat as the tent needs.
+            if (!Tent.FlatEnough(heights.ToArray(), Plugin.TentMaxRise.Value))
                 return "The ground is too uneven for a garden";
             if (Vector3.Distance(at, cart.transform.position) > Reach)
                 return "Too far from the cart";

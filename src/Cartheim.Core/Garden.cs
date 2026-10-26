@@ -4,15 +4,16 @@ using System.Linq;
 
 namespace Cartheim.Core
 {
-    // The Wayside Garden: set out by the cart for anyone carrying a cultivator, a square of cultivated ground inside a
+    // The Wayside Garden: set out by the cart for anyone carrying a cultivator, a plot of cultivated ground inside a
     // stone fence with a wooden gate and a standing torch at each front corner, planted with a crop if they like. It
     // stays where it's put, made of real pieces: torn down with the hammer like any fence, which gives back what they
     // cost, so placing one costs exactly its pieces, plus what's planted. The ground stays cultivated.
     public static class Garden
     {
-        // The tab's name, and the side of the square inside the fence (metres).
+        // The tab's name, and the plot inside the fence (metres): its width across the front, with the gate, and its depth.
         public const string Piece = "cartheim_garden";
-        public const float Side = 20f;
+        public const float Width = 4f;
+        public const float Depth = 5f;
 
         // A fence piece or the gate: where its middle is, in the garden's own space (its middle at the origin, its front,
         // with the gate, towards -z), and how it's turned (0 along x, 90 along z).
@@ -24,14 +25,15 @@ namespace Cartheim.Core
 
         public static List<Part> Layout(float fenceLength, float gateWidth)
         {
-            var half = Side / 2f;
+            var w = Width / 2f;
+            var d = Depth / 2f;
             var parts = new List<Part>();
-            parts.AddRange(Run(-half, half, fenceLength).Select(x => new Part { X = x, Z = half }));
-            parts.AddRange(Run(-half, half, fenceLength).Select(z => new Part { X = half, Z = z, Yaw = 90f }));
-            parts.AddRange(Run(-half, half, fenceLength).Select(z => new Part { X = -half, Z = z, Yaw = 90f }));
-            parts.AddRange(Run(-half, -gateWidth / 2f, fenceLength).Select(x => new Part { X = x, Z = -half }));
-            parts.AddRange(Run(gateWidth / 2f, half, fenceLength).Select(x => new Part { X = x, Z = -half }));
-            parts.Add(new Part { X = 0f, Z = -half, Gate = true });
+            parts.AddRange(Run(-w, w, fenceLength).Select(x => new Part { X = x, Z = d }));
+            parts.AddRange(Run(-d, d, fenceLength).Select(z => new Part { X = w, Z = z, Yaw = 90f }));
+            parts.AddRange(Run(-d, d, fenceLength).Select(z => new Part { X = -w, Z = z, Yaw = 90f }));
+            parts.AddRange(Run(-w, -gateWidth / 2f, fenceLength).Select(x => new Part { X = x, Z = -d }));
+            parts.AddRange(Run(gateWidth / 2f, w, fenceLength).Select(x => new Part { X = x, Z = -d }));
+            parts.Add(new Part { X = 0f, Z = -d, Gate = true });
             return parts;
         }
 
@@ -63,8 +65,9 @@ namespace Cartheim.Core
 
         public static List<(float x, float z)> TorchSpots()
         {
-            var at = Side / 2f + TorchOut;
-            return new List<(float, float)> { (-at, -at), (at, -at) };
+            var x = Width / 2f + TorchOut;
+            var z = -(Depth / 2f + TorchOut);
+            return new List<(float, float)> { (-x, z), (x, z) };
         }
 
         // Planted with the garden: a crop that has a seed plant (carrots: carrot seeds grow carrots, and a carrot planted
@@ -75,19 +78,22 @@ namespace Cartheim.Core
         public static (int crops, int seedPlants) Planting(bool hasSeedPlant) =>
             hasSeedPlant ? (Plants - SeedPlants, SeedPlants) : (Plants, 0);
 
-        // Where they're planted: rows of five, as far apart as each needs to grow, in the middle of the garden.
-        private const int PerRow = 5;
+        // Where they're planted: rows of four across, as far apart as each needs to grow, but no nearer the fence than this.
+        private const int PerRow = 4;
+        private const float FromFence = 0.5f;
 
         public static List<(float x, float z)> PlantSpots(int count, float spacing)
         {
             var rows = (count + PerRow - 1) / PerRow;
+            var across = Math.Min(spacing, (Width - 2 * FromFence) / Math.Max(1, PerRow - 1));
+            var along = Math.Min(spacing, (Depth - 2 * FromFence) / Math.Max(1, rows - 1));
             var spots = new List<(float, float)>();
             for (var i = 0; i < count; i++)
             {
                 var row = i / PerRow;
                 var inRow = Math.Min(PerRow, count - row * PerRow);
                 var column = i % PerRow;
-                spots.Add(((column - (inRow - 1) / 2f) * spacing, (row - (rows - 1) / 2f) * spacing));
+                spots.Add(((column - (inRow - 1) / 2f) * across, (row - (rows - 1) / 2f) * along));
             }
             return spots;
         }
@@ -95,13 +101,12 @@ namespace Cartheim.Core
         // Where the ground is cultivated, each spot cultivating about a spacing around it: across the whole inside.
         public static List<(float x, float z)> CultivatePoints(float spacing)
         {
-            var half = Side / 2f;
-            var count = Math.Max(1, (int)Math.Ceiling(Side / spacing));
-            var step = Side / count;
+            var across = Math.Max(1, (int)Math.Ceiling(Width / spacing));
+            var along = Math.Max(1, (int)Math.Ceiling(Depth / spacing));
             var points = new List<(float, float)>();
-            for (var i = 0; i < count; i++)
-                for (var j = 0; j < count; j++)
-                    points.Add((-half + step * (i + 0.5f), -half + step * (j + 0.5f)));
+            for (var i = 0; i < across; i++)
+                for (var j = 0; j < along; j++)
+                    points.Add((-Width / 2f + Width / across * (i + 0.5f), -Depth / 2f + Depth / along * (j + 0.5f)));
             return points;
         }
     }
