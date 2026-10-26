@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Cartheim.Plugin
 {
     // Cartheim's tools for the dev world (see DevWorld): buttons on Valheim Inventory's Dev tab, which finds this class by
-    // its name; and no monsters spawning there.
+    // its name; no monsters spawning there; and the player there unharmed and tireless.
     [HarmonyPatch]
     public static class DevButtons
     {
@@ -68,8 +68,22 @@ namespace Cartheim.Plugin
 
         private static bool Held(params KeyCode[] keys) => keys.Any(BepInEx.UnityInput.Current.GetKey);
 
-        // Nothing spawns in the dev world: the game's spawners do nothing there.
+        // Nothing spawns in the dev world: the game's spawners do nothing there, nor a building's own (the creature at a
+        // spawn point, a nest's).
         [HarmonyPatch(typeof(SpawnSystem), "UpdateSpawning"), HarmonyPrefix]
         private static bool NoMonsters() => !InDevWorld;
+
+        [HarmonyPatch(typeof(CreatureSpawner), "UpdateSpawner"), HarmonyPrefix]
+        private static bool NoBuildingCreatures() => !InDevWorld;
+
+        [HarmonyPatch(typeof(SpawnArea), "UpdateSpawn"), HarmonyPrefix]
+        private static bool NoNestCreatures() => !InDevWorld;
+
+        // The player in the dev world takes no harm (hits, falls, fire, poison) and spends no stamina.
+        [HarmonyPatch(typeof(Character), nameof(Character.Damage)), HarmonyPrefix]
+        private static bool Unharmed(Character __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
+
+        [HarmonyPatch(typeof(Player), nameof(Player.UseStamina)), HarmonyPrefix]
+        private static bool Tireless(Player __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
     }
 }
