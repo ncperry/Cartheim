@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BepInEx.Configuration;
 using Cartheim.Core;
 using HarmonyLib;
@@ -45,18 +46,27 @@ namespace Cartheim.Plugin
         {
             if (_placeBuilding == null || !InDevWorld || !Plugin.Enabled.Value)
                 return;
-            if (_placeBuilding.Value.IsDown())
+            // The keys with modifiers first: Ctrl+F8 is F8 too.
+            if (_tearDown.Value.IsDown())
+            {
+                if (!CartRaft.IsPlacing)
+                    CartRaft.BeginTearDown();
+            }
+            else if (_clearForest.Value.IsDown())
+            {
+                if (!CartRaft.IsPlacing)
+                    CartRaft.BeginClearForest();
+            }
+            else if (_placeBuilding.Value.IsDown() && !Held(KeyCode.LeftControl, KeyCode.RightControl, KeyCode.LeftShift, KeyCode.RightShift))
             {
                 if (DevBuildings.IsOpen)
                     DevBuildings.Close();
                 else if (!CartRaft.IsPlacing)
                     DevBuildings.Choose();
             }
-            else if (_tearDown.Value.IsDown() && !CartRaft.IsPlacing)
-                CartRaft.BeginTearDown();
-            else if (_clearForest.Value.IsDown() && !CartRaft.IsPlacing)
-                CartRaft.BeginClearForest();
         }
+
+        private static bool Held(params KeyCode[] keys) => keys.Any(BepInEx.UnityInput.Current.GetKey);
 
         // Nothing spawns in the dev world: the game's spawners do nothing there.
         [HarmonyPatch(typeof(SpawnSystem), "UpdateSpawning"), HarmonyPrefix]
