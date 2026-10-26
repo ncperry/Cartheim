@@ -80,6 +80,9 @@ namespace Cartheim.Plugin
             _nview.Unregister(TentRpc);
             _nview.Register<bool>(TentRpc, RPC_Tent);
             _bodies = GetComponentsInChildren<Rigidbody>();
+            // Afloat when the world saved: held on its raft from the start, not dropped onto it.
+            if (Rafting)
+                Hold(true);
             All.Add(this);
             InvokeRepeating(nameof(Refresh), 0.5f, 1f);
             Debug.Log($"[Cartheim] Cart {_nview.GetZDO()?.m_uid} ready; health {_ownHealth}, has WearNTear {(bool)_wear}");
@@ -144,6 +147,12 @@ namespace Cartheim.Plugin
             }
             foreach (var rider in _riders.Values.Where(r => r).ToList())
                 CartRiders.Break(rider, transform.position);
+            // Its raft goes with it (its materials are in the refund).
+            if (_raft && _raft.GetComponent<ZNetView>() is ZNetView raftView && raftView.IsValid())
+            {
+                raftView.ClaimOwnership();
+                ZNetScene.instance.Destroy(_raft.gameObject);
+            }
         }
 
         // The containers built into the cart, in panel order, while the mod is on and they are loaded.
@@ -224,6 +233,7 @@ namespace Cartheim.Plugin
 
         private void Update()
         {
+            RideRaft();
             // The fermenter's look shows what's in it.
             var fermenter = Fermenter;
             var fermenterLook = AnchorFor(GamePieces.Fermenter);
@@ -425,6 +435,7 @@ namespace Cartheim.Plugin
         // (not at all, fully upgraded). Only sideways and forwards: the cart still rolls down and up hills under its weight.
         private void FixedUpdate()
         {
+            RideRaft();
             if (_assist <= 0f || !_vagon || !_nview || !_nview.IsValid() || !_nview.IsOwner())
                 return;
             var player = Player.m_localPlayer;
@@ -526,6 +537,7 @@ namespace Cartheim.Plugin
                 CartStorage.Double(_vagon.m_container);
             FindRiders();
             BuildCrates();
+            KeepRaft();
             MarkCrates();
             var on = Plugin.Enabled.Value;
             foreach (var (slot, rider) in _riders)
@@ -678,6 +690,187 @@ namespace Cartheim.Plugin
                 missing.Remove(slot);
                 Debug.Log($"[Cartheim] Cart {uid} carries {slot} {zdo.m_uid}");
             }
+        }
+
+        // Afloat on its raft (see CartRaft): the cart rides it where it stands on its deck, every part of it held still
+        // (kinematic), touching nothing of the raft. The raft is marked with the cart's id, so the cart finds it again after
+        // a world load; one gone for good (sunk) leaves the cart where it is, free again.
+        private const string RaftingKey = "cartheim_rafting";
+        public const string RaftKey = "cartheim_raft_of";
+        private const string RaftAtKey = "cartheim_raft_at";
+        private const string RaftFacingKey = "cartheim_raft_facing";
+        // Marks the cart and what's built into it as out of reach while it's afloat (Valheim Inventory leaves them be).
+        private const string StowedKey = "cartheim_stowed";
+        private const float RaftLostAfter = 30f;
+
+        private Ship _raft;
+        private float _raftMissingSince = -1f;
+        private readonly Dictionary<Rigidbody, bool> _wasKinematic = new Dictionary<Rigidbody, bool>();
+
+        public bool HasRaft => Plugin.Enabled.Value && Upgrades.Has(Raft.Piece);
+        public bool Rafting => _nview && _nview.IsValid() && _nview.GetZDO().GetBool(RaftingKey);
+        public Ship RaftShip => _raft ? _raft : null;
+
+        public void Launch(Vector3 at, Quaternion facing)
+        {
+            var player = Player.m_localPlayer;
+            var prefab = GamePieces.Prefab(Raft.Piece);
+            if (!player || !prefab || Uid() == 0)
+                return;
+            if (!_nview.IsOwner())
+                _nview.ClaimOwnership();
+            var raft = Instantiate(prefab, at, facing);
+            raft.GetComponent<Piece>()?.SetCreator(player.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
+            raft.GetComponent<ZNetView>().GetZDO().Set(RaftKey, Uid());
+            _raft = raft.GetComponent<Ship>();
+            Debug.Log($"[Cartheim] Cart {Uid()} launches its raft at {at}");
+            Board();
+        }
+
+        // Aboard: level with the raft, in its middle, standing on its deck.
+        private void Board()
+        {
+            Hold(true);
+            CartRaft.Dress(_raft);
+            IgnoreRaft();
+            transform.SetPositionAndRotation(_raft.transform.position + Vector3.up * 3f, _raft.transform.rotation);
+            Physics.SyncTransforms();
+            var deck = CartRaft.DeckHeight(_raft);
+            transform.position += Vector3.up * (deck - Bottom() + 0.05f);
+            Physics.SyncTransforms();
+            var zdo = _nview.GetZDO();
+            zdo.Set(RaftAtKey, _raft.transform.InverseTransformPoint(transform.position));
+            zdo.Set(RaftFacingKey, Quaternion.Inverse(_raft.transform.rotation) * transform.rotation);
+            zdo.Set(RaftingKey, true);
+            Debug.Log($"[Cartheim] Cart {Uid()} aboard its raft, its wheels on the deck at {deck:0.00}");
+            Refresh();
+        }
+
+        public void GoAshore(Vector3 at, Quaternion facing)
+        {
+            if (!_nview.IsOwner())
+                _nview.ClaimOwnership();
+            var lift = transform.position.y - Bottom();
+            transform.SetPositionAndRotation(at + Vector3.up * (lift + 0.1f), facing);
+            Physics.SyncTransforms();
+            _nview.GetZDO().Set(RaftingKey, false);
+            Hold(false);
+            if (_raft)
+            {
+                var view = _raft.GetComponent<ZNetView>();
+                if (view && view.IsValid())
+                {
+                    view.ClaimOwnership();
+                    ZNetScene.instance.Destroy(_raft.gameObject);
+                }
+            }
+            _raft = null;
+            Debug.Log($"[Cartheim] Cart {Uid()} put ashore at {at}; its raft packed away");
+            Refresh();
+        }
+
+        // The lowest point of the cart's own solid parts (its wheels).
+        private float Bottom()
+        {
+            var solid = GetComponentsInChildren<Collider>().Where(c => c.enabled && !c.isTrigger).ToList();
+            return solid.Count > 0 ? solid.Min(c => c.bounds.min.y) : transform.position.y;
+        }
+
+        // Every part of the cart moved only by the mod while afloat, and as before once ashore.
+        private void Hold(bool held)
+        {
+            foreach (var body in _bodies.Where(b => b))
+            {
+                if (held && !_wasKinematic.ContainsKey(body))
+                {
+                    _wasKinematic[body] = body.isKinematic;
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                    body.isKinematic = true;
+                }
+                else if (!held && _wasKinematic.TryGetValue(body, out var was))
+                {
+                    body.isKinematic = was;
+                    body.WakeUp();
+                }
+            }
+            if (!held)
+                _wasKinematic.Clear();
+        }
+
+        private void IgnoreRaft()
+        {
+            if (!_raft)
+                return;
+            var mine = GetComponentsInChildren<Collider>(true);
+            foreach (var theirs in _raft.GetComponentsInChildren<Collider>(true))
+                foreach (var collider in mine)
+                    Physics.IgnoreCollision(collider, theirs);
+        }
+
+        // Where it stands on its raft, kept up with the raft.
+        private void RideRaft()
+        {
+            if (!_raft || !Rafting)
+                return;
+            var zdo = _nview.GetZDO();
+            transform.SetPositionAndRotation(_raft.transform.TransformPoint(zdo.GetVec3(RaftAtKey, Vector3.zero)),
+                _raft.transform.rotation * zdo.GetQuaternion(RaftFacingKey, Quaternion.identity));
+        }
+
+        // Afloat: held, its raft found (after a world load) and dressed, and it and its storage marked out of reach.
+        private void KeepRaft()
+        {
+            var rafting = Rafting;
+            if (rafting)
+            {
+                Hold(true);
+                if (!_raft)
+                    FindRaft();
+                if (_raft)
+                {
+                    CartRaft.Dress(_raft);
+                    _raftMissingSince = -1f;
+                }
+                else if (_nview.IsOwner())
+                {
+                    if (_raftMissingSince < 0f)
+                        _raftMissingSince = Time.time;
+                    else if (Time.time - _raftMissingSince > RaftLostAfter)
+                    {
+                        Debug.LogWarning($"[Cartheim] Cart {Uid()}'s raft is gone; the cart is free where it is");
+                        _nview.GetZDO().Set(RaftingKey, false);
+                        Hold(false);
+                        rafting = false;
+                    }
+                }
+            }
+            Stow(gameObject, rafting);
+            foreach (var rider in _riders.Values)
+                if (rider && rider.GetComponent<Container>())
+                    Stow(rider, rafting);
+        }
+
+        private static void Stow(GameObject piece, bool stowed)
+        {
+            var view = piece.GetComponent<ZNetView>();
+            if (view && view.IsValid() && view.IsOwner() && view.GetZDO().GetBool(StowedKey) != stowed)
+                view.GetZDO().Set(StowedKey, stowed);
+        }
+
+        private void FindRaft()
+        {
+            var uid = Uid();
+            if (uid == 0 || !ZNetScene.instance)
+                return;
+            foreach (var pair in Instances(ZNetScene.instance))
+                if (pair.Key != null && pair.Value && pair.Key.GetLong(RaftKey) == uid && pair.Value.GetComponent<Ship>())
+                {
+                    _raft = pair.Value.GetComponent<Ship>();
+                    IgnoreRaft();
+                    Debug.Log($"[Cartheim] Cart {uid} found its raft {pair.Key.m_uid}");
+                    return;
+                }
         }
 
         private const string UidKey = "cartheim_uid";

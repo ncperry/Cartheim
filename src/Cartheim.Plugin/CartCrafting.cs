@@ -200,6 +200,7 @@ namespace Cartheim.Plugin
             piece == GamePieces.Fermenter ? "\n\n<color=orange>Ferments under the cart's roof, wherever the cart goes.</color>" :
             piece == Tent.Piece ? "\n\n<color=orange>Pitch it beside the cart (on fairly flat ground) with the tent button below the station tabs: it keeps the rain off you and your campfire. The cart stays put until you pack it up.</color>" :
             piece == CartUpgrades.ItemStand ? "\n\n<color=orange>Hangs on the front of the roof. Mount whatever you like on it, as on any item stand.</color>" :
+            piece == Raft.Piece ? "\n\n<color=orange>Launch it with the raft button below the station tabs and the cart goes aboard, to be paddled across water (no sail). Afloat, the cart's stations and storage can't be used. Shift+E on the cart puts it ashore and packs the raft away.</color>" :
             "";
 
         // Valheim Inventory's craft counter (how many Craft makes) doesn't apply to upgrades: each is built once. Runs after

@@ -37,6 +37,8 @@ namespace Cartheim.Plugin
         public static void Open(CartBase cart)
         {
             Close();
+            if (cart && cart.Rafting)
+                return;
             var player = Player.m_localPlayer;
             var vagon = cart.GetComponent<Vagon>();
             if (!player || !vagon || !vagon.m_container)

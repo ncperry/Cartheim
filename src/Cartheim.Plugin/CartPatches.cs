@@ -22,6 +22,16 @@ namespace Cartheim.Plugin
         private static bool OpenCartCrafting(Vagon __instance, Humanoid character, bool hold, bool alt, ref bool __result)
         {
             var cart = __instance.GetComponent<CartBase>();
+            // Afloat on its raft: Shift+E puts it ashore; nothing else (no hitching, no stations, no storage).
+            if (cart && cart.Rafting && character == Player.m_localPlayer)
+            {
+                if (!hold && alt)
+                    CartRaft.BeginLanding(cart);
+                else if (!hold)
+                    character.Message(MessageHud.MessageType.Center, "The cart is on its raft: Shift+E to put it ashore");
+                __result = false;
+                return false;
+            }
             // With its tent pitched, the cart can't be hitched: pack the tent up first.
             if (!alt && cart && cart.TentUp)
             {

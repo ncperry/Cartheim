@@ -514,8 +514,9 @@ namespace Cartheim.Plugin
             model.AddComponent<CartPieceHover>().Init(cart, piece);
         }
 
-        // A copy of what the piece shows (its most detailed meshes), and nothing else of it.
-        private static GameObject Model(string piece, Transform parent)
+        // A copy of what the piece shows (its most detailed meshes), and nothing else of it; parts left out (and anything
+        // under them) aren't copied.
+        internal static GameObject Model(string piece, Transform parent, GameObject[] leaveOut = null)
         {
             var prefab = GamePieces.Prefab(piece);
             if (!prefab)
@@ -534,7 +535,7 @@ namespace Cartheim.Plugin
                 var mesh = renderer.GetComponent<MeshFilter>();
                 if (!renderer.enabled || !mesh || !mesh.sharedMesh || lesserDetail.Contains(renderer) || !Shows(renderer.transform, prefab.transform) ||
                     (OnlyParts.TryGetValue(piece, out var only) && !renderer.name.StartsWith(only)) ||
-                    states.Any(s => s && renderer.transform.IsChildOf(s.transform)))
+                    states.Concat(leaveOut ?? new GameObject[0]).Any(s => s && renderer.transform.IsChildOf(s.transform)))
                     continue;
                 var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
                 part.transform.SetParent(holder, false);

@@ -44,6 +44,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartMaterials.CountTheCart));
             _harmony.PatchAll(typeof(CartCrates));
             _harmony.PatchAll(typeof(CartFermenter));
+            _harmony.PatchAll(typeof(CartRaft));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
             foreach (var vagon in FindObjectsByType<Vagon>(UnityEngine.FindObjectsSortMode.None))
                 if (!vagon.GetComponent<CartBase>() && vagon.GetComponent<ZNetView>()?.GetZDO() != null)
@@ -59,6 +60,7 @@ namespace Cartheim.Plugin
                 GamePieces.LogStationPieces();
             }
             CartStorage.Update();
+            CartRaft.Update();
         }
 
         // After every Update, where other mods set up the crafting screen's buttons.
@@ -75,6 +77,7 @@ namespace Cartheim.Plugin
             CartCrafting.Destroy();
             CartStorage.Close();
             CartStorage.DestroyTabs();
+            CartRaft.Cancel(null);
             TentAssets.Release();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);

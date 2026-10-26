@@ -69,6 +69,14 @@ namespace Cartheim.Plugin
         {
             if (!_cart || !Plugin.Enabled.Value || user != Player.m_localPlayer)
                 return false;
+            if (_cart.Rafting)
+            {
+                if (!hold && alt)
+                    CartRaft.BeginLanding(_cart);
+                else if (!hold)
+                    user.Message(MessageHud.MessageType.Center, "The cart is on its raft: Shift+E to put it ashore");
+                return false;
+            }
             // Holding E keeps adding coal, as at a fire; nothing else repeats.
             if (_piece == Cartheim.Core.SteamEngine.Engine && !alt)
             {
@@ -109,7 +117,7 @@ namespace Cartheim.Plugin
         // Resin from the hotbar goes into the sconce, as it would at any sconce.
         public bool UseItem(Humanoid user, ItemDrop.ItemData item)
         {
-            if (!_cart || !Plugin.Enabled.Value)
+            if (!_cart || !Plugin.Enabled.Value || _cart.Rafting)
                 return false;
             var fire = Fire;
             if (fire)

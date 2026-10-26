@@ -29,7 +29,7 @@ namespace Cartheim.Plugin
             var best = Reach;
             foreach (var cart in CartBase.All)
             {
-                if (!cart)
+                if (!cart || cart.Rafting)
                     continue;
                 var distance = Vector3.Distance(cart.transform.position, player.transform.position);
                 if (distance <= best)

@@ -71,6 +71,9 @@ namespace Cartheim.Plugin
             // Last: the tent, pitched or packed up with a click.
             if (cart.HasTent)
                 targets.Add((cart, Cartheim.Core.Tent.Piece, cart.TentUp ? "Tent: click to pack it up (the cart can move again)" : "Tent: click to pitch it beside the cart (the cart then stays put)"));
+            // Then the raft, launched with a click (the cart goes aboard).
+            if (cart.HasRaft && cart.GetComponent<Vagon>() is Vagon vagon)
+                targets.Add((vagon, Cartheim.Core.Raft.Piece, "Raft: click to launch it and put the cart aboard, to paddle it across water"));
             return targets;
         }
 
@@ -100,6 +103,9 @@ namespace Cartheim.Plugin
                     break;
                 case CartBase cart:
                     cart.ToggleTent(player);
+                    break;
+                case Vagon vagon:
+                    CartRaft.BeginLaunch(vagon.GetComponent<CartBase>());
                     break;
             }
         }
