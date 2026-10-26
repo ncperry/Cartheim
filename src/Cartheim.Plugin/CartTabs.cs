@@ -74,6 +74,9 @@ namespace Cartheim.Plugin
             // Then the raft, launched with a click (the cart goes aboard).
             if (cart.HasRaft && cart.GetComponent<Vagon>() is Vagon vagon)
                 targets.Add((vagon, Cartheim.Core.Raft.Piece, "Raft: click to launch it and put the cart aboard, to paddle it across water"));
+            // Then the portal, to the spawn.
+            if (cart.HasPortal && cart.GetComponent<ZNetView>() is ZNetView view)
+                targets.Add((view, Cartheim.Core.Portal.Piece, "Portal: click to go to the spawn (Shift+E on the sacrificial stones there brings you back to a cart)"));
             return targets;
         }
 
@@ -106,6 +109,9 @@ namespace Cartheim.Plugin
                     break;
                 case Vagon vagon:
                     CartRaft.BeginLaunch(vagon.GetComponent<CartBase>());
+                    break;
+                case ZNetView _:
+                    CartPortal.ToSpawn(player);
                     break;
             }
         }

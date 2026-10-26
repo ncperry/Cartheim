@@ -108,6 +108,7 @@ namespace Cartheim.Plugin
             yield return ("Camp", new[] { Tent.Piece });
             yield return ("Item stand (on the roof's front cross)", new[] { CartUpgrades.ItemStand });
             yield return ("Raft (to ford rivers)", new[] { Raft.Piece });
+            yield return ("Portal (to the spawn and back)", new[] { Portal.Piece });
         }
 
         // Every hammer piece that is a crafting station or extends one, as the game has them.

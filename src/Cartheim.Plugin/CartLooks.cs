@@ -52,6 +52,9 @@ namespace Cartheim.Plugin
             // The item stand hangs on the roof's front cross, so after it.
             if (roof != null && upgrades.Has(CartUpgrades.ItemStand))
                 shown.Add(CartUpgrades.ItemStand);
+            // The portal stands on the roof's ridge, so after it too.
+            if (upgrades.Has(Portal.Piece))
+                shown.Add(Portal.Piece);
             if (upgrades.Has(Sconce))
                 shown.Add(Sconce);
             if (upgrades.Has(FeyLights))
@@ -84,6 +87,11 @@ namespace Cartheim.Plugin
                 if (piece == FeyLights)
                 {
                     FeyLightsAcrossTheFront(bed);
+                    continue;
+                }
+                if (piece == Portal.Piece)
+                {
+                    PortalOnTop(bed);
                     continue;
                 }
                 if (piece == CartUpgrades.ItemStand)
@@ -279,6 +287,19 @@ namespace Cartheim.Plugin
         private const float ItemStandSize = 0.45f;
         private const float ItemStandBelowCross = 0f;
         private const float ItemStandOut = 0.08f;
+
+        // A small portal standing on the middle of the roof's ridge, along it; with no roof, in the middle of the cart's bed. It
+        // only shows: its tab takes the player to the spawn.
+        private const float PortalHeight = 0.7f;
+
+        private void PortalOnTop(Bounds bed)
+        {
+            var model = Model(Portal.Piece, Root.transform);
+            if (!model)
+                return;
+            var spot = _ridge.HasValue ? _ridge.Value + Vector3.up * _roofThickness : new Vector3(bed.center.x, bed.min.y + RugLift, bed.center.z);
+            Stand(model, spot, 0.3f, 1f, PortalHeight);
+        }
 
         private void ItemStandOnTheFrontCross()
         {

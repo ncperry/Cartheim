@@ -65,6 +65,8 @@ namespace Cartheim.Plugin
             _yaw = cart.transform.eulerAngles.y;
             _said = null;
             _red = false;
+            var renderers = ghost.GetComponentsInChildren<Renderer>();
+            _ghostLift = renderers.Length > 0 ? ghost.transform.position.y - renderers.Min(r => r.bounds.min.y) : 0f;
             _inventoryGone = false;
             Debug.Log($"[Cartheim] Placing the {(placing == Placing.Raft ? "raft" : "cart ashore")}");
         }
@@ -149,7 +151,8 @@ namespace Cartheim.Plugin
                 Say("Aim at where it goes");
                 return;
             }
-            var ground = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(hit.point) : hit.point.y;
+            // The surface looked at: the bed of the water, or the ground (or rock) the cart would stand on.
+            var ground = hit.point.y;
             var water = ZoneSystem.instance ? ZoneSystem.instance.m_waterLevel : 30f;
             var raft = _cart.RaftShip;
             string problem;
@@ -171,7 +174,8 @@ namespace Cartheim.Plugin
             var facing = Quaternion.Euler(0f, _yaw, 0f);
             _ghost.SetActive(true);
             Redden(problem != null);
-            _ghost.transform.SetPositionAndRotation(at, facing);
+            // The cart's ghost stands on its wheels there, not sunk to its middle.
+            _ghost.transform.SetPositionAndRotation(_placing == Placing.Cart ? at + Vector3.up * _ghostLift : at, facing);
             Say(problem ?? (_placing == Placing.Raft
                 ? "Left click: launch the raft here (the cart goes aboard). Scroll: turn it. Right click: cancel"
                 : "Left click: put the cart ashore here (the raft is packed away). Scroll: turn it. Right click: cancel"));
@@ -188,6 +192,8 @@ namespace Cartheim.Plugin
 
         // Red where it can't go, as the game shows its own ghosts.
         private static bool _red;
+        // How far the ghost's middle is above its lowest point.
+        private static float _ghostLift;
 
         private static void Redden(bool red)
         {

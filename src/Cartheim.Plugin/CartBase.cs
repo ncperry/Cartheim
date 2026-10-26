@@ -10,7 +10,7 @@ namespace Cartheim.Plugin
     // Sits on every cart: keeps its upgrades in the cart's save data, and gives the cart the stations and health they add.
     internal class CartBase : MonoBehaviour
     {
-        private const string SaveKey = "cartheim_upgrades";
+        public const string SaveKey = "cartheim_upgrades";
         private const string AddRpc = "Cartheim_Add";
         private const string AddCoalRpc = "Cartheim_AddCoal";
         private const string TentRpc = "Cartheim_Tent";
@@ -746,6 +746,7 @@ namespace Cartheim.Plugin
         private readonly Dictionary<Rigidbody, bool> _wasKinematic = new Dictionary<Rigidbody, bool>();
 
         public bool HasRaft => Plugin.Enabled.Value && Upgrades.Has(Raft.Piece);
+        public bool HasPortal => Plugin.Enabled.Value && Upgrades.Has(Portal.Piece);
         public bool Rafting => _nview && _nview.IsValid() && _nview.GetZDO().GetBool(RaftingKey);
         public Ship RaftShip => _raft ? _raft : null;
 
