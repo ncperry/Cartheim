@@ -44,11 +44,11 @@ namespace Cartheim.Plugin
             if (!player || !vagon || !vagon.m_container)
                 return;
             _cart = cart;
-            vagon.m_container.Interact(player, false, false);
+            CartPatches.OpenBox(vagon.m_container, player);
             foreach (var container in cart.Containers)
             {
                 Asked.Add(container);
-                container.Interact(player, false, false);
+                CartPatches.OpenBox(container, player);
             }
         }
 
@@ -406,7 +406,7 @@ namespace Cartheim.Plugin
             if (InventoryGui.instance && CurrentContainer(InventoryGui.instance) == target)
                 return;
             _switchingTo = target;
-            target.Interact(player, false, false);
+            CartPatches.OpenBox(target, player);
         }
 
         private static void ShowInPanel(InventoryGui gui, Container container)

@@ -69,6 +69,62 @@ namespace Cartheim.Plugin
             __result += Localization.instance.Localize("\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Cart");
         }
 
+        // The cart's own storage box (its misc crate) is the cart, looked at or used: its body is most of what's aimed at,
+        // and it opened the misc crate when the cart was meant. The misc crate opens with the rest of the storage, on
+        // Shift+E.
+        private static Vagon CartOfBox(Container box)
+        {
+            var vagon = box && Plugin.Enabled.Value ? box.GetComponentInParent<Vagon>() : null;
+            return vagon && vagon.m_container == box && vagon.GetComponent<CartBase>() ? vagon : null;
+        }
+
+        private static bool _openingBox;
+
+        // Opening a cart's storage on purpose (the cart's storage beside its crafting screen, or a crate's tab): the box
+        // opens as a box.
+        public static void OpenBox(Container box, Player player)
+        {
+            _openingBox = true;
+            try
+            {
+                box.Interact(player, false, false);
+            }
+            finally
+            {
+                _openingBox = false;
+            }
+        }
+
+        [HarmonyPatch(typeof(Container), nameof(Container.Interact)), HarmonyPrefix]
+        private static bool BoxIsTheCart(Container __instance, Humanoid character, bool hold, bool alt, ref bool __result)
+        {
+            var vagon = _openingBox ? null : CartOfBox(__instance);
+            if (!vagon)
+                return true;
+            __result = vagon.Interact(character, hold, alt);
+            return false;
+        }
+
+        [HarmonyPatch(typeof(Container), nameof(Container.GetHoverText)), HarmonyPrefix]
+        private static bool BoxSaysCart(Container __instance, ref string __result)
+        {
+            var vagon = CartOfBox(__instance);
+            if (!vagon)
+                return true;
+            __result = vagon.GetHoverText();
+            return false;
+        }
+
+        [HarmonyPatch(typeof(Container), nameof(Container.GetHoverName)), HarmonyPrefix]
+        private static bool BoxNamedCart(Container __instance, ref string __result)
+        {
+            var vagon = CartOfBox(__instance);
+            if (!vagon)
+                return true;
+            __result = vagon.GetHoverName();
+            return false;
+        }
+
         private static readonly System.Reflection.MethodInfo SetMass = AccessTools.Method(typeof(Vagon), "SetMass");
 
         private static float _loggedMass = -1f;
