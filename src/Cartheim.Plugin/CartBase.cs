@@ -290,6 +290,27 @@ namespace Cartheim.Plugin
             Refresh();
         }
 
+        // Stood level, facing as it was: turned upright about its wheels' axle (the middle of its wheels), so they stay on
+        // the ground while its handle comes up off it. By its owner, whose physics moves it.
+        private void Level()
+        {
+            if (!_nview.IsOwner())
+                return;
+            var body = GetComponent<Rigidbody>();
+            var wheels = _bodies.Where(b => b && b != body).ToList();
+            var axle = wheels.Count > 0 ? wheels.Aggregate(Vector3.zero, (sum, b) => sum + b.position) / wheels.Count : transform.position;
+            var level = Quaternion.LookRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized, Vector3.up);
+            var turn = level * Quaternion.Inverse(transform.rotation);
+            Debug.Log($"[Cartheim] Standing cart {Uid()} level: it leaned {Quaternion.Angle(transform.rotation, level):0.0} degrees");
+            transform.SetPositionAndRotation(axle + turn * (transform.position - axle), level);
+            Physics.SyncTransforms();
+            foreach (var each in _bodies.Where(b => b))
+            {
+                each.linearVelocity = Vector3.zero;
+                each.angularVelocity = Vector3.zero;
+            }
+        }
+
         // Held still (while the tent is pitched): the cart's own body frozen where it is; let go, as it was. Its wheels stay
         // free on their joints: frozen just after the cart loads, before they'd settled onto their axles, one stayed askew.
         private void Freeze(bool still)
@@ -530,6 +551,9 @@ namespace Cartheim.Plugin
                 Destroy(_tent);
                 _tent = null;
             }
+            // Stood upright first, so the tent meets its posts square.
+            if (wantTent && !_tent)
+                Level();
             if (wantTent && !_tent && _vagon && TentAssets.Spot(transform, CartLooks.BedOf(_vagon), out var tentAt, out var tentFacing, out _))
             {
                 _tent = TentAssets.Pitch(tentAt, tentFacing, CartLooks.BedOf(_vagon), rug);

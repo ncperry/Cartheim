@@ -14,10 +14,10 @@ namespace Cartheim.Plugin
         private const string TentPart = "TraderTent";
 
         // Haldor's canopy ends (on its mesh's low-x side) in an edge with two boards hanging from it, this far apart along
-        // its z, either side of z = 0; its tall pole stands out at the other side. Pitched by a cart, that edge runs along
+        // its z, either side of z = 0 (as matched in game to the roof posts); its tall pole stands out at the other side. Pitched by a cart, that edge runs along
         // the cart's left side, the boards at the cart's corners, and the pole stands out away from the cart.
         private static readonly Vector3 Edge = new Vector3(0.48f, 0f, 0f);
-        private const float Boards = 3.8f;
+        private const float Boards = 3.4f;
 
         // Squeezed along the cart so its boards meet the cart's corners; this much of Haldor's size out from the cart, and
         // up (so the edge comes level with the cart's eaves).
