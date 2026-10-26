@@ -913,7 +913,9 @@ namespace Cartheim.Plugin
             var prefab = GamePieces.Prefab(WoodShield);
             if (!prefab)
                 return null;
-            var source = prefab.transform.Find("attach") ?? prefab.transform;
+            // The styled look (as held, where the game sets its style), not the look lying on the ground.
+            var styled = prefab.GetComponentInChildren<ItemStyle>(true);
+            var source = styled ? styled.transform : prefab.transform.Find("attach") ?? prefab.transform;
             var shield = new GameObject("Cartheim wall shield");
             var model = new GameObject("model").transform;
             model.SetParent(shield.transform, false);
@@ -931,7 +933,12 @@ namespace Cartheim.Plugin
                 part.transform.localRotation = place.rotation;
                 part.transform.localScale = place.lossyScale;
                 part.GetComponent<MeshFilter>().sharedMesh = mesh.sharedMesh;
-                part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
+                // Its own materials, the style set on them too (as well as the game's way, below).
+                var materials = renderer.sharedMaterials.Select(m => m ? new Material(m) : null).ToArray();
+                foreach (var material in materials.Where(m => m && m.HasProperty(ShaderProps._Style)))
+                    material.SetFloat(ShaderProps._Style, RuinCamp.RedAndWhite);
+                part.GetComponent<MeshRenderer>().sharedMaterials = materials;
+                Debug.Log($"[Cartheim] Wall shield part {renderer.name} (from {source.name}): {string.Join(", ", materials.Where(m => m).Select(m => $"{m.shader.name}{(m.HasProperty(ShaderProps._Style) ? " styled" : "")}"))}");
                 var b = mesh.sharedMesh.bounds;
                 foreach (var x in new[] { b.min.x, b.max.x })
                 foreach (var y in new[] { b.min.y, b.max.y })
