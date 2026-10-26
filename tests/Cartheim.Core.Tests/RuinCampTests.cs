@@ -93,6 +93,8 @@ namespace Cartheim.Core.Tests
             // On the wall's outer face, pointing out, at about head height.
             Assert.True(camp.SconceZ < camp.DoorZ);
             Assert.InRange(camp.SconceHeight, 1.5f, 2.2f);
+            // Out from under the tarp, which ends at the wall's face: a fire with something just above it is smothered.
+            Assert.True(camp.TarpMinZ >= camp.SconceZ);
         }
 
         [Fact]

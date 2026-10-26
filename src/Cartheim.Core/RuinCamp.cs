@@ -85,7 +85,7 @@ namespace Cartheim.Core
                     ((-1.7f, 6.0f), (3.5f, 6.0f)),
                     ((3.5f, 6.0f), (3.5f, 4.05f)),
                 },
-                TarpMinX = -4.7f, TarpMaxX = 2.5f, TarpMinZ = -3.0f, TarpMaxZ = 4.4f, TarpLow = 2.55f, TarpHigh = 3.55f,
+                TarpMinX = -4.7f, TarpMaxX = 2.5f, TarpMinZ = -2.3f, TarpMaxZ = 4.4f, TarpLow = 2.55f, TarpHigh = 3.55f,
                 RoomMinX = -3.0f, RoomMaxX = 3.0f, RoomMinZ = -1.3f, RoomMaxZ = 2.7f,
                 FireX = 2.2f, FireZ = -0.5f,
                 RugX = -1.0f, RugZ = 0.7f, RugSize = 3.4f,
