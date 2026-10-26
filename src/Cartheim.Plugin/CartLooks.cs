@@ -274,10 +274,10 @@ namespace Cartheim.Plugin
             Debug.Log($"[Cartheim] Fey lights across the front: size {b.size}, scale {fit.Scale:0.00}{(fit.Turned ? ", turned" : "")}");
         }
 
-        // The item stand on the front face of the roof's front cross, below where its logs meet, facing out the front. The real
-        // stand shows there itself (see CartRiders), so what's mounted on it shows and is put up and taken down as on any.
+        // The item stand on the front face of the roof's front cross, where its logs meet, facing out the front. The real
+        // stand rides there unseen (see CartRiders): what's mounted on it shows, and is put up and taken down as on any.
         private const float ItemStandSize = 0.45f;
-        private const float ItemStandBelowCross = 0.3f;
+        private const float ItemStandBelowCross = 0f;
         private const float ItemStandOut = 0.08f;
 
         private void ItemStandOnTheFrontCross()

@@ -46,11 +46,11 @@ namespace Cartheim.Plugin
 
         public static void Hide(GameObject piece)
         {
-            // An item stand shows as itself (with what's mounted on it) where it rides; its colliders only catch the player's
-            // look, so it can be hovered and used, never bumping the cart.
+            // An item stand rides where it shows what's mounted on it, the stand itself unseen; its colliders only catch the
+            // player's look, so it can be hovered and used, never bumping the cart.
             var showsItself = ShowsItself(piece);
             foreach (var renderer in piece.GetComponentsInChildren<Renderer>(true))
-                renderer.enabled = showsItself;
+                renderer.enabled = false;
             foreach (var collider in piece.GetComponentsInChildren<Collider>(true))
             {
                 collider.enabled = showsItself;
@@ -80,11 +80,20 @@ namespace Cartheim.Plugin
 
         public static bool ShowsItself(GameObject piece) => Utils.GetPrefabName(piece) == CartUpgrades.ItemStand;
 
+        private static readonly HarmonyLib.AccessTools.FieldRef<ItemStand, GameObject> Mounted =
+            HarmonyLib.AccessTools.FieldRefAccess<ItemStand, GameObject>("m_visualItem");
+
+        // Only what's mounted on the stand shows, and only while it has its spot on the cart.
         private static void ShowOnly(GameObject piece, bool shown)
         {
+            var stand = piece.GetComponent<ItemStand>();
+            var mounted = stand ? Mounted(stand) : null;
             foreach (var renderer in piece.GetComponentsInChildren<Renderer>())
-                if (renderer.enabled != shown)
-                    renderer.enabled = shown;
+            {
+                var show = shown && mounted && renderer.transform.IsChildOf(mounted.transform);
+                if (renderer.enabled != show)
+                    renderer.enabled = show;
+            }
         }
 
         // Lights and mist-clearing follow the mod switch; the piece itself stays, so nothing is lost while it is off.
