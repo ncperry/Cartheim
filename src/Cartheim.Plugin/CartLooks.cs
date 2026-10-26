@@ -110,8 +110,9 @@ namespace Cartheim.Plugin
                     // Behind the forge, mirroring the cauldron ahead of it: the brewing goes together.
                     Stand(model, new Vector3(bed.max.x + 0.3f, floor, bed.min.z + 0.1f), 0.45f, 0.45f, 0.6f);
                 else if (piece == GamePieces.Fermenter)
-                    // A growler standing on the chest, or where the chest would be.
-                    Stand(model, _chestTop ?? new Vector3(cx - w / 4f, floor, bed.min.z - 0.1f), GrowlerWidth, GrowlerWidth, GrowlerHeight);
+                    // A growler standing on the chest, or where the chest would be. Its spigot faces the back of the cart.
+                    Stand(model, _chestTop ?? new Vector3(cx - w / 4f, floor, bed.min.z - 0.1f), GrowlerWidth, GrowlerWidth, GrowlerHeight,
+                        FermenterLook.SpigotBack(GamePieces.Prefab(piece)?.GetComponent<Fermenter>()));
                 else if (piece == "forge")
                     Stand(model, new Vector3(bed.max.x + 0.15f, floor, cz), 0.7f, l * 0.7f, 0.9f);
                 else if (GamePieces.Chests.Contains(piece))
@@ -490,11 +491,15 @@ namespace Cartheim.Plugin
             model.transform.SetParent(parent, false);
             var holder = new GameObject("model").transform;
             holder.SetParent(model.transform, false);
+            // A fermenter's lid, bubbles and full look show by what's in it (see FermenterLook), so they're copied apart.
+            var fermenter = piece == GamePieces.Fermenter ? prefab.GetComponent<Fermenter>() : null;
+            var states = fermenter ? new[] { fermenter.m_fermentingObject, fermenter.m_readyObject, fermenter.m_topObject } : new GameObject[0];
             foreach (var renderer in prefab.GetComponentsInChildren<MeshRenderer>(true))
             {
                 var mesh = renderer.GetComponent<MeshFilter>();
                 if (!renderer.enabled || !mesh || !mesh.sharedMesh || lesserDetail.Contains(renderer) || !Shows(renderer.transform, prefab.transform) ||
-                    (OnlyParts.TryGetValue(piece, out var only) && !renderer.name.StartsWith(only)))
+                    (OnlyParts.TryGetValue(piece, out var only) && !renderer.name.StartsWith(only)) ||
+                    states.Any(s => s && renderer.transform.IsChildOf(s.transform)))
                     continue;
                 var part = new GameObject(renderer.name, typeof(MeshFilter), typeof(MeshRenderer));
                 part.transform.SetParent(holder, false);
@@ -505,6 +510,8 @@ namespace Cartheim.Plugin
                 part.GetComponent<MeshFilter>().sharedMesh = LegShare.TryGetValue(piece, out var legs) ? WithoutLegs(mesh.sharedMesh, place, legs) : mesh.sharedMesh;
                 part.GetComponent<MeshRenderer>().sharedMaterials = renderer.sharedMaterials;
             }
+            if (fermenter)
+                holder.gameObject.AddComponent<FermenterLook>().Copy(fermenter, holder);
             return model;
         }
 

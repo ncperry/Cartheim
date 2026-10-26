@@ -224,6 +224,11 @@ namespace Cartheim.Plugin
 
         private void Update()
         {
+            // The fermenter's look shows what's in it.
+            var fermenter = Fermenter;
+            var fermenterLook = AnchorFor(GamePieces.Fermenter);
+            if (fermenter && fermenterLook && fermenterLook.GetComponent<FermenterLook>() is FermenterLook look)
+                look.Match(fermenter);
             foreach (var (slot, rider) in _riders)
                 if (rider)
                     CartRiders.Follow(rider, transform, AnchorFor(slot));
