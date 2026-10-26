@@ -157,6 +157,51 @@ namespace Cartheim.Plugin
 
         private GameObject Rider(string piece) => _riders.TryGetValue(piece, out var r) && r ? r : null;
 
+        // Each crate built is marked on the cart. The first seven were marked all together, before there were more.
+        private const string CratesBuiltKey = "cartheim_crates_built";
+        private static readonly string[] FirstCrates = { "Building", "Metals", "Food", "Ingredients", "Hides & drops", "Meads", "Gear" };
+        private static string BuiltKey(Crate crate) => "cartheim_crate_built:" + crate.Name;
+
+        private bool Built(Crate crate) =>
+            _nview.GetZDO().GetBool(BuiltKey(crate)) || (_nview.GetZDO().GetBool(CratesBuiltKey) && FirstCrates.Contains(crate.Name));
+
+        // The container a crate is: the cart's own storage for misc, else the wood chest riding in its slot, once loaded.
+        public Container CrateContainer(Crate crate) =>
+            crate == Crates.Misc ? (_vagon ? _vagon.m_container : null) : Rider(crate.Slot)?.GetComponent<Container>();
+
+        // Whether the cart's storage is sorted into crates now: the mod on, Valheim Inventory there to say what type
+        // things are, and every crate loaded.
+        public bool HasCrates => Plugin.Enabled.Value && CartCrates.Available && Crates.All.All(c => CrateContainer(c));
+
+        // The cart's owner builds each of its crates once: an empty wood chest in the crate's slot. After that it's found as
+        // it loads (see FindRiders), never built again, so a crate not loaded yet is never replaced by an empty one.
+        private void BuildCrates()
+        {
+            if (!Plugin.Enabled.Value || !CartCrates.Available || !Player.m_localPlayer || !_nview.IsOwner() || Uid() == 0)
+                return;
+            foreach (var crate in Crates.All.Where(c => c.Slot != null && !Built(c) && !Rider(c.Slot)))
+            {
+                CartRiders.Build(CartCrates.Prefab, transform, _nview.GetZDO().m_uid, Uid(), crate.Slot);
+                _nview.GetZDO().Set(BuiltKey(crate), true);
+                Debug.Log($"[Cartheim] Cart {Uid()} has its {crate.Name} crate now");
+            }
+        }
+
+        // Names each crate, and marks it (and the cart's own storage, the misc crate) with the types it takes; while the
+        // cart has no crates its own storage takes anything.
+        private void MarkCrates()
+        {
+            var sorted = HasCrates;
+            foreach (var crate in Crates.All)
+            {
+                var container = CrateContainer(crate);
+                if (!container)
+                    continue;
+                var zdo = crate == Crates.Misc ? _nview.GetZDO() : container.GetComponent<ZNetView>()?.GetZDO();
+                CartCrates.Mark(container, zdo, sorted || crate != Crates.Misc ? crate : null);
+            }
+        }
+
         // The beehives built into the cart, while the mod is on and they are loaded.
         public List<Beehive> Beehives =>
             Plugin.Enabled.Value
@@ -450,6 +495,8 @@ namespace Cartheim.Plugin
             if (_vagon && _vagon.m_container)
                 CartStorage.Double(_vagon.m_container);
             FindRiders();
+            BuildCrates();
+            MarkCrates();
             var on = Plugin.Enabled.Value;
             foreach (var (slot, rider) in _riders)
                 if (rider)
@@ -561,7 +608,8 @@ namespace Cartheim.Plugin
         // the cart they sit in and given its id.
         private void FindRiders()
         {
-            var missing = ExpectedSlots().Where(slot => !Rider(slot)).ToList();
+            var crates = Crates.All.Where(c => c.Slot != null && Built(c)).Select(c => c.Slot);
+            var missing = ExpectedSlots().Concat(crates).Where(slot => !Rider(slot)).ToList();
             if (missing.Count == 0 || !ZNetScene.instance)
                 return;
             var uid = Uid();
@@ -580,7 +628,7 @@ namespace Cartheim.Plugin
                         Vector3.Distance(zdo.GetPosition(), transform.position) > ClaimDistance)
                         continue;
                     var prefab = Utils.GetPrefabName(view.gameObject);
-                    slot = missing.FirstOrDefault(s => GamePieces.PieceIn(s) == prefab);
+                    slot = missing.FirstOrDefault(s => !Crates.IsSlot(s) && GamePieces.PieceIn(s) == prefab);
                     if (slot == null || uid == 0)
                         continue;
                     view.ClaimOwnership();

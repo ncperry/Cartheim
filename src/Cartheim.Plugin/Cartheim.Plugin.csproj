@@ -37,7 +37,8 @@
     </PackageReference>
   </ItemGroup>
   <!-- ScriptEngine watches BepInEx\scripts and hot-reloads the merged DLL, so a build shows up in a running game. -->
-  <Target Name="CopyToScripts" AfterTargets="ILRepacker">
+  <!-- -p:NoDeploy=true builds without copying, to check it compiles without touching a running game. -->
+  <Target Name="CopyToScripts" AfterTargets="ILRepacker" Condition="'$(NoDeploy)' != 'true'">
     <!-- ScriptEngine refuses to load a DLL without its matching .pdb. -->
     <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ValheimDir)\BepInEx\scripts" />
   </Target>

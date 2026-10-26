@@ -41,13 +41,14 @@ namespace Cartheim.Plugin
             return nearest;
         }
 
-        // The cart's storage: its own, then each container built into it.
+        // The cart's storage: its own, its crates, then each container built into it.
         private static List<Container> StorageOf(CartBase cart)
         {
             var storage = new List<Container>();
             var vagon = cart.GetComponent<Vagon>();
             if (vagon && vagon.m_container)
                 storage.Add(vagon.m_container);
+            storage.AddRange(Crates.All.Where(c => c != Crates.Misc).Select(cart.CrateContainer));
             storage.AddRange(cart.Containers);
             return storage.Where(c => c && c.GetInventory() != null).ToList();
         }

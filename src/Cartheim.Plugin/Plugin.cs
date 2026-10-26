@@ -42,6 +42,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartStorage));
             _harmony.PatchAll(typeof(CartMaterials));
             _harmony.PatchAll(typeof(CartMaterials.CountTheCart));
+            _harmony.PatchAll(typeof(CartCrates));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
             foreach (var vagon in FindObjectsByType<Vagon>(UnityEngine.FindObjectsSortMode.None))
                 if (!vagon.GetComponent<CartBase>() && vagon.GetComponent<ZNetView>()?.GetZDO() != null)
@@ -72,6 +73,7 @@ namespace Cartheim.Plugin
             _cartTabs.Destroy();
             CartCrafting.Destroy();
             CartStorage.Close();
+            CartStorage.DestroyTabs();
             TentAssets.Release();
             foreach (var cart in CartBase.All.ToArray())
                 Destroy(cart);

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Cartheim.Core;
 using HarmonyLib;
+using Jotunn.Managers;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -63,6 +64,17 @@ namespace Cartheim.Plugin
             if (_cart || !Growing.TryGetValue(__instance, out _) || !InventoryGui.IsVisible() || !InventoryGui.instance ||
                 CurrentContainer(InventoryGui.instance) || !Plugin.Enabled.Value)
                 return;
+            // Into one of its crates (an Alt+click files things by type): that crate is the tab shown.
+            if (CartCrates.Find(__instance, out var crateCart, out var crate))
+            {
+                var container = crateCart.CrateContainer(crate);
+                if (container && !Loading(container))
+                {
+                    _changed = crateCart;
+                    _lastCrate = crate;
+                }
+                return;
+            }
             var cart = CartBase.All.FirstOrDefault(c => c && c.GetComponent<Vagon>()?.m_container?.GetInventory() == __instance);
             var storage = cart ? cart.GetComponent<Vagon>().m_container : null;
             if (storage && !Loading(storage))
@@ -71,6 +83,7 @@ namespace Cartheim.Plugin
 
         public static void Update()
         {
+            UpdateCrates();
             if (_changed)
             {
                 var changed = _changed;
@@ -95,7 +108,7 @@ namespace Cartheim.Plugin
             var vagon = _cart.GetComponent<Vagon>();
             var current = gui ? CurrentContainer(gui) : null;
             if (!gui || !player || !InventoryGui.IsVisible() || !Plugin.Enabled.Value ||
-                (current && current != vagon.m_container) ||
+                (current && current != vagon.m_container && !(CartCrates.Find(current.GetInventory(), out var of, out _) && of == _cart)) ||
                 Vector3.Distance(player.transform.position, _cart.transform.position) > gui.m_autoCloseDistance)
             {
                 Close();
@@ -195,8 +208,8 @@ namespace Cartheim.Plugin
                 InventoryWidth(inventory) = width;
                 InventoryHeight(inventory) = height;
             }
-            // The cart's own storage has no end: it grows a row at a time as it fills.
-            if (container.GetComponentInParent<Vagon>())
+            // The cart's own storage has no end, nor its crates: they grow a row at a time as they fill.
+            if (container.GetComponentInParent<Vagon>() || IsCrate(container))
             {
                 if (!Growing.TryGetValue(inventory, out _))
                 {
@@ -211,7 +224,7 @@ namespace Cartheim.Plugin
         // The game's own container this one was made from, if it is a cart's storage or a container built into a cart.
         private static Container Original(Container container)
         {
-            if (container.GetComponentInParent<Vagon>())
+            if (container.GetComponentInParent<Vagon>() || IsCrate(container))
                 return GamePieces.Prefab("Cart")?.GetComponentInChildren<Container>(true);
             var nview = container.GetComponent<ZNetView>();
             var zdo = nview ? nview.GetZDO() : null;
@@ -220,10 +233,25 @@ namespace Cartheim.Plugin
             return GamePieces.Prefab(Utils.GetPrefabName(container.gameObject))?.GetComponent<Container>();
         }
 
+        // One of a cart's crates (by the slot it rides in), sized as the cart's own storage.
+        private static bool IsCrate(Container container)
+        {
+            var nview = container.GetComponent<ZNetView>();
+            var zdo = nview ? nview.GetZDO() : null;
+            return zdo != null && Crates.IsSlot(zdo.GetString(CartRiders.SlotKey, ""));
+        }
+
         // Granted one of the cart's containers: show it in a panel of its own instead of in place of the cart's storage.
         [HarmonyPatch(typeof(Container), "RPC_OpenResponse"), HarmonyPrefix]
         private static bool ShowBeside(Container __instance, bool granted)
         {
+            if (__instance == _switchingTo)
+            {
+                _switchingTo = null;
+                if (granted && InventoryGui.instance)
+                    ShowInPanel(InventoryGui.instance, __instance);
+                return false;
+            }
             if (!Asked.Remove(__instance))
                 return true;
             if (granted && _cart && InventoryGui.instance)
@@ -278,7 +306,135 @@ namespace Cartheim.Plugin
             var rect = (RectTransform)panel.transform;
             var column = (index + 1) % 2;
             var row = (index + 1) / 2;
-            rect.anchoredPosition = main.anchoredPosition + new Vector2(column * (main.rect.width + Gap), -row * (main.rect.height + Gap));
+            // Those below it go below its crate tabs too.
+            var tabs = row > 0 && _tabs && _tabs.activeSelf ? TabSize + 2 * Gap : 0f;
+            rect.anchoredPosition = main.anchoredPosition + new Vector2(column * (main.rect.width + Gap), -row * (main.rect.height + Gap) - tabs);
+        }
+
+        // The crate tabs: a row of icons under the cart's storage panel, one per crate, the one on show unclickable.
+        private const float TabSize = 48f;
+        private static readonly AccessTools.FieldRef<InventoryGui, bool> FirstContainerUpdate =
+            AccessTools.FieldRefAccess<InventoryGui, bool>("m_firstContainerUpdate");
+        private static GameObject _tabs;
+        private static readonly List<(Crate crate, Button tab, UITooltip tooltip)> Tabs = new List<(Crate, Button, UITooltip)>();
+        // The crate last on show, shown again the next time the cart's storage opens; the one asked to open as a tab; the
+        // cart whose storage is open; when its crates are next sorted.
+        private static Crate _lastCrate;
+        private static Container _switchingTo;
+        private static CartBase _openCart;
+        private static float _nextSort;
+        private const float SortEvery = 1f;
+
+        private static void UpdateCrates()
+        {
+            var gui = InventoryGui.instance;
+            var current = gui && InventoryGui.IsVisible() ? CurrentContainer(gui) : null;
+            CartBase cart = null;
+            Crate crate = null;
+            if (current && Plugin.Enabled.Value)
+                CartCrates.Find(current.GetInventory(), out cart, out crate);
+            if (!cart)
+            {
+                if (_tabs)
+                    _tabs.SetActive(false);
+                _openCart = null;
+                return;
+            }
+            if (cart != _openCart)
+            {
+                _openCart = cart;
+                _nextSort = 0f;
+                Debug.Log($"[Cartheim] Cart storage open on its {crate.Name} crate; showing {(_lastCrate ?? crate).Name}");
+                if (_lastCrate != null && _lastCrate != crate)
+                    SwitchTo(cart, _lastCrate);
+            }
+            if (Time.time >= _nextSort)
+            {
+                _nextSort = Time.time + SortEvery;
+                CartCrates.Sort(cart);
+            }
+            EnsureTabs(gui);
+            _tabs.SetActive(true);
+            foreach (var (each, tab, tooltip) in Tabs)
+            {
+                tab.interactable = each != crate;
+                var stacks = cart.CrateContainer(each)?.GetInventory()?.NrOfItems() ?? 0;
+                tooltip.m_text = $"{each.Name} crate: {stacks} {(stacks == 1 ? "stack" : "stacks")}";
+            }
+        }
+
+        // Shows a crate in the cart's storage panel, once the game grants it (as it does opening any chest).
+        private static void SwitchTo(CartBase cart, Crate crate)
+        {
+            var player = Player.m_localPlayer;
+            var target = cart ? cart.CrateContainer(crate) : null;
+            if (!player || !target)
+                return;
+            _lastCrate = crate;
+            if (InventoryGui.instance && CurrentContainer(InventoryGui.instance) == target)
+                return;
+            _switchingTo = target;
+            target.Interact(player, false, false);
+        }
+
+        private static void ShowInPanel(InventoryGui gui, Container container)
+        {
+            var old = CurrentContainer(gui);
+            if (old == container)
+                return;
+            if (old && old.IsOwner())
+                old.SetInUse(false);
+            CurrentContainer(gui) = container;
+            FirstContainerUpdate(gui) = true;
+            Debug.Log($"[Cartheim] Showing the cart's {container.m_name}");
+        }
+
+        private static void EnsureTabs(InventoryGui gui)
+        {
+            if (_tabs)
+                return;
+            _tabs = new GameObject("Cartheim crate tabs", typeof(RectTransform));
+            var rect = (RectTransform)_tabs.transform;
+            rect.SetParent(gui.m_container, false);
+            // Just below the storage panel's bottom edge, from its left.
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -Gap);
+            rect.sizeDelta = new Vector2(Crates.All.Count * (TabSize + Gap), TabSize);
+            Tabs.Clear();
+            for (var i = 0; i < Crates.All.Count; i++)
+            {
+                var crate = Crates.All[i];
+                var corner = new Vector2(0f, 0.5f);
+                var go = GUIManager.Instance.CreateButton("", _tabs.transform, corner, corner, new Vector2(i * (TabSize + Gap) + TabSize / 2f, 0f), TabSize, TabSize);
+                var icon = new GameObject("icon", typeof(RectTransform), typeof(Image));
+                var iconRect = (RectTransform)icon.transform;
+                iconRect.SetParent(go.transform, false);
+                iconRect.anchorMin = Vector2.zero;
+                iconRect.anchorMax = Vector2.one;
+                iconRect.offsetMin = new Vector2(5f, 5f);
+                iconRect.offsetMax = new Vector2(-5f, -5f);
+                var image = icon.GetComponent<Image>();
+                image.sprite = ObjectDB.instance?.GetItemPrefab(crate.Icon)?.GetComponent<ItemDrop>()?.m_itemData.GetIcon();
+                image.preserveAspect = true;
+                image.raycastTarget = false;
+                var tooltip = go.AddComponent<UITooltip>();
+                var gameTooltip = gui.m_craftButton.GetComponent<UITooltip>();
+                if (gameTooltip)
+                    tooltip.m_tooltipPrefab = gameTooltip.m_tooltipPrefab;
+                tooltip.m_text = crate.Name;
+                var button = go.GetComponent<Button>();
+                button.onClick.AddListener(() => SwitchTo(_openCart, crate));
+                Tabs.Add((crate, button, tooltip));
+            }
+        }
+
+        public static void DestroyTabs()
+        {
+            if (_tabs)
+                Object.Destroy(_tabs);
+            _tabs = null;
+            Tabs.Clear();
         }
     }
 }
