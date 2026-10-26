@@ -289,6 +289,25 @@ namespace Cartheim.Plugin
             return zdo != null && zdo.GetLong(CampOfKey, 0L) != 0;
         }
 
+        // Why the camp can't be taken down yet, if it can't: something on its cooking station (loaded or not), which would go
+        // with it.
+        public static string Cooking(CartBase cart)
+        {
+            var uid = cart.Uid();
+            if (uid == 0 || ZDOMan.instance == null)
+                return null;
+            var station = GamePieces.Prefab(CookingStation);
+            var slots = station && station.GetComponent<global::CookingStation>() is global::CookingStation cooks ? cooks.m_slots.Length : 0;
+            var hash = CookingStation.GetStableHashCode();
+            foreach (var zdo in Objects(ZDOMan.instance).Values.Where(z => z.GetLong(CampOfKey, 0L) == uid && z.GetPrefab() == hash))
+            {
+                var cooking = Enumerable.Range(0, slots).Count(i => zdo.GetString("slot" + i) != "");
+                if (!RuinCamp.CanTearDown(cooking, zdo.GetFloat(ZDOVars.s_fuel)))
+                    return "Take what's on the cooking station off first";
+            }
+            return null;
+        }
+
         // Everything a cart's camp added, gone (loaded or not), with nothing dropped.
         public static void TearDown(long cartUid)
         {

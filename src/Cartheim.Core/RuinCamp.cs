@@ -49,6 +49,10 @@ namespace Cartheim.Core
 
         public static bool Near(float distance) => distance <= Reach;
 
+        // Back to cart form takes the camp away with nothing back: not while meat (or coal) is on its cooking station, or
+        // fuel in it, which would go with it.
+        public static bool CanTearDown(int itemsCooking, float fuel) => itemsCooking == 0 && fuel <= 0f;
+
         public static RuinCamp For(string location)
         {
             if (string.IsNullOrEmpty(location))

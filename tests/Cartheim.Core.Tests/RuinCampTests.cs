@@ -144,6 +144,14 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void The_camp_isnt_torn_down_while_anything_is_on_its_cooking_station()
+        {
+            Assert.True(RuinCamp.CanTearDown(itemsCooking: 0, fuel: 0f));
+            Assert.False(RuinCamp.CanTearDown(itemsCooking: 1, fuel: 0f));
+            Assert.False(RuinCamp.CanTearDown(itemsCooking: 0, fuel: 1f));
+        }
+
+        [Fact]
         public void A_cart_settles_into_a_ruin_within_twenty_metres()
         {
             Assert.True(RuinCamp.Near(20f));

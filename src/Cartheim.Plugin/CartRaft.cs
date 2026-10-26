@@ -80,6 +80,11 @@ namespace Cartheim.Plugin
         // From the ruin tab, settled: put the cart down where it's to stand in cart form, as when putting it ashore.
         public static void BeginLeavingRuin(CartBase cart)
         {
+            if (CartRuin.Cooking(cart) is string busy)
+            {
+                Player.m_localPlayer?.Message(MessageHud.MessageType.Center, busy);
+                return;
+            }
             InventoryGui.instance?.Hide();
             Begin(cart, Placing.LeaveRuin, Ghost("Cart"));
             // What the camp added shows see-through, as it's about to go.
@@ -269,6 +274,13 @@ namespace Cartheim.Plugin
                     : "Left click: put the cart ashore here (the raft is packed away). Scroll: turn it. Right click: cancel"));
             if (problem != null || !UnityInput.Current.GetMouseButtonDown(0))
                 return;
+            // Something put on the cooking station since: not yet, and the camp stays (looked for only on the click, as it
+            // searches the world).
+            if (_placing == Placing.LeaveRuin && CartRuin.Cooking(_cart) is string busy)
+            {
+                Cancel(busy);
+                return;
+            }
             var cart = _cart;
             var placing = _placing;
             Cancel(null);
