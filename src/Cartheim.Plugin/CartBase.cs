@@ -289,7 +289,8 @@ namespace Cartheim.Plugin
                 return;
             if (InRuin)
             {
-                player.Message(MessageHud.MessageType.Center, Camp.HasTarp ? "The cart is settled in a ruin: its tent is the tarp over it" : "The cart is settled at a camp: its tent stays packed");
+                player.Message(MessageHud.MessageType.Center, Camp.HasTarp ? "The cart is settled in a ruin: its tent is the tarp over it"
+                    : Camp.PitchesTent ? "The cart is settled at a camp: its tent stays up while it's there" : "The cart is settled at a camp: its tent stays packed");
                 return;
             }
             if (TentUp)
@@ -585,7 +586,8 @@ namespace Cartheim.Plugin
                 Destroy(_wisp);
                 _wisp = null;
             }
-            var wantTent = on && TentUp;
+            // Up when it's been pitched, or while the cart's settled at a camp that pitches it.
+            var wantTent = on && (TentUp || HasTent && Camp is RuinCamp tented && tented.PitchesTent);
             var rug = GamePieces.Rugs.FirstOrDefault(Upgrades.Has);
             // A rug built while the tent is up goes down when it's pitched again, here and now.
             if (_tent && rug != _tentRug)

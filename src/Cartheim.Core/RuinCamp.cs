@@ -64,6 +64,8 @@ namespace Cartheim.Core
         // recorded.
         public bool HasTarp => Recorded == null;
         public bool HasRoom => Recorded == null;
+        // A recorded camp that pitches the cart's tent beside it (if the cart has one).
+        public bool PitchesTent;
 
         public static bool Near(float distance) => distance <= Reach;
 

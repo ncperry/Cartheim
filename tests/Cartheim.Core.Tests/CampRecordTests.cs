@@ -42,6 +42,7 @@ namespace Cartheim.Core.Tests
             Assert.True(RuinCamp.For("StoneHouse4").HasTarp);
         }
 
+[Fact]        public void The_wood_house_camp_pitches_the_carts_tent_and_its_outer_chair_faces_the_table()        {            var camp = RuinCamp.For("WoodHouse3");            Assert.True(camp.PitchesTent);            Assert.False(CampRecords.Parse("Other", "").PitchesTent);            var outer = camp.Recorded.Where(p => p.Prefab == "piece_chair").OrderByDescending(p => p.X * p.X + p.Z * p.Z).First();            Assert.Equal(149f, outer.Yaw);        }
         [Fact]
         public void The_wood_house_camp_ships_with_the_mod_with_its_table_set_but_not_to_be_eaten_from_but_the_berries()
         {

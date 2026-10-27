@@ -48,6 +48,7 @@ namespace Cartheim.Plugin
             if (camp.Recorded != null)
             {
                 var turn = Turn(ruin, 0f);
+                var bases = GroundBases(ruin, camp);
                 foreach (var recorded in camp.Recorded)
                 {
                     var kind = CartGarden.Measure(GamePieces.Prefab(recorded.Prefab));
@@ -55,7 +56,9 @@ namespace Cartheim.Plugin
                         continue;
                     kind.Lift = 0f;
                     var untouchable = camp.Untouchable.Contains(recorded.Prefab);
-                    yield return (kind, ruin.transform.position + turn * new Vector3(recorded.X, recorded.Y, recorded.Z), Turn(ruin, recorded.Yaw),
+                    var at = ruin.transform.position + turn * new Vector3(recorded.X, 0f, recorded.Z);
+                    at.y = bases[recorded] + recorded.Y;
+                    yield return (kind, at, Turn(ruin, recorded.Yaw),
                         untouchable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(UntouchableKey, true)) : null);
                 }
                 yield break;
@@ -251,6 +254,35 @@ namespace Cartheim.Plugin
                 return true;
             result = "";
             return false;
+        }
+
+        // What each recorded piece's height is measured from, here: for one standing on the ground (recorded at about the
+        // building's ground), the highest ground anywhere under it, so none of it's buried on a slope; for one resting on
+        // another (food on the table, a pole on a pole), the same as the ground piece it's over, so it stays on it.
+        private const float OnTheGround = 0.5f;
+        private const float RestingOnWithin = 2f;
+
+        private static Dictionary<Cartheim.Core.RecordedPiece, float> GroundBases(Location ruin, RuinCamp camp)
+        {
+            var turn = Turn(ruin, 0f);
+            var bases = new Dictionary<Cartheim.Core.RecordedPiece, float>();
+            var standing = camp.Recorded.Where(p => p.Y <= OnTheGround).ToList();
+            foreach (var piece in standing)
+            {
+                var middle = ruin.transform.position + turn * new Vector3(piece.X, 0f, piece.Z);
+                var facing = Turn(ruin, piece.Yaw);
+                var box = CartGarden.Measure(GamePieces.Prefab(piece.Prefab)).Box;
+                var corners = new[] { new Vector3(box.min.x, 0f, box.min.z), new Vector3(box.min.x, 0f, box.max.z), new Vector3(box.max.x, 0f, box.min.z), new Vector3(box.max.x, 0f, box.max.z), Vector3.zero };
+                bases[piece] = corners.Select(c => CartGarden.Ground(middle + facing * c)).Max();
+            }
+            foreach (var piece in camp.Recorded.Where(p => p.Y > OnTheGround))
+            {
+                var under = standing.OrderBy(s => (s.X - piece.X) * (s.X - piece.X) + (s.Z - piece.Z) * (s.Z - piece.Z)).FirstOrDefault();
+                bases[piece] = under != null && Mathf.Sqrt((under.X - piece.X) * (under.X - piece.X) + (under.Z - piece.Z) * (under.Z - piece.Z)) <= RestingOnWithin
+                    ? bases[under]
+                    : CartGarden.Ground(ruin.transform.position + turn * new Vector3(piece.X, 0f, piece.Z));
+            }
+            return bases;
         }
 
         // A sconce on the outside of the front wall either side of the door. It points along its own x, its bracket at the

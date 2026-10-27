@@ -23,10 +23,14 @@ namespace Cartheim.Core
             ["WoodHouse3"] = new[] { "FeastMeadows", "MeadStaminaLingering" },
         };
 
+        // Camps that pitch the cart's tent beside the cart.
+        private static readonly HashSet<string> Tented = new HashSet<string> { "WoodHouse3" };
+
         public static RuinCamp Parse(string name, string text)
         {
             var camp = new RuinCamp { Name = name, Recorded = new List<RecordedPiece>(), Area = 10f };
             camp.Untouchable = new HashSet<string>(SetTable.TryGetValue(name, out var table) ? table : new string[0]);
+            camp.PitchesTent = Tented.Contains(name);
             foreach (var line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
             {
                 if (line.StartsWith("#"))
