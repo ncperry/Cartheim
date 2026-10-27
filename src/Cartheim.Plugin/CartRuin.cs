@@ -485,7 +485,7 @@ namespace Cartheim.Plugin
                     moved[piece] = (Vector3.zero, height - piece.Y);
                     placed[piece] = new Vector3(recordedAt.x, height, recordedAt.z);
                     if (piece.OnTheGround)
-                        LevelUnder.Add((recordedAt, facing, kind.Box, height));
+                        LevelUnder.Add((recordedAt, facing, kind.Box, height + kind.Box.min.y));
                     continue;
                 }
                 var nudges = Nudges();
@@ -532,7 +532,8 @@ namespace Cartheim.Plugin
         }
 
         // Where the ground's to be made to meet the foot of the camp's structure built on it (fences): under each such piece,
-        // at the height its foot stands. Found with the camp's placement, made when it's set up.
+        // at the height its foot stands (its bottom: a wall turns about its middle). Found with the camp's placement, made
+        // when it's set up.
         private static readonly List<(Vector3 at, Quaternion facing, Bounds box, float foot)> LevelUnder = new List<(Vector3, Quaternion, Bounds, float)>();
 
         private static void MeetTheGround(RuinCamp camp)

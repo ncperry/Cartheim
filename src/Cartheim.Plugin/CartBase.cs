@@ -988,7 +988,9 @@ namespace Cartheim.Plugin
             if (rug != null)
             {
                 var laid = CartGarden.Measure(GamePieces.Prefab(camp.RugSpot.Prefab)).Box;
-                CartLooks.Rug(room.transform, rug, new Bounds(new Vector3(laid.center.x, 0f, laid.center.z), new Vector3(laid.size.x, 0f, laid.size.z)));
+                var laidRug = CartLooks.Rug(room.transform, rug, new Bounds(new Vector3(laid.center.x, 0f, laid.center.z), new Vector3(laid.size.x, 0f, laid.size.z)));
+                if (laidRug)
+                    Debug.Log($"[Cartheim] The {camp.Name}'s rug drawn with: {string.Join(", ", laidRug.GetComponentsInChildren<Renderer>(true).Select(r => $"{r.name} ({r.GetType().Name}, {(r.enabled && r.gameObject.activeInHierarchy ? "shown" : "hidden")}, {string.Join("/", r.sharedMaterials.Where(m => m).Select(m => m.name + " " + m.shader.name))}, from {r.bounds.min.y:0.00} to {r.bounds.max.y:0.00})"))}; the ground under its middle at {CartGarden.Ground(room.transform.position):0.00}");
                 // No grass growing up through it, out of doors.
                 CartRuin.Grassless(this, (room.transform.TransformPoint(new Vector3(laid.center.x, 0f, laid.center.z)), room.transform.rotation, Mathf.Max(laid.size.x, laid.size.z) / 2f));
             }
