@@ -265,6 +265,7 @@ namespace Cartheim.Plugin
                 }
             }
             KeepSpawnPointOnBed();
+            RestPatches.LiftOutIfInside(this);
             if (_wisp)
                 CartWisp.Float(_wisp, transform);
             // The engine's fire burns in its firebox.

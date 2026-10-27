@@ -58,13 +58,53 @@ namespace Cartheim.Plugin
         {
             if (!__state || __instance.IsAttached())
                 return;
-            var cart = __state.transform;
+            PutBeside(__instance, __state, "Out of the cart's bed");
+        }
+
+        // A player who's got into a roofed cart's body (jumping in over its side) can't jump out under the roof: after a
+        // moment in there, not in its bed, they're put down beside it as from its bed.
+        private const float InsideBefore = 1f;
+        private static CartBase _insideOf;
+        private static float _insideSince;
+
+        internal static void LiftOutIfInside(CartBase cart)
+        {
+            var player = Player.m_localPlayer;
+            var inside = player && cart.HasRoof && !player.IsAttached() && !player.IsDead() && Inside(cart.transform, player.transform.position);
+            if (!inside)
+            {
+                if (_insideOf == cart)
+                    _insideOf = null;
+                return;
+            }
+            if (_insideOf != cart)
+            {
+                _insideOf = cart;
+                _insideSince = Time.time;
+            }
+            else if (Time.time - _insideSince >= InsideBefore)
+            {
+                _insideOf = null;
+                PutBeside(player, cart, "Stuck in the cart's body");
+            }
+        }
+
+        // Within the cart's body, above its floor: its bed, between its sides, under its roof.
+        private static bool Inside(Transform cart, Vector3 feet)
+        {
+            var local = cart.InverseTransformPoint(feet);
+            return Mathf.Abs(local.x) < 0.8f && local.z > -1.3f && local.z < 1.3f && local.y > 0.3f && local.y < 2f;
+        }
+
+        private static void PutBeside(Player player, CartBase cartBase, string why)
+        {
+            var cart = cartBase.transform;
             // The side the player was facing first, so they get out where they look; then the other side, then behind.
-            var facing = Vector3.Dot(__instance.transform.forward, cart.right) >= 0f ? cart.right : -cart.right;
+            var facing = Vector3.Dot(player.transform.forward, cart.right) >= 0f ? cart.right : -cart.right;
             var spots = new[] { facing * GetOutDistance, -facing * GetOutDistance, -cart.forward * GetOutBehind };
             var spot = cart.position + spots[0];
             // With the tent pitched, they wake up under it.
-            if (__state.TentFloor is Vector3 tent)
+            if (cartBase.TentFloor is Vector3 tent)
                 spot = new Vector3(tent.x, StandingHeight(tent, tent.y + LookFromAboveTent), tent.z);
             else
                 foreach (var offset in spots)
@@ -78,15 +118,15 @@ namespace Cartheim.Plugin
                     }
                 }
             // Moved through the body too: moving only the transform, the physics body can put the player back.
-            __instance.transform.position = spot;
-            var body = Body(__instance);
+            player.transform.position = spot;
+            var body = Body(player);
             if (body)
             {
                 body.position = spot;
                 body.linearVelocity = Vector3.zero;
             }
-            Debug.Log($"[Cartheim] Out of the cart's bed (cart at {cart.position}), put beside it at {spot}");
-            __state.StartCoroutine(ReportWhereTheyStand(__instance, spot));
+            Debug.Log($"[Cartheim] {why} (cart at {cart.position}), put beside it at {spot}");
+            cartBase.StartCoroutine(ReportWhereTheyStand(player, spot));
         }
 
         // Where to look down from for what to stand on: above the cart's middle, under any tree; above the tent's floor,
