@@ -71,6 +71,12 @@ namespace Cartheim.Plugin
                     // Left out where nothing near is clear of this building's things.
                     if (!placement.TryGetValue(recorded, out var at))
                         continue;
+                    if (recorded.Wears.Count > 0)
+                    {
+                        var wears = recorded.Wears;
+                        yield return (kind, at, Turn(ruin, recorded.Yaw), built => Wear(built, wears));
+                        continue;
+                    }
                     yield return (kind, at, Turn(ruin, recorded.Yaw),
                         untouchable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(UntouchableKey, true))
                         : takeable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(SetOutKey, number + 1))
@@ -147,6 +153,16 @@ namespace Cartheim.Plugin
             stand.Set(ZDOVars.s_item, string.IsNullOrEmpty(item) ? 0 : item.GetStableHashCode());
             stand.Set(ZDOVars.s_variant, 0);
             stand.Set(ZDOVars.s_quality, 1);
+        }
+
+        // A recorded armour stand in what it wore, slot by slot (a trophy on its head, say), as the game keeps it.
+        private static void Wear(GameObject built, List<(int slot, string item)> wears)
+        {
+            var zdo = built.GetComponent<ZNetView>()?.GetZDO();
+            if (zdo == null)
+                return;
+            foreach (var (slot, item) in wears)
+                zdo.Set((slot + "_item").GetStableHashCode(), item.GetStableHashCode());
         }
 
         // The armour stand in the bronze armour, each piece in the slot that takes its kind, as the game keeps them.
@@ -759,7 +775,12 @@ namespace Cartheim.Plugin
                 _campOf = 0;
             }
             if (camp.Recorded != null)
+            {
                 MendRoofAndDoor(ruin, camp);
+                var cultivated = CartGarden.Cultivate(camp.Cultivated.Select(c => ruin.transform.position + Turn(ruin, 0f) * new Vector3(c.x, 0f, c.z)));
+                if (camp.Cultivated.Count > 0)
+                    Debug.Log($"[Cartheim] The {camp.Name}'s garden ground: cultivated at {cultivated} of {camp.Cultivated.Count} spots (the rest already were)");
+            }
             MakeSpareBed(ruin, camp);
             // Everything built there made good, for good: cosier.
             var mended = Object.FindObjectsByType<WearNTear>(FindObjectsSortMode.None)

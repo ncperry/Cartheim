@@ -346,6 +346,24 @@ namespace Cartheim.Plugin
             _fence.Prefab.GetComponent<Piece>()?.m_placeEffect.Create(at, facing);
         }
 
+        // Ground cultivated at each of these spots that isn't already: how many spots it took.
+        internal static int Cultivate(IEnumerable<Vector3> spots)
+        {
+            if (!Ready())
+                return 0;
+            var done = 0;
+            foreach (var spot in spots)
+            {
+                var at = new Vector3(spot.x, Ground(spot), spot.z);
+                var ground = Heightmap.FindHeightmap(at);
+                if (ground && ground.IsCultivated(at))
+                    continue;
+                Apply(_cultivate, at);
+                done++;
+            }
+            return done;
+        }
+
         // The cultivator's own work at one spot, without its sound (a whole garden at once would be a racket).
         private static void Apply(GameObject terrainOp, Vector3 at)
         {

@@ -11,6 +11,8 @@ namespace Cartheim.Core
     {
         public string Prefab;
         public float X, Y, Z, Yaw;
+        // What an armour stand wears, slot by slot.
+        public List<(int slot, string item)> Wears = new List<(int, string)>();
     }
 
     // Camps set up by hand round a building in the dev world and recorded there (Record camp), shipped with the mod: what the
@@ -55,7 +57,15 @@ namespace Cartheim.Core
                 {
                     Prefab = parts[1], X = Number(parts[2]), Y = Number(parts[3]), Z = Number(parts[4]), Yaw = Number(parts[5]),
                 };
-                if (parts[0] == "cart")
+                if (parts.Length > 7)
+                    foreach (Match worn in Regex.Matches(Regex.Match(parts[7], @"wears ([^;]*)").Groups[1].Value, @"(\d+):(\w+)"))
+                        piece.Wears.Add((int.Parse(worn.Groups[1].Value, CultureInfo.InvariantCulture), worn.Groups[2].Value));
+                if (parts[0] == "ground")
+                {
+                    if (piece.Prefab == Cultivated)
+                        camp.Cultivated.Add((piece.X, piece.Z));
+                }
+                else if (parts[0] == "cart")
                 {
                     camp.CartX = piece.X;
                     camp.CartZ = piece.Z;
@@ -83,6 +93,7 @@ namespace Cartheim.Core
         }
 
         private const string Rug = "rug_";
+        private const string Cultivated = "cultivated";
         private const string Bed = "_bed";
 
         private static float Number(string text) => float.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);

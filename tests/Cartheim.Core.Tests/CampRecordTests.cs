@@ -25,6 +25,26 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void An_armour_stand_in_a_camp_wears_what_it_was_recorded_wearing_slot_by_slot()
+        {
+            var camp = CampRecords.Parse("WoodHouse5",
+                "player | ArmorStand | 4.00 | 0.00 | 1.00 | 90 | ArmorStand | wears 0:TrophyGreydwarf, 3:CapeDeerHide; made of 2 FineWood\n" +
+                "player | ArmorStand | 5.00 | 0.00 | 1.00 | 90 | ArmorStand | made of 2 FineWood\n");
+            Assert.Equal(new[] { (0, "TrophyGreydwarf"), (3, "CapeDeerHide") }, camp.Recorded[0].Wears);
+            Assert.Empty(camp.Recorded[1].Wears);
+        }
+
+        [Fact]
+        public void The_ground_cultivated_at_a_camp_is_cultivated_again_where_it_was()
+        {
+            var camp = CampRecords.Parse("WoodHouse5",
+                "ground | cultivated | 2.00 | 0.00 | -3.50 | 0 | Cultivated | \n" +
+                "ground | cultivated | 2.50 | 0.00 | -3.50 | 0 | Cultivated | \n");
+            Assert.Equal(new[] { (2f, -3.5f), (2.5f, -3.5f) }, camp.Cultivated);
+            Assert.Empty(camp.Recorded);
+        }
+
+        [Fact]
         public void The_cart_stands_where_it_was_recorded_and_the_camp_reaches_as_far_as_the_building()
         {
             var camp = CampRecords.Parse("WoodHouse3", Record);

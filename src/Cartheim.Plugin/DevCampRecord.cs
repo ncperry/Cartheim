@@ -22,6 +22,8 @@ namespace Cartheim.Plugin
 
         public static string Folder => Path.Combine(BepInEx.Paths.ConfigPath, "cartheim-camps");
 
+        private const float CultivatedStep = 0.5f;
+
         // Everything loaded within the building's area and a margin: what it is, whose, where and turned how in the
         // building's own space, what it does, and what's on it. Written to a file named after the building, and the log.
         public static void Record()
@@ -56,6 +58,19 @@ namespace Cartheim.Plugin
                 lines.Add(string.Join(" | ", whose, Utils.GetPrefabName(view.gameObject), local.x.ToString("0.00"), local.y.ToString("0.00"),
                     local.z.ToString("0.00"), yaw.ToString("0"), kinds, OnIt(view)));
             }
+            // The cultivated ground, every half metre of it.
+            var cultivated = 0;
+            for (var x = -reach; x <= reach; x += CultivatedStep)
+                for (var z = -reach; z <= reach; z += CultivatedStep)
+                {
+                    var at = origin.position + Quaternion.Euler(0f, origin.eulerAngles.y, 0f) * new Vector3(x, 0f, z);
+                    var ground = Heightmap.FindHeightmap(at);
+                    if (!ground || !ground.IsCultivated(at))
+                        continue;
+                    lines.Add(string.Join(" | ", "ground", "cultivated", x.ToString("0.00"), "0.00", z.ToString("0.00"), "0", "Cultivated", ""));
+                    cultivated++;
+                }
+            Debug.Log($"[Cartheim] Dev: {cultivated} spots of cultivated ground at {name}");
             Directory.CreateDirectory(Folder);
             var file = Path.Combine(Folder, name + ".camp");
             File.WriteAllLines(file, lines);
@@ -70,6 +85,15 @@ namespace Cartheim.Plugin
             var notes = new List<string>();
             if (view.GetComponent<ItemStand>() is ItemStand stand && stand.HaveAttachment())
                 notes.Add("holds " + (ObjectDB.instance.GetItemPrefab(stand.GetAttachedItem())?.name ?? stand.GetAttachedItem().ToString()));
+            if (view.GetComponent<ArmorStand>() is ArmorStand armour)
+            {
+                var worn = Enumerable.Range(0, armour.m_slots.Count)
+                    .Select(i => (i, item: zdo.GetInt((i + "_item").GetStableHashCode())))
+                    .Where(s => s.item != 0)
+                    .Select(s => $"{s.i}:{ObjectDB.instance.GetItemPrefab(s.item)?.name ?? s.item.ToString()}").ToList();
+                if (worn.Count > 0)
+                    notes.Add("wears " + string.Join(", ", worn));
+            }
             if (view.GetComponent<Fireplace>())
                 notes.Add($"fuel {zdo.GetFloat(ZDOVars.s_fuel):0.0}");
             if (view.GetComponent<Container>() is Container chest && chest.GetInventory() != null)

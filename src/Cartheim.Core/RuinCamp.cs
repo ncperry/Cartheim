@@ -60,6 +60,9 @@ namespace Cartheim.Core
         public List<RecordedPiece> Recorded;
         public float Area = 10f;
         public HashSet<string> Untouchable = new HashSet<string>();
+
+        // A recorded camp's cultivated ground: the points it was found at, in the building's space.
+        public List<(float x, float z)> Cultivated = new List<(float, float)>();
         // A hand-made camp has the cart's tent as a tarp over it, and a room with the rug and bed; a recorded one only what was
         // recorded.
         public bool HasTarp => Recorded == null;
