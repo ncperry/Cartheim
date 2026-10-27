@@ -29,6 +29,7 @@ namespace Cartheim.Plugin
             yield return new KeyValuePair<string, Action>("Fix placed buildings", DevBuildings.PutBackOnGround);
             yield return new KeyValuePair<string, Action>("Record camp", DevCampRecord.Record);
             yield return new KeyValuePair<string, Action>("Copy building to the side", DevCampRecord.CopyToTheSide);
+            yield return new KeyValuePair<string, Action>("Write building templates", DevTemplates.Dump);
         }
 
         // In the dev world, a key for placing a building (opens the biome panel; again, closes it).

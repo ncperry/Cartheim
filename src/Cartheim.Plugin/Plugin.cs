@@ -83,6 +83,7 @@ namespace Cartheim.Plugin
             CartRuinSurvey.Update();
             DevBuildings.Update();
             CampRules.Update();
+            DevTemplates.Update();
             DevButtons.Update();
             TarpTuning.Update();
         }
