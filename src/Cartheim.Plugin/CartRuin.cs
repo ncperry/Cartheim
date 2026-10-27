@@ -496,11 +496,21 @@ namespace Cartheim.Plugin
             return tries.ToArray();
         }
 
-        // The highest ground anywhere under a piece's footprint.
+        // The highest ground anywhere under a piece's footprint: the land, or a floor of the building's over it (looked for
+        // from just above the building's own floor, so not its roof). At, the building's height.
+        private const float FloorsWithin = 1.5f;
+
         private static float Highest(Vector3 at, Quaternion facing, Bounds box)
         {
             var corners = new[] { new Vector3(box.min.x, 0f, box.min.z), new Vector3(box.min.x, 0f, box.max.z), new Vector3(box.max.x, 0f, box.min.z), new Vector3(box.max.x, 0f, box.max.z), Vector3.zero };
-            return corners.Select(c => CartGarden.Ground(at + facing * c)).Max();
+            var solid = LayerMask.GetMask("terrain", "piece", "static_solid");
+            return corners.Select(c =>
+            {
+                var spot = at + facing * c;
+                var land = CartGarden.Ground(spot);
+                return Physics.Raycast(new Vector3(spot.x, at.y + FloorsWithin, spot.z), Vector3.down, out var hit, 2f * FloorsWithin, solid, QueryTriggerInteraction.Ignore)
+                       && !hit.collider.GetComponentInParent<Character>() ? Mathf.Max(land, hit.point.y) : land;
+            }).Max();
         }
 
         // A building's structure (walls, roofs, floors, beams, of wood or stone), as against its furniture and props.

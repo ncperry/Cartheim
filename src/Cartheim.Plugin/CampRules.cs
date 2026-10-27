@@ -96,7 +96,8 @@ namespace Cartheim.Plugin
         [HarmonyPatch(typeof(Aoe), "OnHit"), HarmonyPrefix]
         private static bool NoStings(Aoe __instance, Collider collider, ref bool __result)
         {
-            if (Utils.GetPrefabName(__instance.gameObject) != WildBees || !(collider.GetComponentInParent<Player>() is Player) || !Calm(__instance.transform.position))
+            var hive = __instance.GetComponentInParent<ZNetView>();
+            if (!hive || Utils.GetPrefabName(hive.gameObject) != WildBees || !(collider.GetComponentInParent<Player>() is Player) || !Calm(__instance.transform.position))
                 return true;
             __result = false;
             return false;
@@ -129,7 +130,9 @@ namespace Cartheim.Plugin
             if (Time.time < _next || !Plugin.Enabled.Value)
                 return;
             _next = Time.time + 1f;
-            foreach (var hive in Object.FindObjectsByType<Destructible>(FindObjectsSortMode.None).Where(d => d && Utils.GetPrefabName(d.gameObject) == WildBees))
+            // Found by their bees (a wild hive is no destructible thing, but built like a piece).
+            foreach (var hive in Object.FindObjectsByType<Aoe>(FindObjectsSortMode.None)
+                         .Select(a => a ? a.GetComponentInParent<ZNetView>() : null).Where(v => v && Utils.GetPrefabName(v.gameObject) == WildBees).Distinct())
             {
                 var cart = CampAt(hive.transform.position);
                 var honey = hive.GetComponent<CampHoney>();
