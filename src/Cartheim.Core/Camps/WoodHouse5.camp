@@ -7,9 +7,10 @@ player | Honey | -0.90 | 0.85 | 4.40 | 0 | ItemDrop | designed
 player | Honey | -0.60 | 0.85 | 4.60 | 30 | ItemDrop | designed
 player | Honey | -0.40 | 0.85 | 4.40 | 60 | ItemDrop | designed
 player | piece_bench01 | -0.70 | 0.09 | 5.60 | 0 | Piece | designed
-player | fire_pit | -0.70 | 0.00 | 8.20 | 180 | Fireplace | designed
-player | piece_cookingstation | -0.78 | 0.20 | 8.60 | 180 | CookingStation | designed
-player | piece_cookingstation | -0.77 | 0.20 | 7.75 | 180 | CookingStation | designed
-player | piece_groundtorch_wood | -2.50 | 0.79 | 6.60 | 113 | Fireplace | designed
-player | piece_groundtorch_wood | 1.20 | 0.79 | 6.60 | 113 | Fireplace | designed
+player | fire_pit | 4.60 | 0.00 | -4.00 | 180 | Fireplace | designed
+player | piece_cookingstation | 4.52 | 0.20 | -3.60 | 180 | CookingStation | designed
+player | piece_cookingstation | 4.53 | 0.20 | -4.45 | 180 | CookingStation | designed
+player | piece_bench01 | 4.60 | 0.09 | -5.30 | 0 | Piece | designed
+player | piece_groundtorch_wood | 3.00 | 0.79 | -5.60 | 113 | Fireplace | designed
+player | piece_groundtorch_wood | 6.20 | 0.79 | -5.60 | 113 | Fireplace | designed
 cart | Cart | 4.60 | 0.06 | 0.00 | 180 | Vagon,CartBase | designed

@@ -1,4 +1,4 @@
-# Camp at WoodHouse6: designed from its template (the watchtower: a ring of stakes round it, the fire within), reaching 8.0 m
+# Camp at WoodHouse6: designed from its template (the watchtower: a ring of stakes round it, the fire by the gate), reaching 8.0 m
 # whose | prefab | x | y | z | yaw | what it is | what's on it
 player | piece_sharpstakes | 6.50 | 0.05 | 0.00 | -90.0000 | Piece | designed
 player | piece_sharpstakes | 6.01 | 0.05 | 2.49 | -112.5000 | Piece | designed
@@ -13,14 +13,14 @@ player | piece_sharpstakes | -6.01 | 0.05 | -2.49 | -292.5000 | Piece | designed
 player | piece_sharpstakes | -4.60 | 0.05 | -4.60 | -315.0000 | Piece | designed
 player | piece_sharpstakes | 4.60 | 0.05 | -4.60 | -405.0000 | Piece | designed
 player | piece_sharpstakes | 6.01 | 0.05 | -2.49 | -427.5000 | Piece | designed
-player | fire_pit | 0.00 | 0.00 | 4.20 | 180 | Fireplace | designed
-player | piece_cookingstation | -0.08 | 0.20 | 4.60 | 180 | CookingStation | designed
-player | piece_cookingstation | -0.07 | 0.20 | 3.75 | 180 | CookingStation | designed
-player | piece_bench01 | -1.60 | 0.09 | 4.20 | 90 | Piece | designed
-player | piece_bench01 | 1.60 | 0.09 | 4.20 | 90 | Piece | designed
+player | fire_pit | 3.40 | 0.00 | -8.40 | 180 | Fireplace | designed
+player | piece_cookingstation | 3.32 | 0.20 | -8.00 | 180 | CookingStation | designed
+player | piece_cookingstation | 3.33 | 0.20 | -8.85 | 180 | CookingStation | designed
+player | piece_bench01 | 4.90 | 0.09 | -8.40 | 90 | Piece | designed
+player | piece_bench01 | 3.40 | 0.09 | -9.90 | 0 | Piece | designed
 player | piece_groundtorch_wood | -1.60 | 0.79 | -6.00 | 113 | Fireplace | designed
 player | piece_groundtorch_wood | 1.60 | 0.79 | -6.00 | 113 | Fireplace | designed
-player | wood_pole2 | 3.00 | 1.13 | -3.00 | -121 | Piece | designed
-player | wood_pole2 | 3.00 | 3.13 | -3.00 | -121 | Piece | designed
-player | piece_banner05 | 2.80 | 3.96 | -2.77 | -121 | Piece | designed
+player | wood_pole2 | 3.00 | 1.13 | -3.00 | 135.0000 | Piece | designed
+player | wood_pole2 | 3.00 | 3.13 | -3.00 | 135.0000 | Piece | designed
+player | piece_banner05 | 2.82 | 3.96 | -3.25 | 135.0000 | Piece | designed
 cart | Cart | 0.00 | 0.06 | -10.00 | -90 | Vagon,CartBase | designed

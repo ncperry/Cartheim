@@ -63,6 +63,34 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void The_fire_is_near_enough_the_bed_to_sleep_by()
+        {
+            foreach (var n in Houses)
+            {
+                var camp = RuinCamp.For("WoodHouse" + n);
+                var fire = camp.Recorded.First(p => p.Prefab == "fire_pit");
+                // The bed: where the cart's goes in the building (either of its beds), else in the cart.
+                var beds = new[] { camp.BedSpot, camp.SpareBedSpot }.Where(b => b != null).Select(b => (b.X, b.Z)).ToList();
+                if (beds.Count == 0)
+                    beds.Add((camp.CartX, camp.CartZ));
+                foreach (var (x, z) in beds)
+                    Assert.True(System.Math.Sqrt((fire.X - x) * (fire.X - x) + (fire.Z - z) * (fire.Z - z)) <= 4.5, $"WoodHouse{n}: the fire is too far from the bed");
+            }
+        }
+
+        [Fact]
+        public void A_banner_faces_out_from_its_building()
+        {
+            foreach (var n in new[] { 4, 6 })
+            {
+                var banner = RuinCamp.For("WoodHouse" + n).Recorded.First(p => p.Prefab == "piece_banner05");
+                var yaw = banner.Yaw * System.Math.PI / 180.0;
+                // Facing along its yaw, away from the building's middle.
+                Assert.True(System.Math.Sin(yaw) * banner.X + System.Math.Cos(yaw) * banner.Z > 0, $"WoodHouse{n}");
+            }
+        }
+
+        [Fact]
         public void The_watchtower_is_ringed_with_stakes_but_for_a_way_in()
         {
             var camp = RuinCamp.For("WoodHouse6");

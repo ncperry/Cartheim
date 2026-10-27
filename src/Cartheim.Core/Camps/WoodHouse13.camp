@@ -7,8 +7,8 @@ player | Blueberries | 6.20 | 0.85 | 2.50 | 80 | ItemDrop | designed
 player | Mushroom | 4.80 | 0.05 | -2.60 | 0 | ItemDrop | designed
 player | Mushroom | 5.10 | 0.05 | -2.90 | 70 | ItemDrop | designed
 player | piece_bench01 | 6.00 | 0.09 | 3.70 | 0 | Piece | designed
-player | fire_pit | 7.20 | 0.00 | -0.80 | 180 | Fireplace | designed
-player | piece_cookingstation | 7.12 | 0.20 | -0.40 | 180 | CookingStation | designed
-player | piece_cookingstation | 7.13 | 0.20 | -1.25 | 180 | CookingStation | designed
-player | piece_groundtorch_wood | 5.60 | 0.79 | -3.00 | 113 | Fireplace | designed
+player | fire_pit | -7.20 | 0.00 | 3.50 | 180 | Fireplace | designed
+player | piece_cookingstation | -7.28 | 0.20 | 3.90 | 180 | CookingStation | designed
+player | piece_cookingstation | -7.27 | 0.20 | 3.05 | 180 | CookingStation | designed
+player | piece_groundtorch_wood | -5.60 | 0.79 | 3.00 | 113 | Fireplace | designed
 cart | Cart | -7.20 | 0.06 | -0.50 | 0 | Vagon,CartBase | designed
