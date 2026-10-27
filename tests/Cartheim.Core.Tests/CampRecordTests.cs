@@ -45,13 +45,15 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
-        public void A_piece_recorded_with_the_ground_under_it_stands_that_high_above_the_ground()
+        public void A_piece_recorded_with_the_ground_under_it_stands_that_high_above_the_ground_and_keeps_its_height_in_the_building()
         {
             var camp = CampRecords.Parse("WoodHouse4",
                 "player | ArmorStand | -5.89 | 0.77 | 6.64 | -23 | ArmorStand | wears 2:TrophyGreydwarf; ground 0.65; made of 8 FineWood\n" +
                 "player | stone_fence | -9.30 | 0.63 | -0.81 | 90 | Piece | ground -0.10\n" +
                 "player | fire_pit | 0.04 | 0.00 | -3.03 | 0 | Fireplace | fuel 0.7\n");
             Assert.Equal(new[] { 0.12f, 0.73f, 0f }, camp.Recorded.Select(p => (float)System.Math.Round(p.Y, 2)));
+            // And as high as it stood in the building's own space, for what's built to meet the rest.
+            Assert.Equal(new[] { 0.77f, 0.63f, 0f }, camp.Recorded.Select(p => p.InBuilding));
         }
 
         [Fact]

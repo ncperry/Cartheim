@@ -11,6 +11,8 @@ namespace Cartheim.Core
     {
         public string Prefab;
         public float X, Y, Z, Yaw;
+        // Its height in the building's own space, as recorded (Y is above the ground under it, where that was recorded).
+        public float InBuilding;
         // What an armour stand wears, slot by slot.
         public List<(int slot, string item)> Wears = new List<(int, string)>();
     }
@@ -56,6 +58,7 @@ namespace Cartheim.Core
                 {
                     Prefab = parts[1], X = Number(parts[2]), Y = Number(parts[3]), Z = Number(parts[4]), Yaw = Number(parts[5]),
                 };
+                piece.InBuilding = piece.Y;
                 // Its height above what it stood on, where that was recorded (else above the building's own ground).
                 var under = parts.Length > 7 ? Regex.Match(parts[7], @"(?:^|; )ground (-?[0-9.]+)") : Match.Empty;
                 if (under.Success)

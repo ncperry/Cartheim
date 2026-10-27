@@ -452,8 +452,9 @@ namespace Cartheim.Plugin
         // furniture, other huts): a piece standing on the ground goes where it was recorded unless something of the
         // building's is in the way there, then to the nearest clear spot within reach (turned as recorded), else it's left
         // out; one resting on another (food on the table, a pole on a pole) goes with the one it rests on. The camp's own
-        // structure (a shelter joined to the building) goes where it was recorded, as it's meant to meet the building. Each
-        // stands on the highest ground under it (none of it buried on a slope); what rests on it, as high above that.
+        // structure (a shelter joined to the building, fences) goes where and as high as it was built, as it's meant to meet
+        // the building and itself. Each other piece stands on the highest ground under it (none of it buried on a slope);
+        // what rests on it, as high above that.
         private const float OnTheGround = 0.5f;
         private const float RestingOnWithin = 2f;
         private const float NudgeStep = 0.25f;
@@ -475,9 +476,12 @@ namespace Cartheim.Plugin
                 var facing = Turn(ruin, piece.Yaw);
                 if (Structural(piece.Prefab))
                 {
-                    var ground = Highest(recordedAt, facing, kind.Box);
-                    moved[piece] = (Vector3.zero, ground);
-                    placed[piece] = new Vector3(recordedAt.x, ground + piece.Y, recordedAt.z);
+                    var height = Rigid(ruin, piece);
+                    moved[piece] = (Vector3.zero, height - piece.Y);
+                    placed[piece] = new Vector3(recordedAt.x, height, recordedAt.z);
+                    var off = height - (Highest(recordedAt, facing, kind.Box) + piece.Y);
+                    if (Mathf.Abs(off) > 0.25f)
+                        notes.Add($"{piece.Prefab} at {piece.X:0.0},{piece.Z:0.0} kept {off:+0.00;-0.00} m off the ground here, to meet the rest");
                     continue;
                 }
                 var nudges = Nudges();
@@ -509,7 +513,9 @@ namespace Cartheim.Plugin
                     // With what it rests on: left out with it, moved with it.
                     if (!moved.TryGetValue(under, out var with))
                         continue;
-                    placed[piece] = new Vector3(at.x + with.by.x, with.ground + piece.Y, at.z + with.by.z);
+                    // Built onto the camp's structure: as high as it was built, to meet it.
+                    var height = Structural(piece.Prefab) || Structural(under.Prefab) ? Rigid(ruin, piece) : with.ground + piece.Y;
+                    placed[piece] = new Vector3(at.x + with.by.x, height, at.z + with.by.z);
                 }
                 else
                     placed[piece] = new Vector3(at.x, CartGarden.Ground(at) + piece.Y, at.z);
@@ -518,6 +524,10 @@ namespace Cartheim.Plugin
                 Debug.Log($"[Cartheim] The {camp.Name} camp, fitted to this building: {string.Join("; ", notes)}");
             return placed;
         }
+
+        // The camp's own structure (fences, walls, poles, roofs) is built as one, its pieces meeting each other: each as high
+        // in the building's space as it was built, not each on the ground under it (the ground here differs).
+        private static float Rigid(Location ruin, Cartheim.Core.RecordedPiece piece) => ruin.transform.position.y + piece.InBuilding;
 
         // Where to try a piece: where it was recorded, then round it, nearest first, out to the reach.
         private static Vector3[] Nudges()

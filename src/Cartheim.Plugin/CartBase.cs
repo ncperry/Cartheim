@@ -976,6 +976,7 @@ namespace Cartheim.Plugin
                 var size = CartGarden.Measure(GamePieces.Prefab(camp.RugSpot.Prefab)).Box;
                 var highest = new[] { new Vector3(size.min.x, 0f, size.min.z), new Vector3(size.min.x, 0f, size.max.z), new Vector3(size.max.x, 0f, size.min.z), new Vector3(size.max.x, 0f, size.max.z), size.center }
                     .Select(c => CartGarden.Ground(roomAt + roomTurn * new Vector3(c.x, 0f, c.z))).Max();
+                Debug.Log($"[Cartheim] The {camp.Name}'s rug: the building's floor there at {roomAt.y:0.00}, the highest ground under it at {highest:0.00} (its size {size.size})");
                 roomAt.y = Mathf.Max(roomAt.y, highest + RugAboveGround);
             }
             room.transform.SetPositionAndRotation(roomAt, roomTurn);
