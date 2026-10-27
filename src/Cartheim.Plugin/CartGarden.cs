@@ -378,13 +378,6 @@ namespace Cartheim.Plugin
             return done;
         }
 
-        // The ground made level at this height round a spot (a little more than the half metre between spots), and nothing
-        // else: for a camp's fence to meet it.
-        private const float LevelRadius = 0.8f;
-
-        internal static void Level(Vector3 at) =>
-            OnTheGround(at, LevelRadius + 1f, new TerrainOp.Settings { m_level = true, m_levelRadius = LevelRadius, m_square = false, m_paintCleared = false });
-
         // An operation done on the ground itself, wherever round a spot it reaches (by the ground's owner: this player).
         private static void OnTheGround(Vector3 at, float reach, TerrainOp.Settings settings)
         {

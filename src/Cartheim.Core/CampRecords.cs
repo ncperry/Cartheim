@@ -76,6 +76,12 @@ namespace Cartheim.Core
                     if (piece.Prefab == Cultivated)
                         camp.Cultivated.Add((piece.X, piece.Z));
                 }
+                else if (parts[0] == "flatten")
+                {
+                    var size = Regex.Match(parts.Length > 7 ? parts[7] : "", @"width ([0-9.]+); depth ([0-9.]+)");
+                    if (size.Success)
+                        camp.Flatten.Add(new FlatGround.Area(piece.X, piece.Z, Number(size.Groups[1].Value), Number(size.Groups[2].Value)));
+                }
                 else if (parts[0] == "cart")
                 {
                     camp.CartX = piece.X;

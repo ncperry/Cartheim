@@ -58,6 +58,10 @@ namespace Cartheim.Plugin
                 lines.Add(string.Join(" | ", whose, Utils.GetPrefabName(view.gameObject), local.x.ToString("0.00"), local.y.ToString("0.00"),
                     local.z.ToString("0.00"), yaw.ToString("0"), kinds, whose == "player" && !view.GetComponent<CartRider>() ? Join($"ground {StandsOn(view, origin):0.00}", OnIt(view)) : OnIt(view)));
             }
+            // The ground flattened round it (see DevGround.Flatten), to flatten again where the camp's set up.
+            var flattened = building.GetComponentInParent<LocationProxy>()?.GetComponent<ZNetView>()?.GetZDO()?.GetString(DevGround.FlattenedKey, "");
+            if (!string.IsNullOrEmpty(flattened))
+                lines.Add(flattened);
             // The cultivated ground, every half metre of it.
             var cultivated = 0;
             for (var x = -reach; x <= reach; x += CultivatedStep)

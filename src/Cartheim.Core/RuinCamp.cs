@@ -63,6 +63,9 @@ namespace Cartheim.Core
 
         // A recorded camp's cultivated ground: the points it was found at, in the building's space.
         public List<(float x, float z)> Cultivated = new List<(float, float)>();
+
+        // The ground a recorded camp flattens round its building, at the building's base, before it's set up there.
+        public List<FlatGround.Area> Flatten = new List<FlatGround.Area>();
         // A hand-made camp has the cart's tent as a tarp over it, and a room with the rug and bed; a recorded one only what was
         // recorded.
         public bool HasTarp => Recorded == null;

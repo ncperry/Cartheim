@@ -12,13 +12,12 @@ namespace Cartheim.Plugin
         private const float Reach = 15f;
         private const float BeyondBuilding = 15f;
 
-        private static readonly AccessTools.FieldRef<TerrainComp, Heightmap> Map = AccessTools.FieldRefAccess<TerrainComp, Heightmap>("m_hmap");
-        private static readonly AccessTools.FieldRef<TerrainComp, bool[]> HeightChanged = AccessTools.FieldRefAccess<TerrainComp, bool[]>("m_modifiedHeight");
-        private static readonly AccessTools.FieldRef<TerrainComp, float[]> Levelled = AccessTools.FieldRefAccess<TerrainComp, float[]>("m_levelDelta");
-        private static readonly AccessTools.FieldRef<TerrainComp, float[]> Smoothed = AccessTools.FieldRefAccess<TerrainComp, float[]>("m_smoothDelta");
-        private static readonly AccessTools.FieldRef<TerrainComp, bool[]> PaintChanged = AccessTools.FieldRefAccess<TerrainComp, bool[]>("m_modifiedPaint");
-        private static readonly AccessTools.FieldRef<TerrainComp, Color[]> Paint = AccessTools.FieldRefAccess<TerrainComp, Color[]>("m_paintMask");
-        private static readonly System.Reflection.MethodInfo Save = AccessTools.Method(typeof(TerrainComp), "Save");
+        private static Heightmap Map(TerrainComp comp) => GroundWork.Map(comp);
+        private static bool[] HeightChanged(TerrainComp comp) => GroundWork.HeightChanged(comp);
+        private static float[] Levelled(TerrainComp comp) => GroundWork.Levelled(comp);
+        private static float[] Smoothed(TerrainComp comp) => GroundWork.Smoothed(comp);
+        private static bool[] PaintChanged(TerrainComp comp) => GroundWork.PaintChanged(comp);
+        private static Color[] Paint(TerrainComp comp) => GroundWork.Paint(comp);
 
         public static void PutBack()
         {
@@ -27,9 +26,7 @@ namespace Cartheim.Plugin
             if (!player)
                 return;
             // The whole of the building's camp and a margin, wherever round it they stand.
-            var building = Object.FindObjectsByType<Location>(FindObjectsSortMode.None)
-                .Where(l => l && Flat(l.transform.position - player.transform.position) <= Mathf.Max(30f, l.m_exteriorRadius))
-                .OrderBy(l => Flat(l.transform.position - player.transform.position)).FirstOrDefault();
+            var building = BuildingAt(player);
             var here = building ? building.transform.position : player.transform.position;
             var reach = building ? building.m_exteriorRadius + BeyondBuilding : Reach;
             var heights = 0;
@@ -73,12 +70,41 @@ namespace Cartheim.Plugin
                 map.Poke();
                 foreach (var j in unpainted)
                     Paint(comp)[j] = map.GetPaintMask(j % pitch, j / pitch);
-                Save.Invoke(comp, new object[] { false });
+                GroundWork.Save(comp);
             }
             ClutterSystem.instance?.ResetGrass(here, reach);
+            building?.GetComponentInParent<LocationProxy>()?.GetComponent<ZNetView>()?.GetZDO()?.Set(FlattenedKey, "");
             Debug.Log($"[Cartheim] Dev: the ground within {reach:0} m of {here} put back: {heights} heights, {paints} paint marks");
             player.Message(MessageHud.MessageType.Center, $"Ground within {reach:0} m put back as the world made it");
         }
+
+        // The ground round the building the player stands at made flat at its base, out past the building by a margin
+        // each way; the building keeps the area, for its camp's record (see DevCampRecord).
+        private const float FlatBeyondBuilding = 4f;
+        internal const string FlattenedKey = "cartheim_flattened";
+
+        public static void Flatten()
+        {
+            InventoryGui.instance?.Hide();
+            var player = Player.m_localPlayer;
+            var building = player ? BuildingAt(player) : null;
+            if (!building)
+            {
+                player?.Message(MessageHud.MessageType.Center, "Stand at a building to flatten the ground round it");
+                return;
+            }
+            var side = 2f * (building.m_exteriorRadius + FlatBeyondBuilding);
+            var area = new Cartheim.Core.FlatGround.Area(0f, 0f, side, side);
+            var points = GroundWork.Flatten(building, area);
+            building.GetComponentInParent<LocationProxy>()?.GetComponent<ZNetView>()?.GetZDO()?.Set(FlattenedKey, Cartheim.Core.FlatGround.Line(area));
+            player.Message(MessageHud.MessageType.Center, $"Ground flattened {side:0} m square round the building, at its base ({points} points)");
+        }
+
+        // The building the player stands at (its area holds them), else the nearest within 30 m.
+        private static Location BuildingAt(Player player) =>
+            Object.FindObjectsByType<Location>(FindObjectsSortMode.None)
+                .Where(l => l && Flat(l.transform.position - player.transform.position) <= Mathf.Max(30f, l.m_exteriorRadius))
+                .OrderBy(l => Flat(l.transform.position - player.transform.position)).FirstOrDefault();
 
         private static float Flat(Vector3 v) => new Vector2(v.x, v.z).magnitude;
     }
