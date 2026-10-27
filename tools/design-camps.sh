@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Writes the designed camp records (the format Record camp writes) for WoodHouse4-13, from their templates (see DevTemplates):
+# Writes the designed camp records (the format Record camp writes) for WoodHouse5-13 (WoodHouse4 was built by hand and recorded), from their templates (see DevTemplates):
 #   tools/design-camps.sh src/Cartheim.Core/Camps
 out="$1"
 calc() { awk "BEGIN { printf \"%.4f\", $1 }"; }
@@ -28,11 +28,6 @@ banner() { local yaw; yaw=$(calc "atan2($1, $2) * 180 / 3.14159265")
     "$(calc "$2 - 0.30 * sin($yaw * 3.14159265 / 180) + 0.05 * cos($yaw * 3.14159265 / 180)")" "$yaw" Piece; }
 
 # Each camp's fire within 4.5 m of where its bed is (the cart's, or the bed in the building), to sleep by.
-
-# 4: the narrow lean-to, tall as a lookout: a flag flying beside it, benches by the fire in front of the cart, a mead left out.
-{ header WoodHouse4 "the lookout lean-to: a flag beside it, benches by the fire, a mead left out" 8.0
-  fire -4.5 4.0; bench -2.9 4.0 90; bench -6.1 4.0 90; onbench MeadStaminaMinor -2.9 3.8 0
-  torch -3.0 6.0; torch -6.0 6.0; banner 2.2 1.0; cart -4.5 0 0; } > "$out/WoodHouse4.camp"
 
 # 5: the beekeeper's cottage: two hives of the camp's own, honey on the table to take.
 { header WoodHouse5 "the beekeeper's cottage: hives of its own, honey on the table to take" 8.0

@@ -56,7 +56,7 @@ namespace Cartheim.Plugin
                 var kinds = string.Join(",", view.GetComponents<MonoBehaviour>().Select(m => m.GetType().Name)
                     .Where(n => n != "ZNetView" && n != "ZSyncTransform" && n != "WearNTear" && n != "Piece" && n != "LODGroup"));
                 lines.Add(string.Join(" | ", whose, Utils.GetPrefabName(view.gameObject), local.x.ToString("0.00"), local.y.ToString("0.00"),
-                    local.z.ToString("0.00"), yaw.ToString("0"), kinds, OnIt(view)));
+                    local.z.ToString("0.00"), yaw.ToString("0"), kinds, whose == "player" && !view.GetComponent<CartRider>() ? Join($"ground {StandsOn(view, origin):0.00}", OnIt(view)) : OnIt(view)));
             }
             // The cultivated ground, every half metre of it.
             var cultivated = 0;
@@ -78,6 +78,29 @@ namespace Cartheim.Plugin
             player.Message(MessageHud.MessageType.Center, $"Recorded the camp at {name}: {lines.Count - 2} things");
         }
 
+        // The height (in the building's space) of what a piece stands on, found as a camp finds it when putting the piece up
+        // (see CartRuin.Placement): the highest ground or floor of the building's own under any corner of it, not counting
+        // what the player built.
+        private const float FloorsWithin = 1.5f;
+
+        private static float StandsOn(ZNetView view, Transform origin)
+        {
+            var box = CartGarden.Measure(GamePieces.Prefab(Utils.GetPrefabName(view.gameObject))).Box;
+            var turn = Quaternion.Euler(0f, view.transform.eulerAngles.y, 0f);
+            var solid = LayerMask.GetMask("terrain", "piece", "static_solid");
+            var corners = new[] { new Vector3(box.min.x, 0f, box.min.z), new Vector3(box.min.x, 0f, box.max.z), new Vector3(box.max.x, 0f, box.min.z), new Vector3(box.max.x, 0f, box.max.z), Vector3.zero };
+            var highest = corners.Select(c =>
+            {
+                var spot = view.transform.position + turn * c;
+                var floors = Physics.RaycastAll(new Vector3(spot.x, origin.position.y + FloorsWithin, spot.z), Vector3.down, 2f * FloorsWithin, solid, QueryTriggerInteraction.Ignore)
+                    .Where(h => !h.collider.GetComponentInParent<Character>() && !(h.collider.GetComponentInParent<Piece>() is Piece p && p.GetCreator() != 0L))
+                    .Select(h => h.point.y);
+                return floors.Append(CartGarden.Ground(spot)).Max();
+            }).Max();
+            return highest - origin.position.y;
+        }
+
+private static string Join(string first, string rest) => rest == "" ? first : first + "; " + rest;
         // What's on it, as the game keeps it: an item stand's item, a fire's fuel, a container's contents, a hive's honey.
         private static string OnIt(ZNetView view)
         {

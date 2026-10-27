@@ -45,6 +45,25 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_piece_recorded_with_the_ground_under_it_stands_that_high_above_the_ground()
+        {
+            var camp = CampRecords.Parse("WoodHouse4",
+                "player | ArmorStand | -5.89 | 0.77 | 6.64 | -23 | ArmorStand | wears 2:TrophyGreydwarf; ground 0.65; made of 8 FineWood\n" +
+                "player | stone_fence | -9.30 | 0.63 | -0.81 | 90 | Piece | ground -0.10\n" +
+                "player | fire_pit | 0.04 | 0.00 | -3.03 | 0 | Fireplace | fuel 0.7\n");
+            Assert.Equal(new[] { 0.12f, 0.73f, 0f }, camp.Recorded.Select(p => (float)System.Math.Round(p.Y, 2)));
+        }
+
+        [Fact]
+        public void The_fourth_wood_house_camp_ships_with_greydwarf_heads_on_its_stands_and_its_garden_ground_and_no_tent()
+        {
+            var camp = RuinCamp.For("WoodHouse4");
+            Assert.Equal(2, camp.Recorded.Count(p => p.Wears.Contains((2, "TrophyGreydwarf"))));
+            Assert.True(camp.Cultivated.Count > 100);
+            Assert.False(camp.PitchesTent);
+        }
+
+        [Fact]
         public void The_cart_stands_where_it_was_recorded_and_the_camp_reaches_as_far_as_the_building()
         {
             var camp = CampRecords.Parse("WoodHouse3", Record);

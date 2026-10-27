@@ -23,7 +23,6 @@ namespace Cartheim.Core
         private static readonly Dictionary<string, string[]> SetTable = new Dictionary<string, string[]>
         {
             ["WoodHouse3"] = new[] { "FeastMeadows", "MeadStaminaLingering" },
-            ["WoodHouse4"] = new[] { "MeadStaminaMinor" },
             ["WoodHouse7"] = new[] { "QueensJam" },
             ["WoodHouse9"] = new[] { "FeastMeadows", "CookedMeat", "MeadStaminaMinor" },
             ["WoodHouse10"] = new[] { "NeckTailGrilled", "MeadHealthMinor" },
@@ -33,7 +32,7 @@ namespace Cartheim.Core
         // Camps that pitch the cart's tent beside the cart.
         private static readonly HashSet<string> Tented = new HashSet<string>
         {
-            "WoodHouse3", "WoodHouse4", "WoodHouse5", "WoodHouse6", "WoodHouse8", "WoodHouse9", "WoodHouse10", "WoodHouse12", "WoodHouse13",
+            "WoodHouse3", "WoodHouse5", "WoodHouse6", "WoodHouse8", "WoodHouse9", "WoodHouse10", "WoodHouse12", "WoodHouse13",
         };
 
         public static RuinCamp Parse(string name, string text)
@@ -57,6 +56,10 @@ namespace Cartheim.Core
                 {
                     Prefab = parts[1], X = Number(parts[2]), Y = Number(parts[3]), Z = Number(parts[4]), Yaw = Number(parts[5]),
                 };
+                // Its height above what it stood on, where that was recorded (else above the building's own ground).
+                var under = parts.Length > 7 ? Regex.Match(parts[7], @"(?:^|; )ground (-?[0-9.]+)") : Match.Empty;
+                if (under.Success)
+                    piece.Y -= Number(under.Groups[1].Value);
                 if (parts.Length > 7)
                     foreach (Match worn in Regex.Matches(Regex.Match(parts[7], @"wears ([^;]*)").Groups[1].Value, @"(\d+):(\w+)"))
                         piece.Wears.Add((int.Parse(worn.Groups[1].Value, CultureInfo.InvariantCulture), worn.Groups[2].Value));

@@ -24,7 +24,8 @@ namespace Cartheim.Core.Tests
         [Fact]
         public void A_camp_without_a_bed_of_its_own_pitches_the_carts_tent()
         {
-            foreach (var n in Houses)
+            // Not WoodHouse4: built by hand round its fire shelter, it sleeps in the cart's bed.
+            foreach (var n in Houses.Where(n => n != 4))
             {
                 var camp = RuinCamp.For("WoodHouse" + n);
                 Assert.True(camp.BedSpot != null || camp.PitchesTent, $"WoodHouse{n}");
@@ -81,7 +82,7 @@ namespace Cartheim.Core.Tests
         [Fact]
         public void A_banner_faces_out_from_its_building()
         {
-            foreach (var n in new[] { 4, 6 })
+            foreach (var n in new[] { 6 })
             {
                 var banner = RuinCamp.For("WoodHouse" + n).Recorded.First(p => p.Prefab == "piece_banner05");
                 var yaw = banner.Yaw * System.Math.PI / 180.0;
