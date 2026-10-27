@@ -4,11 +4,13 @@ using UnityEngine;
 
 namespace Cartheim.Plugin
 {
-    // In the dev world: the ground round the player put back as the world made it, raised, lowered and painted (dug, paved,
+    // In the dev world: the ground round the building the player stands at (or round them, away from any) put back as the
+    // world made it, raised, lowered and painted (dug, paved,
     // cultivated) nowhere within reach.
     internal static class DevGround
     {
         private const float Reach = 15f;
+        private const float BeyondBuilding = 15f;
 
         private static readonly AccessTools.FieldRef<TerrainComp, Heightmap> Map = AccessTools.FieldRefAccess<TerrainComp, Heightmap>("m_hmap");
         private static readonly AccessTools.FieldRef<TerrainComp, bool[]> HeightChanged = AccessTools.FieldRefAccess<TerrainComp, bool[]>("m_modifiedHeight");
@@ -24,7 +26,12 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!player)
                 return;
-            var here = player.transform.position;
+            // The whole of the building's camp and a margin, wherever round it they stand.
+            var building = Object.FindObjectsByType<Location>(FindObjectsSortMode.None)
+                .Where(l => l && Flat(l.transform.position - player.transform.position) <= Mathf.Max(30f, l.m_exteriorRadius))
+                .OrderBy(l => Flat(l.transform.position - player.transform.position)).FirstOrDefault();
+            var here = building ? building.transform.position : player.transform.position;
+            var reach = building ? building.m_exteriorRadius + BeyondBuilding : Reach;
             var heights = 0;
             var paints = 0;
             foreach (var comp in Object.FindObjectsByType<TerrainComp>(FindObjectsSortMode.None).Where(c => c))
@@ -40,7 +47,7 @@ namespace Cartheim.Plugin
                 for (var i = 0; i < changed.Length; i++)
                 {
                     var at = map.transform.position + new Vector3((i % pitch - half) * map.m_scale, 0f, (i / pitch - half) * map.m_scale);
-                    if (!changed[i] || Flat(at - here) > Reach)
+                    if (!changed[i] || Flat(at - here) > reach)
                         continue;
                     changed[i] = false;
                     Levelled(comp)[i] = 0f;
@@ -51,7 +58,7 @@ namespace Cartheim.Plugin
                 var painted = PaintChanged(comp);
                 for (var j = 0; painted != null && j < painted.Length; j++)
                 {
-                    if (!painted[j] || Flat(map.VertexMaskToWorld(j % pitch, j / pitch) - here) > Reach)
+                    if (!painted[j] || Flat(map.VertexMaskToWorld(j % pitch, j / pitch) - here) > reach)
                         continue;
                     painted[j] = false;
                     Paint(comp)[j] = Color.clear;
@@ -63,9 +70,9 @@ namespace Cartheim.Plugin
                 Save.Invoke(comp, new object[] { false });
                 map.Poke();
             }
-            ClutterSystem.instance?.ResetGrass(here, Reach);
-            Debug.Log($"[Cartheim] Dev: the ground within {Reach} m of {here} put back: {heights} heights, {paints} paint marks");
-            player.Message(MessageHud.MessageType.Center, $"Ground within {Reach:0} m put back as the world made it");
+            ClutterSystem.instance?.ResetGrass(here, reach);
+            Debug.Log($"[Cartheim] Dev: the ground within {reach:0} m of {here} put back: {heights} heights, {paints} paint marks");
+            player.Message(MessageHud.MessageType.Center, $"Ground within {reach:0} m put back as the world made it");
         }
 
         private static float Flat(Vector3 v) => new Vector2(v.x, v.z).magnitude;
