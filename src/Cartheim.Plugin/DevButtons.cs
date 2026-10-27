@@ -195,5 +195,13 @@ namespace Cartheim.Plugin
 
         [HarmonyPatch(typeof(Player), nameof(Player.UseStamina)), HarmonyPrefix]
         private static bool Tireless(Player __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
+
+        // A trophy goes on an armour stand's head, as on a spike.
+        [HarmonyPatch(typeof(ArmorStand), "CanAttach"), HarmonyPostfix]
+        private static void HeadOnASpike(ArmorStand.ArmorStandSlot slot, ItemDrop.ItemData item, ref bool __result)
+        {
+            if (!__result && InDevWorld && slot.m_slot == VisSlot.Helmet && item?.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy)
+                __result = true;
+        }
     }
 }
