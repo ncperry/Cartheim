@@ -972,17 +972,18 @@ namespace Cartheim.Plugin
                 CartLooks.Rug(room.transform, rug, new Bounds(new Vector3(laid.center.x, 0f, laid.center.z), new Vector3(laid.size.x, 0f, laid.size.z)));
             }
             var bed = camp.BedSpot != null ? GamePieces.Beds.FirstOrDefault(Upgrades.Has) : null;
-            if (bed != null)
+            // In place of whichever of the building's beds a bed fits at (none: it stays in the cart).
+            _bedTook = bed != null ? CartRuin.Beds(RuinAt, turn, camp, bed).cart : null;
+            if (_bedTook != null)
             {
-                // In place of whichever of the building's beds a bed fits at.
-                _bedTook = CartRuin.Beds(RuinAt, turn, camp, bed).cart;
                 var (at, facing) = CartRuin.BedInPlaceOf(RuinAt, turn, _bedTook, bed);
+                CartRuin.MakeWayForBed(at, facing, bed);
                 _bedSpot = new GameObject("bed spot").transform;
                 _bedSpot.SetParent(room.transform, false);
                 _bedSpot.SetPositionAndRotation(at, facing);
                 HideBed(_bedTook.Prefab, At(_bedTook));
             }
-            Debug.Log($"[Cartheim] Cart {Uid()}'s room in the {camp.Name}: rug {rug ?? "none"}, bed {bed ?? "none"}{(bed != null ? " in place of its " + camp.BedSpot.Prefab : "")}");
+            Debug.Log($"[Cartheim] Cart {Uid()}'s room in the {camp.Name}: rug {rug ?? "none"}, bed {bed ?? "none"}{(_bedTook != null ? $" in place of its {_bedTook.Prefab} at {_bedTook.X:0.00},{_bedTook.Z:0.00}" : bed != null ? ", kept in the cart (no room for it)" : "")}");
             return room;
         }
 

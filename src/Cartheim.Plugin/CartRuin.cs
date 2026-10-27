@@ -16,6 +16,7 @@ namespace Cartheim.Plugin
     internal static class CartRuin
     {
         private const string CampOfKey = "cartheim_camp_of";
+        private static readonly System.Reflection.MethodInfo Unhitch = AccessTools.Method(typeof(Vagon), "Detach");
         // Set out to look at, not to eat or take (food on a camp's table).
         private const string UntouchableKey = "cartheim_untouchable";
         // Set out to be taken (berries on the table): which of the camp's pieces it is (counted from 1); and, kept by the
@@ -52,7 +53,7 @@ namespace Cartheim.Plugin
             if (camp.Recorded != null)
             {
                 var turn = Turn(ruin, 0f);
-                var bases = GroundBases(ruin, camp);
+                var placement = Placement(ruin, camp);
                 var taken = Taken(ruin);
                 for (var index = 0; index < camp.Recorded.Count; index++)
                 {
@@ -67,8 +68,9 @@ namespace Cartheim.Plugin
                     var untouchable = camp.Untouchable.Contains(recorded.Prefab);
                     var takeable = !untouchable && kind.Prefab.GetComponent<ItemDrop>();
                     var number = index;
-                    var at = ruin.transform.position + turn * new Vector3(recorded.X, 0f, recorded.Z);
-                    at.y = bases[recorded] + recorded.Y;
+                    // Left out where nothing near is clear of this building's things.
+                    if (!placement.TryGetValue(recorded, out var at))
+                        continue;
                     yield return (kind, at, Turn(ruin, recorded.Yaw),
                         untouchable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(UntouchableKey, true))
                         : takeable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(SetOutKey, number + 1))
@@ -313,35 +315,43 @@ namespace Cartheim.Plugin
             return (middle - facing * new Vector3(mine.Box.center.x, 0f, mine.Box.center.z), facing);
         }
 
-        // Which of the building's beds the cart's bed takes the place of, and which is the spare: the first, unless a bed of
-        // ours wouldn't fit there (something of the building's in the way, a chest) and would at the second.
+        // Which of the building's beds the cart's bed takes the place of (the first a bed fits at, clear of the building's
+        // furniture and props: a chest beside it, say), and which is the spare (the other); none for the cart's, if a bed fits
+        // at neither (it stays in the cart).
         internal static (Cartheim.Core.RecordedPiece cart, Cartheim.Core.RecordedPiece spare) Beds(Vector3 ruinAt, Quaternion turn, RuinCamp camp, string ours)
         {
-            if (camp.BedSpot == null || camp.SpareBedSpot == null)
-                return (camp.BedSpot, camp.SpareBedSpot);
-            return !Fits(ruinAt, turn, camp.BedSpot, ours) && Fits(ruinAt, turn, camp.SpareBedSpot, ours)
-                ? (camp.SpareBedSpot, camp.BedSpot)
-                : (camp.BedSpot, camp.SpareBedSpot);
+            var spots = new[] { camp.BedSpot, camp.SpareBedSpot }.Where(s => s != null).ToList();
+            var cart = spots.FirstOrDefault(s => Fits(ruinAt, turn, s, ours));
+            return (cart, spots.FirstOrDefault(s => s != cart));
         }
 
-        // Whether a bed of ours, in place of one of the building's, would stand clear of everything but the floor, rugs, the
-        // building's beds themselves, the cart and what rides in it, and creatures.
+        // Whether a bed of ours, in place of one of the building's, would stand clear of the building's furniture and props
+        // (its walls and sloping roof it may touch). A spare bed a camp made there, unclaimed, isn't in the way: it makes way.
         internal static bool Fits(Vector3 ruinAt, Quaternion turn, Cartheim.Core.RecordedPiece spot, string ours)
         {
             var (at, facing) = BedInPlaceOf(ruinAt, turn, spot, ours);
-            var box = CartGarden.Measure(GamePieces.Prefab(ours)).Box;
-            var middle = at + facing * box.center + Vector3.up * 0.1f;
-            var half = Vector3.Scale(box.extents, new Vector3(0.85f, 0.7f, 0.85f));
-            var terrain = LayerMask.NameToLayer("terrain");
-            var inTheWay = Physics.OverlapBox(middle, half, facing, ~0, QueryTriggerInteraction.Ignore)
-                .Where(c => c.gameObject.layer != terrain && !c.GetComponentInParent<Character>() && !c.GetComponentInParent<Vagon>()
-                            && !c.GetComponentInParent<CartRider>() && !c.GetComponentInParent<ItemDrop>())
-                .Select(c => c.GetComponentInParent<ZNetView>())
-                .Where(v => v && !(Utils.GetPrefabName(v.gameObject) is string name && (name == spot.Prefab || name.StartsWith("wood_floor") || name.StartsWith("rug_"))))
-                .Select(v => Utils.GetPrefabName(v.gameObject)).Distinct().ToList();
+            var inTheWay = Blockers(at, facing, CartGarden.Measure(GamePieces.Prefab(ours)).Box, spot.Prefab, structure: false, alsoIgnore: MakesWay);
             if (inTheWay.Count > 0)
                 Debug.Log($"[Cartheim] A bed in place of the {spot.Prefab} at {spot.X:0.00},{spot.Z:0.00} would meet: {string.Join(", ", inTheWay)}");
             return inTheWay.Count == 0;
+        }
+
+        // A spare bed a camp made (given, or no player's), that no one's claimed.
+        private static bool MakesWay(ZNetView view) =>
+            view.GetComponent<Bed>() && view.GetZDO()?.GetLong(ZDOVars.s_owner, 0L) == 0L &&
+            (IsGiven(view) || view.GetComponent<Piece>() is Piece piece && piece.GetCreator() == 0L);
+
+        // Unclaimed spare beds where the cart's bed is to stand, cleared away for it.
+        internal static void MakeWayForBed(Vector3 at, Quaternion facing, string ours)
+        {
+            var box = CartGarden.Measure(GamePieces.Prefab(ours)).Box;
+            foreach (var view in Physics.OverlapBox(at + facing * box.center, box.extents, facing, ~0, QueryTriggerInteraction.Ignore)
+                         .Select(c => c.GetComponentInParent<ZNetView>()).Where(v => v && v.IsValid() && !v.GetComponent<CartRider>() && MakesWay(v)).Distinct().ToList())
+            {
+                view.ClaimOwnership();
+                ZNetScene.instance.Destroy(view.gameObject);
+                Debug.Log("[Cartheim] A spare bed made way for the cart's");
+            }
         }
 
         // The building's spare bed made a real one, for good: given to it (it stays when the camp's packed up, and gives nothing
@@ -402,33 +412,130 @@ namespace Cartheim.Plugin
             }
             Debug.Log($"[Cartheim] The {camp.Name} made whole overhead and at the door: {(given.Count == 0 ? "nothing missing" : string.Join(", ", given))}");
         }
-        // What each recorded piece's height is measured from, here: for one standing on the ground (recorded at about the
-        // building's ground), the highest ground anywhere under it, so none of it's buried on a slope; for one resting on
-        // another (food on the table, a pole on a pole), the same as the ground piece it's over, so it stays on it.
+        // Where each recorded piece goes at this building, made to fit however this one turned out (its seed can give it other
+        // furniture, other huts): a piece standing on the ground goes where it was recorded unless something of the
+        // building's is in the way there, then to the nearest clear spot within reach (turned as recorded), else it's left
+        // out; one resting on another (food on the table, a pole on a pole) goes with the one it rests on. The camp's own
+        // structure (a shelter joined to the building) goes where it was recorded, as it's meant to meet the building. Each
+        // stands on the highest ground under it (none of it buried on a slope); what rests on it, as high above that.
         private const float OnTheGround = 0.5f;
         private const float RestingOnWithin = 2f;
+        private const float NudgeStep = 0.25f;
+        private const float NudgeReach = 1.5f;
 
-        private static Dictionary<Cartheim.Core.RecordedPiece, float> GroundBases(Location ruin, RuinCamp camp)
+        private static Dictionary<Cartheim.Core.RecordedPiece, Vector3> Placement(Location ruin, RuinCamp camp)
         {
             var turn = Turn(ruin, 0f);
-            var bases = new Dictionary<Cartheim.Core.RecordedPiece, float>();
+            var placed = new Dictionary<Cartheim.Core.RecordedPiece, Vector3>();
+            var moved = new Dictionary<Cartheim.Core.RecordedPiece, (Vector3 by, float ground)>();
+            var notes = new List<string>();
             var standing = camp.Recorded.Where(p => p.Y <= OnTheGround).ToList();
             foreach (var piece in standing)
             {
-                var middle = ruin.transform.position + turn * new Vector3(piece.X, 0f, piece.Z);
+                var kind = CartGarden.Measure(GamePieces.Prefab(piece.Prefab));
+                if (!kind.Prefab)
+                    continue;
+                var recordedAt = ruin.transform.position + turn * new Vector3(piece.X, 0f, piece.Z);
                 var facing = Turn(ruin, piece.Yaw);
-                var box = CartGarden.Measure(GamePieces.Prefab(piece.Prefab)).Box;
-                var corners = new[] { new Vector3(box.min.x, 0f, box.min.z), new Vector3(box.min.x, 0f, box.max.z), new Vector3(box.max.x, 0f, box.min.z), new Vector3(box.max.x, 0f, box.max.z), Vector3.zero };
-                bases[piece] = corners.Select(c => CartGarden.Ground(middle + facing * c)).Max();
+                if (Structural(piece.Prefab))
+                {
+                    var ground = Highest(recordedAt, facing, kind.Box);
+                    moved[piece] = (Vector3.zero, ground);
+                    placed[piece] = new Vector3(recordedAt.x, ground + piece.Y, recordedAt.z);
+                    continue;
+                }
+                var nudges = Nudges();
+                foreach (var by in nudges)
+                {
+                    var at = recordedAt + by;
+                    var ground = Highest(at, facing, kind.Box);
+                    var blockers = Blockers(at + Vector3.up * (ground + piece.Y - at.y), facing, kind.Box, piece.Prefab);
+                    if (blockers.Count > 0 && by != nudges.Last())
+                        continue;
+                    if (blockers.Count > 0)
+                    {
+                        notes.Add($"{piece.Prefab} left out ({string.Join(", ", blockers)} in the way)");
+                        break;
+                    }
+                    moved[piece] = (by, ground);
+                    placed[piece] = new Vector3(at.x, ground + piece.Y, at.z);
+                    if (by != Vector3.zero)
+                        notes.Add($"{piece.Prefab} moved {by.magnitude:0.00} m");
+                    break;
+                }
             }
             foreach (var piece in camp.Recorded.Where(p => p.Y > OnTheGround))
             {
+                var at = ruin.transform.position + turn * new Vector3(piece.X, 0f, piece.Z);
                 var under = standing.OrderBy(s => (s.X - piece.X) * (s.X - piece.X) + (s.Z - piece.Z) * (s.Z - piece.Z)).FirstOrDefault();
-                bases[piece] = under != null && Mathf.Sqrt((under.X - piece.X) * (under.X - piece.X) + (under.Z - piece.Z) * (under.Z - piece.Z)) <= RestingOnWithin
-                    ? bases[under]
-                    : CartGarden.Ground(ruin.transform.position + turn * new Vector3(piece.X, 0f, piece.Z));
+                if (under != null && Mathf.Sqrt((under.X - piece.X) * (under.X - piece.X) + (under.Z - piece.Z) * (under.Z - piece.Z)) <= RestingOnWithin)
+                {
+                    // With what it rests on: left out with it, moved with it.
+                    if (!moved.TryGetValue(under, out var with))
+                        continue;
+                    placed[piece] = new Vector3(at.x + with.by.x, with.ground + piece.Y, at.z + with.by.z);
+                }
+                else
+                    placed[piece] = new Vector3(at.x, CartGarden.Ground(at) + piece.Y, at.z);
             }
-            return bases;
+            if (notes.Count > 0)
+                Debug.Log($"[Cartheim] The {camp.Name} camp, fitted to this building: {string.Join("; ", notes)}");
+            return placed;
+        }
+
+        // Where to try a piece: where it was recorded, then round it, nearest first, out to the reach.
+        private static Vector3[] Nudges()
+        {
+            var tries = new List<Vector3> { Vector3.zero };
+            for (var ring = NudgeStep; ring <= NudgeReach + 0.001f; ring += NudgeStep)
+                for (var i = 0; i < 8; i++)
+                {
+                    var angle = i * Mathf.PI / 4f;
+                    tries.Add(new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * ring);
+                }
+            return tries.ToArray();
+        }
+
+        // The highest ground anywhere under a piece's footprint.
+        private static float Highest(Vector3 at, Quaternion facing, Bounds box)
+        {
+            var corners = new[] { new Vector3(box.min.x, 0f, box.min.z), new Vector3(box.min.x, 0f, box.max.z), new Vector3(box.max.x, 0f, box.min.z), new Vector3(box.max.x, 0f, box.max.z), Vector3.zero };
+            return corners.Select(c => CartGarden.Ground(at + facing * c)).Max();
+        }
+
+        // A building's structure (walls, roofs, floors, beams, of wood or stone), as against its furniture and props.
+        private static readonly string[] StructureNames = { "wood_", "woodwall", "woodiron", "darkwood_", "stone_", "piece_grausten", "blackmarble" };
+
+        private static bool Structural(string prefab) => StructureNames.Any(s => prefab.StartsWith(s, System.StringComparison.OrdinalIgnoreCase));
+
+        // What of the building's would be in a piece's way there: its furniture and props anywhere the piece would be, its
+        // structure only well inside it (a piece may stand against a wall, under a slope). Not the camp's own pieces, the
+        // cart and what rides in it, creatures, things lying about, floors and rugs.
+        private static List<string> Blockers(Vector3 at, Quaternion facing, Bounds box, string ignoring = null, bool structure = true,
+            System.Func<ZNetView, bool> alsoIgnore = null)
+        {
+            var terrain = LayerMask.NameToLayer("terrain");
+            var middle = at + facing * box.center + Vector3.up * 0.05f;
+            var found = new List<string>();
+            foreach (var (shrink, structural) in new[] { (0.75f, false), (0.4f, true) })
+            {
+                if (structural && !structure)
+                    continue;
+                foreach (var collider in Physics.OverlapBox(middle, Vector3.Scale(box.extents, new Vector3(shrink, shrink, shrink)), facing, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (collider.gameObject.layer == terrain || collider.GetComponentInParent<Character>() || collider.GetComponentInParent<Vagon>()
+                        || collider.GetComponentInParent<CartRider>() || collider.GetComponentInParent<ItemDrop>() || collider.GetComponentInParent<Pickable>())
+                        continue;
+                    var view = collider.GetComponentInParent<ZNetView>();
+                    if (!view || IsCamp(view) || alsoIgnore?.Invoke(view) == true)
+                        continue;
+                    var name = Utils.GetPrefabName(view.gameObject);
+                    if (name == ignoring || name.StartsWith("rug_") || name.StartsWith("wood_floor") || Structural(name) != structural)
+                        continue;
+                    found.Add(name);
+                }
+            }
+            return found.Distinct().ToList();
         }
 
         // A sconce on the outside of the front wall either side of the door. It points along its own x, its bracket at the
@@ -621,6 +728,10 @@ namespace Cartheim.Plugin
             var camp = RuinCamp.For(ruin ? ruin.name : null);
             if (camp == null || !cart || !player)
                 return;
+            // Hitched: unhitched first.
+            var vagon = cart.GetComponent<Vagon>();
+            if (vagon && vagon.IsAttached() && Unhitch != null)
+                Unhitch.Invoke(vagon, null);
             cart.Settle(camp, ruin.transform.position, ruin.transform.eulerAngles.y);
             _campOf = cart.Uid();
             try

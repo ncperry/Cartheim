@@ -65,8 +65,8 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!player || !cart || !ruin)
                 return;
-            var vagon = cart.GetComponent<Vagon>();
-            var problem = cart.TentUp ? "Pack up the tent first" : vagon && vagon.IsAttached() ? "Unhitch the cart first" : null;
+            // Hitched, it's unhitched as it settles (see CartRuin.Settle).
+            var problem = cart.TentUp ? "Pack up the tent first" : null;
             if (problem != null)
             {
                 player.Message(MessageHud.MessageType.Center, problem);
