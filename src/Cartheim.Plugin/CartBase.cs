@@ -959,7 +959,7 @@ namespace Cartheim.Plugin
         // The building's bed the cart's took the place of.
         private Cartheim.Core.RecordedPiece _bedTook;
 
-        private const float RugAboveGround = 0.02f;
+        private const float RugAboveGround = 0.1f;
         private const float RugFeelStep = 0.25f;
 
         private GameObject RecordedRoom(RuinCamp camp)

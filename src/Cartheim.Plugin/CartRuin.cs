@@ -468,6 +468,7 @@ namespace Cartheim.Plugin
             var notes = new List<string>();
             // How far each piece of the camp's structure went up or down from as built, for what's built onto it.
             var shifted = new Dictionary<Cartheim.Core.RecordedPiece, float>();
+            LevelUnder.Clear();
             var standing = camp.Recorded.Where(p => p.Y <= OnTheGround).ToList();
             foreach (var piece in standing)
             {
@@ -478,13 +479,13 @@ namespace Cartheim.Plugin
                 var facing = Turn(ruin, piece.Yaw);
                 if (Structural(piece.Prefab))
                 {
-                    // Built on the ground (a fence): on the lowest ground under it, never in the air; else as built.
-                    var height = piece.OnTheGround ? Lowest(recordedAt, facing, kind.Box) : Rigid(ruin, piece);
-                    shifted[piece] = height - Rigid(ruin, piece);
+                    // As built; one built on the ground (a fence) has the ground here made to meet its foot (see LevelUnder).
+                    var height = Rigid(ruin, piece);
+                    shifted[piece] = 0f;
                     moved[piece] = (Vector3.zero, height - piece.Y);
                     placed[piece] = new Vector3(recordedAt.x, height, recordedAt.z);
-                    if (Mathf.Abs(shifted[piece]) > 0.25f)
-                        notes.Add($"{piece.Prefab} at {piece.X:0.0},{piece.Z:0.0} {shifted[piece]:+0.00;-0.00} m from as built, on the ground here");
+                    if (piece.OnTheGround)
+                        LevelUnder.Add((recordedAt, facing, kind.Box, height));
                     continue;
                 }
                 var nudges = Nudges();
@@ -529,6 +530,28 @@ namespace Cartheim.Plugin
                 Debug.Log($"[Cartheim] The {camp.Name} camp, fitted to this building: {string.Join("; ", notes)}");
             return placed;
         }
+
+        // Where the ground's to be made to meet the foot of the camp's structure built on it (fences): under each such piece,
+        // at the height its foot stands. Found with the camp's placement, made when it's set up.
+        private static readonly List<(Vector3 at, Quaternion facing, Bounds box, float foot)> LevelUnder = new List<(Vector3, Quaternion, Bounds, float)>();
+
+        private static void MeetTheGround(RuinCamp camp)
+        {
+            var spots = 0;
+            foreach (var (at, facing, box, foot) in LevelUnder)
+                for (var x = box.min.x; x <= box.max.x + 0.01f; x += LevelStep)
+                    for (var z = box.min.z; z <= box.max.z + 0.01f; z += LevelStep)
+                    {
+                        var p = at + facing * new Vector3(x, 0f, z);
+                        CartGarden.Level(new Vector3(p.x, foot, p.z));
+                        spots++;
+                    }
+            if (LevelUnder.Count > 0)
+                Debug.Log($"[Cartheim] The {camp.Name}'s ground made to meet {LevelUnder.Count} pieces built on it, at {spots} spots");
+            LevelUnder.Clear();
+        }
+
+        private const float LevelStep = 0.75f;
 
         // The camp's own structure (fences, walls, poles, roofs) is built as one, its pieces meeting each other: each as high
         // in the building's space as it was built, not each on the ground under it (the ground here differs).
@@ -819,6 +842,7 @@ namespace Cartheim.Plugin
             if (camp.Recorded != null)
             {
                 MendRoofAndDoor(ruin, camp);
+                MeetTheGround(camp);
                 var cultivated = CartGarden.Cultivate(camp.Cultivated.Select(c => ruin.transform.position + Turn(ruin, 0f) * new Vector3(c.x, 0f, c.z)));
                 if (camp.Cultivated.Count > 0)
                     Debug.Log($"[Cartheim] The {camp.Name}'s garden ground: cultivated at {cultivated} of {camp.Cultivated.Count} spots (the rest already were)");
