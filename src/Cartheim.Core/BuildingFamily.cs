@@ -25,6 +25,9 @@ namespace Cartheim.Core
         public static List<string> Members(string name, IEnumerable<string> names) =>
             names.Where(n => Of(n) == Of(name)).Distinct().OrderBy(Number).ThenBy(n => n).ToList();
 
+        // How many of a line fit: up to the first that wouldn't stand on dry land.
+        public static int Fits(IEnumerable<bool> dry) => dry.TakeWhile(d => d).Count();
+
         // How far along the line each one's middle is, given how far each reaches from its middle.
         public static List<float> Spacing(IEnumerable<float> radii, float start, float gap)
         {

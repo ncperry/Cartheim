@@ -128,15 +128,47 @@ namespace Cartheim.Plugin
             var look = GameCamera.instance ? GameCamera.instance.transform.forward : player.transform.forward;
             var forward = Vector3.ProjectOnPlane(look, Vector3.up).normalized;
             var facing = Quaternion.LookRotation(-forward, Vector3.up);
+            var spots = along.Select(a => start + forward * a).ToList();
+            // All on dry land, or none: where the line would first run into water, it stops before anything's placed.
+            var fits = Cartheim.Core.BuildingFamily.Fits(spots.Select((s, i) => Dry(s, radii[i])));
+            if (fits < family.Count)
+            {
+                var wet = along[fits] - radii[fits];
+                Debug.Log($"[Cartheim] Dev: line of {family.Count} {Cartheim.Core.BuildingFamily.Of(name)} doesn't fit: water at {wet:0} m, after {fits}");
+                player.Message(MessageHud.MessageType.Center, $"Not enough dry land: only {fits} of {family.Count} fit before water {wet:0} m ahead. Nothing placed");
+                return;
+            }
             for (var i = 0; i < family.Count; i++)
             {
-                var at = start + forward * along[i];
-                at.y = ZoneSystem.instance.GetGroundHeight(at);
+                var at = spots[i];
+                at.y = Ground(at);
+                // The trees cleared from where it'll stand and round it first.
+                CartRaft.ClearForestAt(at, radii[i] + CartRaft.ClearMargin);
                 Place(family[i], at, facing);
             }
             Debug.Log($"[Cartheim] Dev: lined up {family.Count} of {Cartheim.Core.BuildingFamily.Of(name)}, {along.LastOrDefault() + radii.LastOrDefault():0} m long");
             player.Message(MessageHud.MessageType.Center, $"Lined up {family.Count} {Cartheim.Core.BuildingFamily.Of(name)}, {along.LastOrDefault() + radii.LastOrDefault():0} m");
         }
+
+
+        // The ground's height there: as it is, where it's loaded near the player; else as the world was made (a long line
+        // runs past what's loaded).
+        private static float Ground(Vector3 at) =>
+            ZoneSystem.instance.GetGroundHeight(at, out var height) ? height : WorldGenerator.instance.GetHeight(at.x, at.z);
+        // Dry land under a building's middle and all round its edge.
+        private static bool Dry(Vector3 at, float radius)
+        {
+            var water = ZoneSystem.instance.m_waterLevel;
+            for (var i = 0; i <= 8; i++)
+            {
+                var angle = i * Mathf.PI / 4f;
+                var spot = i == 8 ? at : at + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+                if (Ground(spot) < water + 0.2f)
+                    return false;
+            }
+            return true;
+        }
+
         private static readonly System.Reflection.MethodInfo SpawnLocation = AccessTools.Method(typeof(ZoneSystem), "SpawnLocation");
 
         // Spawned as the game spawns its own ruins (kept in the world, not marked as cheated).

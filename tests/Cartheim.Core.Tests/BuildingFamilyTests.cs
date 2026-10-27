@@ -22,6 +22,7 @@ namespace Cartheim.Core.Tests
             Assert.Equal(new[] { "WoodHouse1", "WoodHouse2", "WoodHouse10" }, BuildingFamily.Members("WoodHouse2", names));
         }
 
+[Fact]        public void A_line_fits_only_as_far_as_its_first_building_that_would_stand_in_water()        {            Assert.Equal(3, BuildingFamily.Fits(new[] { true, true, true }));            Assert.Equal(1, BuildingFamily.Fits(new[] { true, false, true }));            Assert.Equal(0, BuildingFamily.Fits(new[] { false }));        }
         [Fact]
         public void Each_stands_clear_of_the_last_by_both_their_sizes_and_a_gap()
         {

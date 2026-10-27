@@ -103,6 +103,33 @@ namespace Cartheim.Plugin
             return gone;
         }
 
+
+        // The trees, logs, stumps and bushes within a radius of a point, taken away; how many.
+        public static int ClearForestAt(Vector3 at, float radius)
+        {
+            var trees = Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None)
+                .Where(v => v && v.IsValid() && Flat(v.transform.position - at).magnitude <= radius && IsForest(v))
+                .Select(v => v.gameObject).ToList();
+            return Remove(trees);
+        }
+
+        // Round every one of the game's buildings loaded near the player, the trees cleared: its area and a margin.
+        private static readonly HarmonyLib.AccessTools.FieldRef<List<Location>> AllLocations =
+            HarmonyLib.AccessTools.StaticFieldRefAccess<List<Location>>(HarmonyLib.AccessTools.Field(typeof(Location), "s_allLocations"));
+
+        public const float ClearMargin = 5f;
+
+        public static void ClearRoundBuildings()
+        {
+            InventoryGui.instance?.Hide();
+            var player = Player.m_localPlayer;
+            if (!player)
+                return;
+            var buildings = AllLocations().Where(l => l && Vector3.Distance(l.transform.position, player.transform.position) <= 400f).ToList();
+            var gone = buildings.Sum(l => ClearForestAt(l.transform.position, l.m_exteriorRadius + ClearMargin));
+            Debug.Log($"[Cartheim] Dev: cleared {gone} trees round {buildings.Count} buildings");
+            player.Message(MessageHud.MessageType.Center, $"Cleared {gone} trees round {buildings.Count} buildings");
+        }
         private static float _forestRadius = 15f;
         private const float ForestStep = 2.5f;
 
@@ -122,10 +149,7 @@ namespace Cartheim.Plugin
             Say($"Left click: clear the trees within {_forestRadius:0} m. Scroll: bigger or smaller. Right click: done");
             if (!UnityInput.Current.GetMouseButtonDown(0))
                 return;
-            var trees = Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None)
-                .Where(v => v && v.IsValid() && Flat(v.transform.position - hit.point).magnitude <= _forestRadius && IsForest(v))
-                .Select(v => v.gameObject).ToList();
-            var gone = Remove(trees);
+            var gone = ClearForestAt(hit.point, _forestRadius);
             Debug.Log($"[Cartheim] Dev: cleared {gone} trees, logs, stumps and bushes within {_forestRadius:0} m of {hit.point}");
             Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft, $"Cleared {gone}");
         }
