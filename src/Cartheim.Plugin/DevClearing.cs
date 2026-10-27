@@ -113,9 +113,7 @@ namespace Cartheim.Plugin
             return Remove(trees);
         }
 
-        // Round every one of the game's buildings loaded near the player, the trees cleared: its area and a margin.
-        private static readonly HarmonyLib.AccessTools.FieldRef<List<Location>> AllLocations =
-            HarmonyLib.AccessTools.StaticFieldRefAccess<List<Location>>(HarmonyLib.AccessTools.Field(typeof(Location), "s_allLocations"));
+        // Round every one of the game's buildings within a kilometre, the trees cleared: its area and a margin.
 
         public const float ClearMargin = 5f;
 
@@ -125,10 +123,10 @@ namespace Cartheim.Plugin
             var player = Player.m_localPlayer;
             if (!player)
                 return;
-            var buildings = AllLocations().Where(l => l && Vector3.Distance(l.transform.position, player.transform.position) <= 400f).ToList();
-            var gone = buildings.Sum(l => ClearForestAt(l.transform.position, l.m_exteriorRadius + ClearMargin));
-            Debug.Log($"[Cartheim] Dev: cleared {gone} trees round {buildings.Count} buildings");
-            player.Message(MessageHud.MessageType.Center, $"Cleared {gone} trees round {buildings.Count} buildings");
+            // From the world's records, so the whole of a long line, loaded near the player or not.
+            var gone = DevForest.ClearRoundBuildings(player.transform.position, 1000f, out var buildings);
+            Debug.Log($"[Cartheim] Dev: cleared {gone} trees round {buildings} buildings");
+            player.Message(MessageHud.MessageType.Center, $"Cleared {gone} trees round {buildings} buildings");
         }
         private static float _forestRadius = 15f;
         private const float ForestStep = 2.5f;
@@ -157,10 +155,13 @@ namespace Cartheim.Plugin
         private static readonly string[] ForestNames = { "stub", "bush", "shrub", "log" };
 
         private static bool IsForest(ZNetView thing) =>
-            !(thing.GetComponent<Piece>() is Piece piece && piece.GetCreator() != 0L) &&
-            (thing.GetComponent<TreeBase>() || thing.GetComponent<TreeLog>() ||
-             thing.GetComponent<Destructible>() is Destructible d && d.m_destructibleType == DestructibleType.Tree ||
-             ForestNames.Any(n => thing.name.IndexOf(n, System.StringComparison.OrdinalIgnoreCase) >= 0));
+            !(thing.GetComponent<Piece>() is Piece piece && piece.GetCreator() != 0L) && IsForestPrefab(thing.gameObject);
+
+        // A tree, log, stump or bush, by what it is or its name (also for a prefab, as the world's records name them).
+        public static bool IsForestPrefab(GameObject thing) =>
+            thing.GetComponent<TreeBase>() || thing.GetComponent<TreeLog>() ||
+            thing.GetComponent<Destructible>() is Destructible d && d.m_destructibleType == DestructibleType.Tree ||
+            ForestNames.Any(n => thing.name.IndexOf(n, System.StringComparison.OrdinalIgnoreCase) >= 0);
 
         // A ring a metre across, lying on the ground, scaled to the size cleared.
         private static GameObject Ring()
