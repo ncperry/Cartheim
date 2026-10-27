@@ -959,13 +959,26 @@ namespace Cartheim.Plugin
         // The building's bed the cart's took the place of.
         private Cartheim.Core.RecordedPiece _bedTook;
 
+        private const float RugAboveGround = 0.02f;
+
         private GameObject RecordedRoom(RuinCamp camp)
         {
             var turn = RuinTurn;
             Vector3 At(Cartheim.Core.RecordedPiece spot) => RuinAt + turn * new Vector3(spot.X, spot.Y, spot.Z);
             var anchor = camp.RugSpot ?? camp.BedSpot;
             var room = new GameObject("Cartheim room");
-            room.transform.SetPositionAndRotation(At(anchor), turn * Quaternion.Euler(0f, anchor.Yaw, 0f));
+            var roomAt = At(anchor);
+            var roomTurn = turn * Quaternion.Euler(0f, anchor.Yaw, 0f);
+            // A rug laid out of doors lies on the ground, the highest under any corner of it, not in it where the ground
+            // rises above the building's own.
+            if (camp.RugSpot != null)
+            {
+                var size = CartGarden.Measure(GamePieces.Prefab(camp.RugSpot.Prefab)).Box;
+                var highest = new[] { new Vector3(size.min.x, 0f, size.min.z), new Vector3(size.min.x, 0f, size.max.z), new Vector3(size.max.x, 0f, size.min.z), new Vector3(size.max.x, 0f, size.max.z), size.center }
+                    .Select(c => CartGarden.Ground(roomAt + roomTurn * new Vector3(c.x, 0f, c.z))).Max();
+                roomAt.y = Mathf.Max(roomAt.y, highest + RugAboveGround);
+            }
+            room.transform.SetPositionAndRotation(roomAt, roomTurn);
             var rug = camp.RugSpot != null ? GamePieces.Rugs.FirstOrDefault(Upgrades.Has) : null;
             if (rug != null)
             {

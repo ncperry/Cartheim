@@ -155,6 +155,26 @@ namespace Cartheim.Plugin
             stand.Set(ZDOVars.s_quality, 1);
         }
 
+        // A moment after the garden ground's painted: whether it shows where it was recorded (or, mirrored or turned
+        // round, somewhere else), for the log.
+        private static System.Collections.IEnumerator GardenCheck(Location ruin, RuinCamp camp)
+        {
+            yield return new WaitForSeconds(1.5f);
+            if (!ruin)
+                yield break;
+            var turn = Turn(ruin, 0f);
+            int Count(float sx, float sz) => camp.Cultivated.Count(c =>
+            {
+                var at = ruin.transform.position + turn * new Vector3(sx * c.x, 0f, sz * c.z);
+                var ground = Heightmap.FindHeightmap(at);
+                return ground && ground.IsCultivated(at);
+            });
+            var first = ruin.transform.position + turn * new Vector3(camp.Cultivated[0].x, 0f, camp.Cultivated[0].z);
+            Debug.Log($"[Cartheim] The {camp.Name}'s garden ground shows at {Count(1f, 1f)} of {camp.Cultivated.Count} recorded spots " +
+                      $"(mirrored across x {Count(-1f, 1f)}, across z {Count(1f, -1f)}, turned round {Count(-1f, -1f)}); the building at " +
+                      $"{ruin.transform.position} turned {ruin.transform.eulerAngles.y:0.0}, the first spot at {first}");
+        }
+
         // A recorded armour stand in what it wore, slot by slot (a trophy on its head, say), as the game keeps it.
         private static void Wear(GameObject built, List<(int slot, string item)> wears)
         {
@@ -780,6 +800,8 @@ namespace Cartheim.Plugin
                 var cultivated = CartGarden.Cultivate(camp.Cultivated.Select(c => ruin.transform.position + Turn(ruin, 0f) * new Vector3(c.x, 0f, c.z)));
                 if (camp.Cultivated.Count > 0)
                     Debug.Log($"[Cartheim] The {camp.Name}'s garden ground: cultivated at {cultivated} of {camp.Cultivated.Count} spots (the rest already were)");
+                if (camp.Cultivated.Count > 0)
+                    player.StartCoroutine(GardenCheck(ruin, camp));
             }
             MakeSpareBed(ruin, camp);
             // Everything built there made good, for good: cosier.

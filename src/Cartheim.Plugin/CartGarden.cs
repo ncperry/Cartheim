@@ -350,6 +350,7 @@ namespace Cartheim.Plugin
         // levelled (the cultivator's own work, so often over, heaps the ground up): how many spots it took. Painted by the
         // ground itself: an operation sent to it is known only by its piece's name, so it would do the cultivator's own work.
         private const float CultivatedStep = 0.5f;
+        private const float PaintRadius = 0.75f;
 
         private static readonly System.Reflection.MethodInfo Operate = HarmonyLib.AccessTools.Method(typeof(TerrainComp), "DoOperation");
 
@@ -357,14 +358,13 @@ namespace Cartheim.Plugin
         {
             if (!Ready())
                 return 0;
-            var cultivator = _cultivate.GetComponent<TerrainOp>().m_settings;
-            var paint = new TerrainOp.Settings
-            {
-                m_level = false, m_raise = false, m_smooth = false, m_square = cultivator.m_square,
-                m_paintCleared = true, m_paintType = cultivator.m_paintType, m_paintRadius = CultivatedStep,
-                m_paintStrength = cultivator.m_paintStrength, m_paintExp = cultivator.m_paintExp, m_paintCurve = cultivator.m_paintCurve,
-                m_paintHeightCheck = cultivator.m_paintHeightCheck,
-            };
+            // The cultivator's own way of painting, but only painting, over a texel round each spot.
+            var paint = new TerrainOp.Settings();
+            foreach (var field in typeof(TerrainOp.Settings).GetFields())
+                field.SetValue(paint, field.GetValue(_cultivate.GetComponent<TerrainOp>().m_settings));
+            paint.m_level = paint.m_raise = paint.m_smooth = false;
+            paint.m_paintCleared = true;
+            paint.m_paintRadius = PaintRadius;
             var done = 0;
             var grounds = new List<Heightmap>();
             foreach (var spot in spots)
@@ -374,7 +374,7 @@ namespace Cartheim.Plugin
                 if (ground && ground.IsCultivated(at))
                     continue;
                 grounds.Clear();
-                Heightmap.FindHeightmap(at, CultivatedStep, grounds);
+                Heightmap.FindHeightmap(at, PaintRadius + 1f, grounds);
                 foreach (var map in grounds)
                 {
                     var comp = map.GetAndCreateTerrainCompiler();
