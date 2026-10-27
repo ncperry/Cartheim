@@ -126,6 +126,10 @@ namespace Cartheim.Plugin
         [HarmonyPatch(typeof(Character), nameof(Character.Damage)), HarmonyPrefix]
         private static bool Unharmed(Character __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
 
+        // Poison, burning and the like hurt without a hit, straight through this.
+        [HarmonyPatch(typeof(Character), nameof(Character.ApplyDamage)), HarmonyPrefix]
+        private static bool UnharmedByAnything(Character __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
+
         [HarmonyPatch(typeof(Player), nameof(Player.UseStamina)), HarmonyPrefix]
         private static bool Tireless(Player __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
     }
