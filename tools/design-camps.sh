@@ -5,6 +5,7 @@ out="$1"
 calc() { awk "BEGIN { printf \"%.4f\", $1 }"; }
 p() { printf 'player | %s | %.2f | %.2f | %.2f | %s | %s | designed\n' "$1" "$2" "$3" "$4" "$5" "$6"; }
 header() { printf '# Camp at %s: designed from its template (%s), reaching %s m\n# whose | prefab | x | y | z | yaw | what it is | what'"'"'s on it\n' "$1" "$2" "$3"; }
+# The cart: its left side (where its tent goes) turned away from the building.
 cart() { printf 'cart | Cart | %.2f | 0.06 | %.2f | %s | Vagon,CartBase | designed\n' "$1" "$2" "$3"; }
 bedspot() { printf 'building | goblin_bed | %.2f | 0.00 | %.2f | %s | designed bed spot | \n' "$1" "$2" "$3"; }
 rug() { p rug_deer "$1" 0.10 "$2" "$3" "designed rug spot"; }
@@ -30,12 +31,12 @@ stakes() { local r=$1; shift; for a in $(seq 0 22.5 337.5); do skip=0; for g in 
 { header WoodHouse5 "the beekeeper's cottage: hives of its own, honey on the table to take" 8.0
   p piece_beehive -4.3 0 2.6 0 Beehive; p piece_beehive -4.3 0 0.6 0 Beehive
   table -0.7 4.5 0; ontable Honey -0.9 4.4 0; ontable Honey -0.6 4.6 30; ontable Honey -0.4 4.4 60
-  bench -0.7 5.6 0; fire -0.7 8.2; torch -2.5 6.6; torch 1.2 6.6; cart 4.6 0 0; } > "$out/WoodHouse5.camp"
+  bench -0.7 5.6 0; fire -0.7 8.2; torch -2.5 6.6; torch 1.2 6.6; cart 4.6 0 180; } > "$out/WoodHouse5.camp"
 
 # 6: the watchtower: a ring of stakes round it (a gap where the cart stands), the fire inside the ring.
 { header WoodHouse6 "the watchtower: a ring of stakes round it, the fire within" 8.0
   stakes 6.5 247.5 270.0 292.5; fire 0 4.2; bench -1.6 4.2 90; bench 1.6 4.2 90
-  torch -1.6 -6.0; torch 1.6 -6.0; banner 3.0 -3.0; cart 0 -10 90; } > "$out/WoodHouse6.camp"
+  torch -1.6 -6.0; torch 1.6 -6.0; banner 3.0 -3.0; cart 0 -10 -90; } > "$out/WoodHouse6.camp"
 
 # 7: the cottage: rug and the cart's bed inside, a herb table out front, mushrooms to take, jam to look at.
 { header WoodHouse7 "the cottage: the cart's bed and rug inside, a herb table out front" 8.0
@@ -47,7 +48,7 @@ stakes() { local r=$1; shift; for a in $(seq 0 22.5 337.5); do skip=0; for g in 
 { header WoodHouse8 "the old foundations: a fire in their middle, benches round it, raspberries to take" 10.0
   fire 0 0; bench 0 2.3 0; bench 2.3 0 90; bench -2.3 0 90
   table 0 -3.2 0; ontable Raspberry -0.3 -3.1 0; ontable Raspberry 0 -3.3 60; ontable Raspberry 0.3 -3.1 120
-  torch 3.5 3.5; torch -3.5 3.5; cart 7.5 0 0; } > "$out/WoodHouse8.camp"
+  torch 3.5 3.5; torch -3.5 3.5; cart 7.5 0 180; } > "$out/WoodHouse8.camp"
 
 # 9: the longhouse feast: a feast laid out to look at, but carrot seeds on the table to take.
 { header WoodHouse9 "the longhouse feast: a feast to look at, carrot seeds to take" 8.0
@@ -59,7 +60,7 @@ stakes() { local r=$1; shift; for a in $(seq 0 22.5 337.5); do skip=0; for g in 
 { header WoodHouse10 "the fallen longhouse: a fire in its hall, the remains of a meal, turnip seeds to take" 8.0
   fire 0 -3.0; table 0 1.2 0; ontable NeckTailGrilled -0.3 1.1 0; ontable MeadHealthMinor 0.3 1.3 0
   ontable TurnipSeeds 0.5 1.0 0; ontable TurnipSeeds 0.6 1.2 40; ontable TurnipSeeds -0.5 1.4 80
-  bench -1.2 1.2 90; bench 1.2 1.2 90; torch -2.2 -4.5; torch 2.2 -4.5; cart 6.2 0 0; } > "$out/WoodHouse10.camp"
+  bench -1.2 1.2 90; bench 1.2 1.2 90; torch -2.2 -4.5; torch 2.2 -4.5; cart 6.2 0 180; } > "$out/WoodHouse10.camp"
 
 # 11: the great hall: the cart's bed and rug inside, a feast with carrot and turnip seeds, the fire by the door.
 { header WoodHouse11 "the great hall: the cart's bed and rug inside, a feast with seeds to take, the fire at the door" 8.0
@@ -70,7 +71,7 @@ stakes() { local r=$1; shift; for a in $(seq 0 22.5 337.5); do skip=0; for g in 
 # 12: the outhouse: the camp kept well upwind of it, dandelions for the curious.
 { header WoodHouse12 "the outhouse: the camp kept well away from it, dandelions on the table" 6.0
   fire 0 6.5; bench 1.6 6.5 90; table -1.8 6.5 90; ontable Dandelion -1.8 6.3 0; ontable Dandelion -1.7 6.7 50
-  torch 0 4.0; cart 4.2 0 0; } > "$out/WoodHouse12.camp"
+  torch 0 4.0; cart 4.2 0 180; } > "$out/WoodHouse12.camp"
 
 # 13: the overgrown hall: trees through its floor, blueberries (from the forest beyond) on the table, mushrooms underfoot.
 { header WoodHouse13 "the overgrown hall: blueberries on the table, mushrooms underfoot" 9.0

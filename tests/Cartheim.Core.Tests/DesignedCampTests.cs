@@ -46,6 +46,23 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void A_camp_that_pitches_the_tent_parks_the_cart_with_its_left_side_where_the_tent_goes_away_from_the_building()
+        {
+            // The designed ones (those recorded by hand were seen standing clear).
+            foreach (var n in Houses.Where(h => h >= 4))
+            {
+                var camp = RuinCamp.For("WoodHouse" + n);
+                if (!camp.PitchesTent)
+                    continue;
+                // The cart faces along its yaw; its left side, where the tent's pitched, is a quarter turn round from that.
+                var yaw = camp.CartYaw * System.Math.PI / 180.0;
+                var leftX = -System.Math.Cos(yaw);
+                var leftZ = System.Math.Sin(yaw);
+                Assert.True(leftX * camp.CartX + leftZ * camp.CartZ > 0, $"WoodHouse{n}: the tent would go towards the building");
+            }
+        }
+
+        [Fact]
         public void The_watchtower_is_ringed_with_stakes_but_for_a_way_in()
         {
             var camp = RuinCamp.For("WoodHouse6");

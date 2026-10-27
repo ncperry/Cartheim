@@ -23,4 +23,4 @@ player | piece_groundtorch_wood | 1.60 | 0.79 | -6.00 | 113 | Fireplace | design
 player | wood_pole2 | 3.00 | 1.13 | -3.00 | -121 | Piece | designed
 player | wood_pole2 | 3.00 | 3.13 | -3.00 | -121 | Piece | designed
 player | piece_banner05 | 2.80 | 3.96 | -2.77 | -121 | Piece | designed
-cart | Cart | 0.00 | 0.06 | -10.00 | 90 | Vagon,CartBase | designed
+cart | Cart | 0.00 | 0.06 | -10.00 | -90 | Vagon,CartBase | designed

@@ -8,4 +8,4 @@ player | piece_table | -1.80 | 0.04 | 6.50 | 90 | Piece | designed
 player | Dandelion | -1.80 | 0.85 | 6.30 | 0 | ItemDrop | designed
 player | Dandelion | -1.70 | 0.85 | 6.70 | 50 | ItemDrop | designed
 player | piece_groundtorch_wood | 0.00 | 0.79 | 4.00 | 113 | Fireplace | designed
-cart | Cart | 4.20 | 0.06 | 0.00 | 0 | Vagon,CartBase | designed
+cart | Cart | 4.20 | 0.06 | 0.00 | 180 | Vagon,CartBase | designed

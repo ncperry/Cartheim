@@ -13,4 +13,4 @@ player | piece_bench01 | -1.20 | 0.09 | 1.20 | 90 | Piece | designed
 player | piece_bench01 | 1.20 | 0.09 | 1.20 | 90 | Piece | designed
 player | piece_groundtorch_wood | -2.20 | 0.79 | -4.50 | 113 | Fireplace | designed
 player | piece_groundtorch_wood | 2.20 | 0.79 | -4.50 | 113 | Fireplace | designed
-cart | Cart | 6.20 | 0.06 | 0.00 | 0 | Vagon,CartBase | designed
+cart | Cart | 6.20 | 0.06 | 0.00 | 180 | Vagon,CartBase | designed

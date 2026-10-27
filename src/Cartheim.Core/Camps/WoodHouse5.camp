@@ -12,4 +12,4 @@ player | piece_cookingstation | -0.78 | 0.20 | 8.60 | 180 | CookingStation | des
 player | piece_cookingstation | -0.77 | 0.20 | 7.75 | 180 | CookingStation | designed
 player | piece_groundtorch_wood | -2.50 | 0.79 | 6.60 | 113 | Fireplace | designed
 player | piece_groundtorch_wood | 1.20 | 0.79 | 6.60 | 113 | Fireplace | designed
-cart | Cart | 4.60 | 0.06 | 0.00 | 0 | Vagon,CartBase | designed
+cart | Cart | 4.60 | 0.06 | 0.00 | 180 | Vagon,CartBase | designed
