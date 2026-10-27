@@ -81,6 +81,47 @@ namespace Cartheim.Plugin
         [HarmonyPatch(typeof(SpawnArea), "UpdateSpawn"), HarmonyPrefix]
         private static bool NoNestCreatures() => !InDevWorld;
 
+        // Building in the dev world: everything buildable by the end of the Plains shows in the build menus (whether its
+        // materials are known or not), and costs nothing to place. It still needs its station near, as anywhere.
+        private static readonly Dictionary<string, Biome> PieceTiers = new Dictionary<string, Biome>();
+
+        private static Biome TierOf(Piece piece)
+        {
+            if (PieceTiers.TryGetValue(piece.name, out var tier))
+                return tier;
+            var materials = piece.m_resources.Where(r => r.m_resItem && r.m_amount > 0).Select(r => r.m_resItem.name).ToList();
+            tier = BiomeCart.TierOf(materials);
+            PieceTiers[piece.name] = tier;
+            if (tier == Biome.Later)
+                Debug.Log($"[Cartheim] Dev: {piece.name} kept out of the build menus, past the Plains (or of materials not known): " +
+                          string.Join(", ", materials.Where(m => BiomeCart.TierOf(m) == Biome.Later)));
+            return tier;
+        }
+
+        [HarmonyPatch(typeof(Player), nameof(Player.HaveRequirements), typeof(Piece), typeof(Player.RequirementMode)), HarmonyPrefix]
+        private static bool UpToThePlains(Player __instance, Piece piece, Player.RequirementMode mode, ref bool __result)
+        {
+            if (!InDevWorld || __instance != Player.m_localPlayer || !piece)
+                return true;
+            __result = TierOf(piece) <= Biome.Plains &&
+                       (mode != Player.RequirementMode.CanBuild || !piece.m_craftingStation ||
+                        CraftingStation.HaveBuildStationInRange(piece.m_craftingStation.m_name, __instance.transform.position) ||
+                        ZoneSystem.instance.GetGlobalKey(GlobalKeys.NoWorkbench));
+            return false;
+        }
+
+        // While placing a piece, nothing is taken for it (crafting still costs as it does).
+        private static bool _placing;
+
+        [HarmonyPatch(typeof(Player), "UpdatePlacement"), HarmonyPrefix]
+        private static void Placing() => _placing = true;
+
+        [HarmonyPatch(typeof(Player), "UpdatePlacement"), HarmonyFinalizer]
+        private static void Placed() => _placing = false;
+
+        [HarmonyPatch(typeof(Player), nameof(Player.ConsumeResources)), HarmonyPrefix]
+        private static bool FreeToBuild(Player __instance) => !(_placing && InDevWorld && __instance == Player.m_localPlayer);
+
         // The player in the dev world takes no harm (hits, falls, fire, poison) and spends no stamina.
         [HarmonyPatch(typeof(Character), nameof(Character.Damage)), HarmonyPrefix]
         private static bool Unharmed(Character __instance) => !(InDevWorld && __instance == Player.m_localPlayer);
