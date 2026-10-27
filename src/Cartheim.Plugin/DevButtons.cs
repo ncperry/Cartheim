@@ -26,7 +26,7 @@ namespace Cartheim.Plugin
             yield return new KeyValuePair<string, Action>("Tear down", CartRaft.BeginTearDown);
             yield return new KeyValuePair<string, Action>("Clear forest", CartRaft.BeginClearForest);
             yield return new KeyValuePair<string, Action>("Clear round buildings", CartRaft.ClearRoundBuildings);
-            yield return new KeyValuePair<string, Action>("Put buildings on the ground", DevBuildings.PutBackOnGround);
+            yield return new KeyValuePair<string, Action>("Fix placed buildings", DevBuildings.PutBackOnGround);
             yield return new KeyValuePair<string, Action>("Record camp", DevCampRecord.Record);
             yield return new KeyValuePair<string, Action>("Copy building to the side", DevCampRecord.CopyToTheSide);
         }

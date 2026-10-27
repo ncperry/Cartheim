@@ -307,7 +307,8 @@ namespace Cartheim.Plugin
                 return;
             }
             var at = hit.point;
-            var turn = Quaternion.Euler(0f, _yaw, 0f);
+            // Snapped to the build grid's steps, as it'll be placed.
+            var turn = Quaternion.Euler(0f, Cartheim.Core.DevWorld.OnBuildGrid(_yaw), 0f);
             _ghost.SetActive(true);
             _ghost.transform.SetPositionAndRotation(at, turn);
             Say($"Left click: place {_building} here. Scroll: turn it. Right click: cancel");

@@ -17,5 +17,13 @@ namespace Cartheim.Core
         // A building placed this far above or below the ground the world was made with (placed where the ground wasn't
         // known) is put back on it.
         public static bool OffTheGround(float placedAt, float ground) => System.Math.Abs(placedAt - ground) > 1.5f;
+
+        // The game turns its own buildings, and lets pieces be turned, in steps of 22.5 degrees: a building turned between
+        // them can't have pieces built square to it.
+        public const float BuildStep = 22.5f;
+
+        public static float OnBuildGrid(float yaw) => (float)System.Math.Round(yaw / BuildStep) * BuildStep;
+
+        public static bool OffBuildGrid(float yaw) => System.Math.Abs(yaw - OnBuildGrid(yaw)) > 0.5f;
     }
 }

@@ -126,7 +126,9 @@ namespace Cartheim.Plugin
             var start = player.transform.position;
             // Where the player looks (the camera), not where their body happens to face.
             var look = GameCamera.instance ? GameCamera.instance.transform.forward : player.transform.forward;
-            var forward = Vector3.ProjectOnPlane(look, Vector3.up).normalized;
+            // Along the build grid's nearest step to where the player looks, so the line runs square to what's built.
+            var lineYaw = Cartheim.Core.DevWorld.OnBuildGrid(Quaternion.LookRotation(Vector3.ProjectOnPlane(look, Vector3.up)).eulerAngles.y);
+            var forward = Quaternion.Euler(0f, lineYaw, 0f) * Vector3.forward;
             var facing = Quaternion.LookRotation(-forward, Vector3.up);
             var spots = along.Select(a => start + forward * a).ToList();
             // All on dry land, or none: where the line would first run into water, it stops before anything's placed.
@@ -194,9 +196,10 @@ namespace Cartheim.Plugin
                     continue;
                 var at = building.GetPosition();
                 var ground = WorldGenerator.instance.GetHeight(at.x, at.z);
-                if (!Cartheim.Core.DevWorld.OffTheGround(at.y, ground))
-                    continue;
                 var turn = building.GetRotation();
+                // Off the ground, or turned between the build grid's steps.
+                if (!Cartheim.Core.DevWorld.OffTheGround(at.y, ground) && !Cartheim.Core.DevWorld.OffBuildGrid(turn.eulerAngles.y))
+                    continue;
                 var reach = Mathf.Max(location.m_exteriorRadius, location.m_interiorRadius);
                 var parts = PartsOf(location);
                 var gone = 0;
@@ -212,12 +215,12 @@ namespace Cartheim.Plugin
                         ZDOMan.instance.DestroyZDO(part);
                     gone++;
                 }
-                Place(location.m_prefab.Name, new Vector3(at.x, ground, at.z), turn);
-                mended.Add($"{location.m_prefab.Name} ({at.y - ground:+0.0;-0.0} m, {gone} parts)");
+                Place(location.m_prefab.Name, new Vector3(at.x, ground, at.z), turn, building.GetInt(ZDOVars.s_seed));
+                mended.Add($"{location.m_prefab.Name} ({at.y - ground:+0.0;-0.0} m, turned {turn.eulerAngles.y:0.0}, {gone} parts)");
             }
             var trees = DevForest.ClearRoundBuildings(player.transform.position, 1000f, out _);
             Debug.Log($"[Cartheim] Dev: put back on the ground: {string.Join(", ", mended)}; {trees} trees cleared");
-            player.Message(MessageHud.MessageType.Center, mended.Count == 0 ? "Every building stands on the ground" : $"Put {mended.Count} buildings back on the ground");
+            player.Message(MessageHud.MessageType.Center, mended.Count == 0 ? "Every building stands on the ground, square to the grid" : $"Put {mended.Count} buildings back on the ground, square to the grid");
         }
 
         // The kinds of thing a building's template spawns (as the world's records name them).
@@ -235,6 +238,8 @@ namespace Cartheim.Plugin
             var location = Location(name);
             if (location == null || SpawnLocation == null)
                 return;
+            // Turned in the build grid's steps, as the game turns its own, so pieces can be built square to it.
+            turn = Quaternion.Euler(0f, Cartheim.Core.DevWorld.OnBuildGrid(turn.eulerAngles.y), 0f);
             SpawnLocation.Invoke(ZoneSystem.instance, new object[]
             {
                 location, seed ?? Random.Range(0, 99999), at, turn, ZoneSystem.SpawnMode.Full, new List<GameObject>(), false,
