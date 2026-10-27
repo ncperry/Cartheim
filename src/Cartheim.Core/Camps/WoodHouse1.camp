@@ -1,4 +1,4 @@
-# Camp at WoodHouse1: made from the WoodHouse2 camp (the same frame, a metre lower: its back shelter lowered to meet the back wall, each post one 2 m pole), reaching 8.0 m
+# Camp at WoodHouse1: made from the WoodHouse2 camp (the same frame, a metre lower: its back shelter lowered to meet the back wall, each post one 2 m pole; the bench and the turnip lantern on it moved 0.7 m in from the lower roof), reaching 8.0 m
 # whose | prefab | x | y | z | yaw | what it is | what's on it
 player | bed | -6.45 | 0.56 | 3.40 | 29 | Bed,CartRider,CartRider,CartRider,CartRider | made of 8 Wood
 player | fermenter | -7.15 | 1.02 | 2.73 | -151 | Fermenter,CartRider,CartRider,CartRider,CartRider | made of 30 FineWood, 5 Bronze, 10 Resin
@@ -6,7 +6,7 @@ player | fire_pit | -0.17 | 0.07 | -4.73 | 180 | Fireplace,CinderSpawner,Materia
 player | itemstand | -5.59 | 2.29 | 4.50 | 29 | ItemStand,CartRider,CartRider,CartRider,CartRider | made of 4 FineWood, 1 BronzeNails
 player | piece_beehive | -6.19 | 1.90 | 2.06 | 29 | Beehive,SpawnOnDamaged,CartRider,CartRider,CartRider,CartRider | honey 0; made of 10 Wood, 1 QueenBee
 player | piece_beehive | -7.43 | 2.05 | 2.75 | 29 | Beehive,SpawnOnDamaged,CartRider,CartRider,CartRider,CartRider | honey 0; made of 10 Wood, 1 QueenBee
-player | piece_bench01 | -2.33 | 0.09 | 2.39 | 90 | MaterialManNotifier | made of 6 FineWood
+player | piece_bench01 | -1.63 | 0.09 | 2.39 | 90 | MaterialManNotifier | made of 6 FineWood
 player | piece_chest_wood | -6.42 | 0.56 | 3.40 | 29 | Container,CartRider,CartRider,CartRider,CartRider | holds ; made of 10 Wood
 player | piece_chest_wood | -6.42 | 0.56 | 3.40 | 29 | Container,CartRider,CartRider,CartRider,CartRider | holds ; made of 10 Wood
 player | piece_chest_wood | -6.42 | 0.56 | 3.40 | 29 | Container,CartRider,CartRider,CartRider,CartRider | holds ; made of 10 Wood
@@ -22,7 +22,7 @@ player | piece_cookingstation | -0.24 | 0.27 | -5.18 | 180 | CookingStation,Mate
 player | piece_FairylightGarland | -5.79 | 1.58 | 4.30 | 29 | CartRider,CartRider,CartRider,CartRider | made of 2 FineWood, 1 Thistle
 player | piece_groundtorch_wood | -1.21 | 0.79 | 5.53 | 113 | Fireplace,MaterialManNotifier | fuel 2.0; made of 2 Wood, 2 Resin
 player | piece_groundtorch_wood | 1.16 | 0.79 | 5.48 | 113 | Fireplace,MaterialManNotifier | fuel 2.0; made of 2 Wood, 2 Resin
-player | piece_jackoturnip | -2.11 | 0.66 | 3.08 | 113 | Fireplace,MaterialManNotifier | fuel 2.0; made of 4 Turnip, 2 Resin
+player | piece_jackoturnip | -1.41 | 0.66 | 3.08 | 113 | Fireplace,MaterialManNotifier | fuel 2.0; made of 4 Turnip, 2 Resin
 player | piece_table | 1.70 | 0.07 | 2.17 | 90 | MaterialManNotifier | made of 6 FineWood
 player | piece_walltorch | -7.55 | 1.38 | 3.07 | -151 | Fireplace,CartRider,CartRider,CartRider,CartRider | fuel 2.0; made of 2 Wood, 2 Copper, 2 Resin
 player | rug_deer | -0.06 | 0.10 | -0.79 | 180 | MaterialManNotifier | made of 4 DeerHide

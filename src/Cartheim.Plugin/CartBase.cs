@@ -642,8 +642,8 @@ namespace Cartheim.Plugin
                 CartRuin.Grassless(this, null);
             }
             // The building's own bed hidden where the cart's stands, once it's loaded (it may come after the cart).
-            if (room?.BedSpot != null && _bedSpot && _hiddenBeds.Count == 0)
-                HideBed(room.BedSpot.Prefab, RuinAt + RuinTurn * new Vector3(room.BedSpot.X, room.BedSpot.Y, room.BedSpot.Z));
+            if (room?.Recorded != null && _bedTook != null && _bedSpot && _hiddenBeds.Count == 0)
+                HideBed(_bedTook.Prefab, RuinAt + RuinTurn * new Vector3(_bedTook.X, _bedTook.Y, _bedTook.Z));
             // A bronze shield on its stand above the bed, while the player or the cart has a shield.
             if (room != null)
                 CartRuin.HangShield(this, HasShield());
@@ -955,6 +955,8 @@ namespace Cartheim.Plugin
         // the cart's bed in place of the building's own bed (which is hidden meanwhile), lengthwise along it and centred on it.
         // Heights are the building's, as recorded (its floor), not the ground's.
         private readonly List<GameObject> _hiddenBeds = new List<GameObject>();
+        // The building's bed the cart's took the place of.
+        private Cartheim.Core.RecordedPiece _bedTook;
 
         private GameObject RecordedRoom(RuinCamp camp)
         {
@@ -972,11 +974,13 @@ namespace Cartheim.Plugin
             var bed = camp.BedSpot != null ? GamePieces.Beds.FirstOrDefault(Upgrades.Has) : null;
             if (bed != null)
             {
-                var (at, facing) = CartRuin.BedInPlaceOf(RuinAt, turn, camp.BedSpot, bed);
+                // In place of whichever of the building's beds a bed fits at.
+                _bedTook = CartRuin.Beds(RuinAt, turn, camp, bed).cart;
+                var (at, facing) = CartRuin.BedInPlaceOf(RuinAt, turn, _bedTook, bed);
                 _bedSpot = new GameObject("bed spot").transform;
                 _bedSpot.SetParent(room.transform, false);
                 _bedSpot.SetPositionAndRotation(at, facing);
-                HideBed(camp.BedSpot.Prefab, At(camp.BedSpot));
+                HideBed(_bedTook.Prefab, At(_bedTook));
             }
             Debug.Log($"[Cartheim] Cart {Uid()}'s room in the {camp.Name}: rug {rug ?? "none"}, bed {bed ?? "none"}{(bed != null ? " in place of its " + camp.BedSpot.Prefab : "")}");
             return room;

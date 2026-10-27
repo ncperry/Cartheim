@@ -94,6 +94,9 @@ namespace Cartheim.Core.Tests
             Assert.Equal(second.Recorded.Count(p => p.Prefab == "piece_table"), first.Recorded.Count(p => p.Prefab == "piece_table"));
             Assert.NotNull(first.BedSpot);
             Assert.NotNull(first.RugSpot);
+            // Its roof comes down further in: the bench, and the turnip lantern on it, stand in from the wall.
+            Assert.True(first.Recorded.First(p => p.Prefab == "piece_bench01").X >= -1.7f);
+            Assert.True(first.Recorded.First(p => p.Prefab == "piece_jackoturnip").X >= -1.5f);
         }
 
         [Fact]

@@ -313,30 +313,94 @@ namespace Cartheim.Plugin
             return (middle - facing * new Vector3(mine.Box.center.x, 0f, mine.Box.center.z), facing);
         }
 
-        // The building's spare bed made a real one, for good: not the camp's (it stays when the camp's packed up), anyone's
-        // to claim. Not again where it's been made one already.
+        // Which of the building's beds the cart's bed takes the place of, and which is the spare: the first, unless a bed of
+        // ours wouldn't fit there (something of the building's in the way, a chest) and would at the second.
+        internal static (Cartheim.Core.RecordedPiece cart, Cartheim.Core.RecordedPiece spare) Beds(Vector3 ruinAt, Quaternion turn, RuinCamp camp, string ours)
+        {
+            if (camp.BedSpot == null || camp.SpareBedSpot == null)
+                return (camp.BedSpot, camp.SpareBedSpot);
+            return !Fits(ruinAt, turn, camp.BedSpot, ours) && Fits(ruinAt, turn, camp.SpareBedSpot, ours)
+                ? (camp.SpareBedSpot, camp.BedSpot)
+                : (camp.BedSpot, camp.SpareBedSpot);
+        }
+
+        // Whether a bed of ours, in place of one of the building's, would stand clear of everything but the floor, rugs, the
+        // building's beds themselves, the cart and what rides in it, and creatures.
+        internal static bool Fits(Vector3 ruinAt, Quaternion turn, Cartheim.Core.RecordedPiece spot, string ours)
+        {
+            var (at, facing) = BedInPlaceOf(ruinAt, turn, spot, ours);
+            var box = CartGarden.Measure(GamePieces.Prefab(ours)).Box;
+            var middle = at + facing * box.center + Vector3.up * 0.1f;
+            var half = Vector3.Scale(box.extents, new Vector3(0.85f, 0.7f, 0.85f));
+            var terrain = LayerMask.NameToLayer("terrain");
+            var inTheWay = Physics.OverlapBox(middle, half, facing, ~0, QueryTriggerInteraction.Ignore)
+                .Where(c => c.gameObject.layer != terrain && !c.GetComponentInParent<Character>() && !c.GetComponentInParent<Vagon>()
+                            && !c.GetComponentInParent<CartRider>() && !c.GetComponentInParent<ItemDrop>())
+                .Select(c => c.GetComponentInParent<ZNetView>())
+                .Where(v => v && !(Utils.GetPrefabName(v.gameObject) is string name && (name == spot.Prefab || name.StartsWith("wood_floor") || name.StartsWith("rug_"))))
+                .Select(v => Utils.GetPrefabName(v.gameObject)).Distinct().ToList();
+            if (inTheWay.Count > 0)
+                Debug.Log($"[Cartheim] A bed in place of the {spot.Prefab} at {spot.X:0.00},{spot.Z:0.00} would meet: {string.Join(", ", inTheWay)}");
+            return inTheWay.Count == 0;
+        }
+
+        // The building's spare bed made a real one, for good: given to it (it stays when the camp's packed up, and gives nothing
+        // back if taken down), anyone's to claim. Not again where it's been made one already, nor where it wouldn't fit.
         private const string SpareBed = "bed";
 
         private static void MakeSpareBed(Location ruin, RuinCamp camp)
         {
-            if (camp.SpareBedSpot == null)
-                return;
             var turn = Turn(ruin, 0f);
-            var spot = ruin.transform.position + turn * new Vector3(camp.SpareBedSpot.X, camp.SpareBedSpot.Y, camp.SpareBedSpot.Z);
-            var (at, facing) = BedInPlaceOf(ruin.transform.position, turn, camp.SpareBedSpot, SpareBed);
+            var spare = Beds(ruin.transform.position, turn, camp, GamePieces.Beds.FirstOrDefault() ?? SpareBed).spare;
+            if (spare == null)
+                return;
+            var spot = ruin.transform.position + turn * new Vector3(spare.X, spare.Y, spare.Z);
             var near = Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None)
                 .Where(v => v && v.IsValid() && Vector3.Distance(v.transform.position, spot) < 1.5f).ToList();
-            if (near.Any(v => v.GetComponent<Bed>() && !IsCamp(v)))
+            if (near.Any(v => v.GetComponent<Bed>() && !IsCamp(v) && !v.GetComponent<CartRider>()))
                 return;
-            foreach (var old in near.Where(v => Utils.GetPrefabName(v.gameObject) == camp.SpareBedSpot.Prefab && Vector3.Distance(v.transform.position, spot) < 0.6f))
+            if (!Fits(ruin.transform.position, turn, spare, SpareBed))
+            {
+                Debug.Log($"[Cartheim] The {camp.Name}'s spare {spare.Prefab} left as it is: a bed wouldn't fit there");
+                return;
+            }
+            foreach (var old in near.Where(v => Utils.GetPrefabName(v.gameObject) == spare.Prefab && Vector3.Distance(v.transform.position, spot) < 0.6f))
             {
                 old.ClaimOwnership();
                 ZNetScene.instance.Destroy(old.gameObject);
             }
-            var prefab = GamePieces.Prefab(SpareBed);
-            if (prefab)
-                Object.Instantiate(prefab, at, facing);
-            Debug.Log($"[Cartheim] The {camp.Name}'s spare {camp.SpareBedSpot.Prefab} made a real bed, for good");
+            var (at, facing) = BedInPlaceOf(ruin.transform.position, turn, spare, SpareBed);
+            Give(SpareBed, at, facing);
+            Debug.Log($"[Cartheim] The {camp.Name}'s spare {spare.Prefab} made a real bed, for good");
+        }
+
+        // A recorded camp's building made whole overhead and at the door, for good: every roof piece and door its template
+        // has that isn't there now, given to it (it stays when the camp's packed up, and gives nothing back if taken down).
+        private static readonly string[] Overhead = { "roof", "door" };
+
+        private static void MendRoofAndDoor(Location ruin, RuinCamp camp)
+        {
+            var location = ZoneSystem.instance.m_locations.FirstOrDefault(l => l != null && l.m_prefab.IsValid && l.m_prefab.Name == camp.Name);
+            if (location == null)
+                return;
+            location.m_prefab.Load();
+            var template = location.m_prefab.Asset.transform;
+            var turn = ruin.transform.rotation;
+            var here = Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None)
+                .Where(v => v && v.IsValid() && Vector3.Distance(v.transform.position, ruin.transform.position) <= camp.Area + 5f).ToList();
+            var given = new List<string>();
+            foreach (var part in template.GetComponentsInChildren<ZNetView>(true))
+            {
+                var name = Utils.GetPrefabName(part.gameObject);
+                if (!Overhead.Any(o => name.IndexOf(o, System.StringComparison.OrdinalIgnoreCase) >= 0))
+                    continue;
+                var at = ruin.transform.position + turn * template.InverseTransformPoint(part.transform.position);
+                if (here.Any(v => Utils.GetPrefabName(v.gameObject) == name && Vector3.Distance(v.transform.position, at) < 0.3f))
+                    continue;
+                if (Give(name, at, turn * (Quaternion.Inverse(template.rotation) * part.transform.rotation)))
+                    given.Add(name);
+            }
+            Debug.Log($"[Cartheim] The {camp.Name} made whole overhead and at the door: {(given.Count == 0 ? "nothing missing" : string.Join(", ", given))}");
         }
         // What each recorded piece's height is measured from, here: for one standing on the ground (recorded at about the
         // building's ground), the highest ground anywhere under it, so none of it's buried on a slope; for one resting on
@@ -573,6 +637,8 @@ namespace Cartheim.Plugin
             {
                 _campOf = 0;
             }
+            if (camp.Recorded != null)
+                MendRoofAndDoor(ruin, camp);
             MakeSpareBed(ruin, camp);
             // Everything built there made good, for good: cosier.
             var mended = Object.FindObjectsByType<WearNTear>(FindObjectsSortMode.None)
@@ -654,7 +720,28 @@ namespace Cartheim.Plugin
         }
 
         [HarmonyPatch(typeof(Piece), nameof(Piece.DropResources)), HarmonyPrefix]
-        private static bool NothingBack(Piece __instance) => !IsCamp(__instance);
+        // (A bed no player built is one a camp made of a building's spare, given before they were marked so.)
+        private static bool NothingBack(Piece __instance) =>
+            !IsCamp(__instance) && !IsGiven(__instance) && !(__instance.GetComponent<Bed>() && __instance.GetCreator() == 0L);
+
+        // Given to a building by a camp, to stay (its rebuilt roof and door, a spare bed): nothing back when taken down.
+        private const string GivenKey = "cartheim_given";
+
+        private static bool IsGiven(Component piece)
+        {
+            var zdo = piece ? piece.GetComponentInParent<ZNetView>()?.GetZDO() : null;
+            return zdo != null && zdo.GetBool(GivenKey);
+        }
+
+        private static GameObject Give(string prefab, Vector3 at, Quaternion facing)
+        {
+            var made = GamePieces.Prefab(prefab);
+            if (!made)
+                return null;
+            var given = Object.Instantiate(made, at, facing);
+            given.GetComponent<ZNetView>()?.GetZDO()?.Set(GivenKey, true);
+            return given;
+        }
 
         // Loaded again, a camp's piece is kept so still.
         [HarmonyPatch(typeof(Piece), "Awake"), HarmonyPostfix]
@@ -671,7 +758,11 @@ namespace Cartheim.Plugin
             if (p)
                 p.m_canBeRemoved = false;
             foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
+            {
                 fire.m_infiniteFuel = true;
+                // Burning whatever's over it (a camp's fire under its shelter's roof).
+                fire.m_disableCoverCheck = true;
+            }
             // Things set out (food on the table): staying where they're put, not swept up by passing.
             foreach (var drop in piece.GetComponentsInChildren<ItemDrop>(true))
             {
