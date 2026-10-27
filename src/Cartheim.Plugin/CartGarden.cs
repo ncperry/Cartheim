@@ -346,6 +346,10 @@ namespace Cartheim.Plugin
             _fence.Prefab.GetComponent<Piece>()?.m_placeEffect.Create(at, facing);
         }
 
+        // Ground cultivated at each of these spots (half a metre apart) that isn't already, only painted, not raised or
+        // levelled (the cultivator's own work, so often over, heaps the ground up): how many spots it took.
+        private const float CultivatedStep = 0.5f;
+
         // Ground cultivated at each of these spots that isn't already: how many spots it took.
         internal static int Cultivate(IEnumerable<Vector3> spots)
         {
@@ -358,14 +362,14 @@ namespace Cartheim.Plugin
                 var ground = Heightmap.FindHeightmap(at);
                 if (ground && ground.IsCultivated(at))
                     continue;
-                Apply(_cultivate, at);
+                Apply(_cultivate, at, paintOnly: CultivatedStep);
                 done++;
             }
             return done;
         }
 
         // The cultivator's own work at one spot, without its sound (a whole garden at once would be a racket).
-        private static void Apply(GameObject terrainOp, Vector3 at)
+        private static void Apply(GameObject terrainOp, Vector3 at, float paintOnly = 0f)
         {
             var wasActive = terrainOp.activeSelf;
             terrainOp.SetActive(false);
@@ -381,6 +385,12 @@ namespace Cartheim.Plugin
                 terrainOp.SetActive(wasActive);
             }
             op.GetComponent<TerrainOp>().m_onPlacedEffect = new EffectList();
+            if (paintOnly > 0f)
+            {
+                var settings = op.GetComponent<TerrainOp>().m_settings;
+                settings.m_raise = settings.m_level = settings.m_smooth = false;
+                settings.m_paintRadius = paintOnly;
+            }
             op.SetActive(true);
         }
 
