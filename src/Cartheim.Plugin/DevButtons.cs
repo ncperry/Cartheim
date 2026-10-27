@@ -44,8 +44,31 @@ namespace Cartheim.Plugin
                 "In the dev world: clear the trees, logs, stumps and bushes in a ring where you aim.");
         }
 
+        // The dev world stays at midday (as the game's own time-of-day pin holds it); anywhere else, the day turns.
+        private static bool _heldAtNoon;
+
+        private static void KeepDaytime()
+        {
+            var env = EnvMan.instance;
+            if (!env)
+                return;
+            var hold = InDevWorld && Plugin.Enabled.Value;
+            if (hold)
+            {
+                env.m_debugTimeOfDay = true;
+                env.m_debugTime = 0.5f;
+                _heldAtNoon = true;
+            }
+            else if (_heldAtNoon)
+            {
+                env.m_debugTimeOfDay = false;
+                _heldAtNoon = false;
+            }
+        }
+
         public static void Update()
         {
+            KeepDaytime();
             if (_placeBuilding == null || !InDevWorld || !Plugin.Enabled.Value)
                 return;
             // The keys with modifiers first: Ctrl+F8 is F8 too.
