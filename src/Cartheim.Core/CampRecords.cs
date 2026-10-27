@@ -21,10 +21,18 @@ namespace Cartheim.Core
         private static readonly Dictionary<string, string[]> SetTable = new Dictionary<string, string[]>
         {
             ["WoodHouse3"] = new[] { "FeastMeadows", "MeadStaminaLingering" },
+            ["WoodHouse4"] = new[] { "MeadStaminaMinor" },
+            ["WoodHouse7"] = new[] { "QueensJam" },
+            ["WoodHouse9"] = new[] { "FeastMeadows", "CookedMeat", "MeadStaminaMinor" },
+            ["WoodHouse10"] = new[] { "NeckTailGrilled", "MeadHealthMinor" },
+            ["WoodHouse11"] = new[] { "FeastMeadows", "CookedMeat" },
         };
 
         // Camps that pitch the cart's tent beside the cart.
-        private static readonly HashSet<string> Tented = new HashSet<string> { "WoodHouse3" };
+        private static readonly HashSet<string> Tented = new HashSet<string>
+        {
+            "WoodHouse3", "WoodHouse4", "WoodHouse5", "WoodHouse6", "WoodHouse8", "WoodHouse9", "WoodHouse10", "WoodHouse12", "WoodHouse13",
+        };
 
         public static RuinCamp Parse(string name, string text)
         {

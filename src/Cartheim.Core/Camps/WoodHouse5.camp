@@ -1,0 +1,15 @@
+# Camp at WoodHouse5: designed from its template (the beekeeper's cottage: hives of its own, honey on the table to take), reaching 8.0 m
+# whose | prefab | x | y | z | yaw | what it is | what's on it
+player | piece_beehive | -4.30 | 0.00 | 2.60 | 0 | Beehive | designed
+player | piece_beehive | -4.30 | 0.00 | 0.60 | 0 | Beehive | designed
+player | piece_table | -0.70 | 0.04 | 4.50 | 0 | Piece | designed
+player | Honey | -0.90 | 0.85 | 4.40 | 0 | ItemDrop | designed
+player | Honey | -0.60 | 0.85 | 4.60 | 30 | ItemDrop | designed
+player | Honey | -0.40 | 0.85 | 4.40 | 60 | ItemDrop | designed
+player | piece_bench01 | -0.70 | 0.09 | 5.60 | 0 | Piece | designed
+player | fire_pit | -0.70 | 0.00 | 8.20 | 180 | Fireplace | designed
+player | piece_cookingstation | -0.78 | 0.20 | 8.60 | 180 | CookingStation | designed
+player | piece_cookingstation | -0.77 | 0.20 | 7.75 | 180 | CookingStation | designed
+player | piece_groundtorch_wood | -2.50 | 0.79 | 6.60 | 113 | Fireplace | designed
+player | piece_groundtorch_wood | 1.20 | 0.79 | 6.60 | 113 | Fireplace | designed
+cart | Cart | 4.60 | 0.06 | 0.00 | 0 | Vagon,CartBase | designed

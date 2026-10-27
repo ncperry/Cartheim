@@ -1,0 +1,15 @@
+# Camp at WoodHouse8: designed from its template (the old foundations: a fire in their middle, benches round it, raspberries to take), reaching 10.0 m
+# whose | prefab | x | y | z | yaw | what it is | what's on it
+player | fire_pit | 0.00 | 0.00 | 0.00 | 180 | Fireplace | designed
+player | piece_cookingstation | -0.08 | 0.20 | 0.40 | 180 | CookingStation | designed
+player | piece_cookingstation | -0.07 | 0.20 | -0.45 | 180 | CookingStation | designed
+player | piece_bench01 | 0.00 | 0.09 | 2.30 | 0 | Piece | designed
+player | piece_bench01 | 2.30 | 0.09 | 0.00 | 90 | Piece | designed
+player | piece_bench01 | -2.30 | 0.09 | 0.00 | 90 | Piece | designed
+player | piece_table | 0.00 | 0.04 | -3.20 | 0 | Piece | designed
+player | Raspberry | -0.30 | 0.85 | -3.10 | 0 | ItemDrop | designed
+player | Raspberry | 0.00 | 0.85 | -3.30 | 60 | ItemDrop | designed
+player | Raspberry | 0.30 | 0.85 | -3.10 | 120 | ItemDrop | designed
+player | piece_groundtorch_wood | 3.50 | 0.79 | 3.50 | 113 | Fireplace | designed
+player | piece_groundtorch_wood | -3.50 | 0.79 | 3.50 | 113 | Fireplace | designed
+cart | Cart | 7.50 | 0.06 | 0.00 | 0 | Vagon,CartBase | designed

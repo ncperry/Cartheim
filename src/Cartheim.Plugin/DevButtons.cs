@@ -21,6 +21,7 @@ namespace Cartheim.Plugin
                 yield break;
             foreach (var biome in new[] { Biome.BlackForest, Biome.Swamp, Biome.Mountains, Biome.Plains })
                 yield return new KeyValuePair<string, Action>($"{DevCarts.Named(biome)} cart", () => DevCarts.Spawn(biome));
+            yield return new KeyValuePair<string, Action>("Night / Day", NightOrDay);
             yield return new KeyValuePair<string, Action>("Place a building", DevBuildings.Choose);
             yield return new KeyValuePair<string, Action>("Item stands", CartRaft.BeginStands);
             yield return new KeyValuePair<string, Action>("Tear down", CartRaft.BeginTearDown);
@@ -47,7 +48,25 @@ namespace Cartheim.Plugin
                 "In the dev world: clear the trees, logs, stumps and bushes in a ring where you aim.");
         }
 
-        // The dev world stays at midday (as the game's own time-of-day pin holds it); anywhere else, the day turns.
+        // The dev world stays at midday (as the game's own time-of-day pin holds it), or at midnight when switched to it for
+        // trying night things (sleep, which brings the day back); anywhere else, the day turns.
+        private const float Midday = 0.5f;
+        private const float Midnight = 0f;
+        private static bool _night;
+
+        private static void NightOrDay()
+        {
+            InventoryGui.instance?.Hide();
+            _night = !_night;
+            Player.m_localPlayer?.Message(MessageHud.MessageType.Center, _night ? "Night" : "Day");
+        }
+
+        [HarmonyPatch(typeof(Player), nameof(Player.SetSleeping)), HarmonyPostfix]
+        private static void MorningAfterSleep(bool sleep)
+        {
+            if (!sleep && InDevWorld)
+                _night = false;
+        }
         private static bool _heldAtNoon;
 
         private static void KeepDaytime()
@@ -59,7 +78,7 @@ namespace Cartheim.Plugin
             if (hold)
             {
                 env.m_debugTimeOfDay = true;
-                env.m_debugTime = 0.5f;
+                env.m_debugTime = _night ? Midnight : Midday;
                 _heldAtNoon = true;
             }
             else if (_heldAtNoon)
