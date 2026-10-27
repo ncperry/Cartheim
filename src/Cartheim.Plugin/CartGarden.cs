@@ -347,29 +347,51 @@ namespace Cartheim.Plugin
         }
 
         // Ground cultivated at each of these spots (half a metre apart) that isn't already, only painted, not raised or
-        // levelled (the cultivator's own work, so often over, heaps the ground up): how many spots it took.
+        // levelled (the cultivator's own work, so often over, heaps the ground up): how many spots it took. Painted by the
+        // ground itself: an operation sent to it is known only by its piece's name, so it would do the cultivator's own work.
         private const float CultivatedStep = 0.5f;
 
-        // Ground cultivated at each of these spots that isn't already: how many spots it took.
+        private static readonly System.Reflection.MethodInfo Operate = HarmonyLib.AccessTools.Method(typeof(TerrainComp), "DoOperation");
+
         internal static int Cultivate(IEnumerable<Vector3> spots)
         {
             if (!Ready())
                 return 0;
+            var cultivator = _cultivate.GetComponent<TerrainOp>().m_settings;
+            var paint = new TerrainOp.Settings
+            {
+                m_level = false, m_raise = false, m_smooth = false, m_square = cultivator.m_square,
+                m_paintCleared = true, m_paintType = cultivator.m_paintType, m_paintRadius = CultivatedStep,
+                m_paintStrength = cultivator.m_paintStrength, m_paintExp = cultivator.m_paintExp, m_paintCurve = cultivator.m_paintCurve,
+                m_paintHeightCheck = cultivator.m_paintHeightCheck,
+            };
             var done = 0;
+            var grounds = new List<Heightmap>();
             foreach (var spot in spots)
             {
                 var at = new Vector3(spot.x, Ground(spot), spot.z);
                 var ground = Heightmap.FindHeightmap(at);
                 if (ground && ground.IsCultivated(at))
                     continue;
-                Apply(_cultivate, at, paintOnly: CultivatedStep);
+                grounds.Clear();
+                Heightmap.FindHeightmap(at, CultivatedStep, grounds);
+                foreach (var map in grounds)
+                {
+                    var comp = map.GetAndCreateTerrainCompiler();
+                    var view = comp ? comp.GetComponent<ZNetView>() : null;
+                    if (!view || !view.IsValid())
+                        continue;
+                    if (!view.IsOwner())
+                        view.ClaimOwnership();
+                    Operate.Invoke(comp, new object[] { at, Vector3.zero, paint });
+                }
                 done++;
             }
             return done;
         }
 
         // The cultivator's own work at one spot, without its sound (a whole garden at once would be a racket).
-        private static void Apply(GameObject terrainOp, Vector3 at, float paintOnly = 0f)
+        private static void Apply(GameObject terrainOp, Vector3 at)
         {
             var wasActive = terrainOp.activeSelf;
             terrainOp.SetActive(false);
@@ -385,12 +407,6 @@ namespace Cartheim.Plugin
                 terrainOp.SetActive(wasActive);
             }
             op.GetComponent<TerrainOp>().m_onPlacedEffect = new EffectList();
-            if (paintOnly > 0f)
-            {
-                var settings = op.GetComponent<TerrainOp>().m_settings;
-                settings.m_raise = settings.m_level = settings.m_smooth = false;
-                settings.m_paintRadius = paintOnly;
-            }
             op.SetActive(true);
         }
 
