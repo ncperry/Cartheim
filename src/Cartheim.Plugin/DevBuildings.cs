@@ -230,14 +230,14 @@ namespace Cartheim.Plugin
         private static readonly System.Reflection.MethodInfo SpawnLocation = AccessTools.Method(typeof(ZoneSystem), "SpawnLocation");
 
         // Spawned as the game spawns its own ruins (kept in the world, not marked as cheated).
-        public static void Place(string name, Vector3 at, Quaternion turn)
+        public static void Place(string name, Vector3 at, Quaternion turn, int? seed = null)
         {
             var location = Location(name);
             if (location == null || SpawnLocation == null)
                 return;
             SpawnLocation.Invoke(ZoneSystem.instance, new object[]
             {
-                location, Random.Range(0, 99999), at, turn, ZoneSystem.SpawnMode.Full, new List<GameObject>(), false,
+                location, seed ?? Random.Range(0, 99999), at, turn, ZoneSystem.SpawnMode.Full, new List<GameObject>(), false,
             });
             Debug.Log($"[Cartheim] Dev building {name} placed at {at}, turned {turn.eulerAngles.y:0}");
         }

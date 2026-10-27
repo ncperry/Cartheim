@@ -55,6 +55,16 @@ namespace Cartheim.Core
             public float X, Z, Height, FaceX, FaceZ;
         }
 
+        // A camp recorded in the dev world (see CampRecords): the pieces the player built there, how far round the building
+        // the camp reaches (its area), and the food on its table not to be eaten. Hand-made camps (the stone house) have none.
+        public List<RecordedPiece> Recorded;
+        public float Area = 10f;
+        public HashSet<string> Untouchable = new HashSet<string>();
+        // A hand-made camp has the cart's tent as a tarp over it, and a room with the rug and bed; a recorded one only what was
+        // recorded.
+        public bool HasTarp => Recorded == null;
+        public bool HasRoom => Recorded == null;
+
         public static bool Near(float distance) => distance <= Reach;
 
         // Back to cart form takes the camp away with nothing back: not while meat (or coal) is on its cooking station, or
@@ -66,7 +76,10 @@ namespace Cartheim.Core
             if (string.IsNullOrEmpty(location))
                 return null;
             var name = location.Replace("(Clone)", "").Trim();
-            return Camps.TryGetValue(name, out var camp) ? camp : null;
+            if (Camps.TryGetValue(name, out var camp))
+                return camp;
+            _shipped = _shipped ?? CampRecords.Shipped();
+            return _shipped.TryGetValue(name, out var recorded) ? recorded : null;
         }
 
         // A Black Forest stone house: four stone walls a metre thick (2.5 m tall on the left, 3.5 m on the right) round a
@@ -74,6 +87,8 @@ namespace Cartheim.Core
         // wall. The cart stands across that break facing in (its sconce lights the room), with a wood fence round the back
         // of it; the campfire is in the front right corner, under the tarp's high side, which stops short of the right wall
         // so the smoke rising up it gets out; the bed lies on the rug by the left wall.
+        private static Dictionary<string, RuinCamp> _shipped;
+
         private static readonly Dictionary<string, RuinCamp> Camps = new Dictionary<string, RuinCamp>
         {
             ["StoneHouse4"] = new RuinCamp

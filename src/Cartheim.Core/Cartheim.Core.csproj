@@ -5,4 +5,8 @@
     <LangVersion>9.0</LangVersion>
     <Nullable>disable</Nullable>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Camps recorded in the dev world, one per building (see CampRecords). -->
+    <EmbeddedResource Include="Camps\*.camp" />
+  </ItemGroup>
 </Project>

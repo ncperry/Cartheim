@@ -104,7 +104,9 @@ namespace Cartheim.Plugin
                 at.y = WorldGenerator.instance.GetHeight(at.x, at.z);
             }
             CartRaft.ClearForestAt(at, building.m_exteriorRadius + CartRaft.ClearMargin);
-            DevBuildings.Place(name, at, Quaternion.Euler(0f, origin.eulerAngles.y, 0f));
+            // The same seed, so the same of its optional parts (huts, a beehive) as the first.
+            var seed = building.GetComponentInParent<LocationProxy>()?.GetComponent<ZNetView>()?.GetZDO()?.GetInt(ZDOVars.s_seed);
+            DevBuildings.Place(name, at, Quaternion.Euler(0f, origin.eulerAngles.y, 0f), seed);
             DevForest.ClearRoundBuildings(at, 5f, out _);
             player.Message(MessageHud.MessageType.Center, $"A copy of {name} set {Vector3.Distance(at, origin.position):0} m to the side");
         }

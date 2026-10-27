@@ -16,6 +16,8 @@ namespace Cartheim.Plugin
     internal static class CartRuin
     {
         private const string CampOfKey = "cartheim_camp_of";
+        // Set out to look at, not to eat or take (food on a camp's table).
+        private const string UntouchableKey = "cartheim_untouchable";
         private const string DoorName = "$piece_wooddoor";
         private const string FenceName = "$piece_woodfence";
 
@@ -41,6 +43,23 @@ namespace Cartheim.Plugin
         // by the door, each piece with how it's turned.
         private static IEnumerable<(CartGarden.Kind kind, Vector3 at, Quaternion facing, System.Action<GameObject> fill)> Pieces(Location ruin, RuinCamp camp)
         {
+            // A recorded camp: just what was recorded, each where it stood round the building (its height too) and turned as
+            // it was; the food not to be eaten marked so.
+            if (camp.Recorded != null)
+            {
+                var turn = Turn(ruin, 0f);
+                foreach (var recorded in camp.Recorded)
+                {
+                    var kind = CartGarden.Measure(GamePieces.Prefab(recorded.Prefab));
+                    if (!kind.Prefab)
+                        continue;
+                    kind.Lift = 0f;
+                    var untouchable = camp.Untouchable.Contains(recorded.Prefab);
+                    yield return (kind, ruin.transform.position + turn * new Vector3(recorded.X, recorded.Y, recorded.Z), Turn(ruin, recorded.Yaw),
+                        untouchable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(UntouchableKey, true)) : null);
+                }
+                yield break;
+            }
             var door = CartGarden.HammerPiece(DoorName);
             var fence = CartGarden.HammerPiece(FenceName);
             if (door.Prefab)
@@ -275,14 +294,14 @@ namespace Cartheim.Plugin
                 piece.transform.SetPositionAndRotation(at + Vector3.up * kind.Lift, facing);
                 piece.transform.SetParent(root.transform, true);
             }
-            if (cart.HasTent)
+            if (cart.HasTent && camp.HasTarp)
             {
                 var tarp = TentAssets.Tarp(ruin.transform.position, Quaternion.Euler(0f, ruin.transform.eulerAngles.y, 0f), TarpTuning.BoxFor(camp), ghost: true);
                 if (tarp)
                     tarp.transform.SetParent(root.transform, true);
             }
             // The cart's rug laid in the room and its bed on it, if it has them.
-            var rug = GamePieces.Rugs.FirstOrDefault(cart.Upgrades.Has);
+            var rug = camp.HasRoom ? GamePieces.Rugs.FirstOrDefault(cart.Upgrades.Has) : null;
             if (rug != null)
             {
                 var floor = new GameObject("rug");
@@ -290,7 +309,7 @@ namespace Cartheim.Plugin
                 floor.transform.SetParent(root.transform, true);
                 CartLooks.Rug(floor.transform, rug, new Bounds(Vector3.zero, new Vector3(camp.RugSize, 0f, camp.RugSize)));
             }
-            var bed = GamePieces.Beds.FirstOrDefault(cart.Upgrades.Has);
+            var bed = camp.HasRoom ? GamePieces.Beds.FirstOrDefault(cart.Upgrades.Has) : null;
             var bedGhost = bed != null ? CartRaft.Ghost(bed) : null;
             if (bedGhost)
             {
@@ -452,7 +471,14 @@ namespace Cartheim.Plugin
             Keep(built);
         }
 
-        private static bool IsCamp(Component piece)
+        // Food set out on a camp's table, to look at only.
+        internal static bool IsUntouchable(Component thing)
+        {
+            var zdo = thing ? thing.GetComponentInParent<ZNetView>()?.GetZDO() : null;
+            return zdo != null && zdo.GetBool(UntouchableKey);
+        }
+
+        internal static bool IsCamp(Component piece)
         {
             var zdo = piece ? piece.GetComponentInParent<ZNetView>()?.GetZDO() : null;
             return zdo != null && zdo.GetLong(CampOfKey, 0L) != 0;
@@ -527,6 +553,21 @@ namespace Cartheim.Plugin
                 p.m_canBeRemoved = false;
             foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
                 fire.m_infiniteFuel = true;
+            // Things set out (food on the table): staying where they're put, not swept up by passing.
+            foreach (var drop in piece.GetComponentsInChildren<ItemDrop>(true))
+            {
+                drop.m_autoPickup = false;
+                if (drop.GetComponent<Rigidbody>() is Rigidbody body)
+                    body.isKinematic = true;
+            }
+        }
+
+        // Loaded again, a camp's thing set out is kept so still.
+        [HarmonyPatch(typeof(ItemDrop), "Awake"), HarmonyPostfix]
+        private static void StillSetOut(ItemDrop __instance)
+        {
+            if (IsCamp(__instance))
+                Keep(__instance.gameObject);
         }
     }
 }

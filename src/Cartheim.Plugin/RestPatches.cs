@@ -49,7 +49,7 @@ namespace Cartheim.Plugin
             var bed = point ? point.GetComponentInParent<Bed>() : null;
             __state = bed && IsCartPiece(bed) ? CartFire.CartNear(bed.transform.position) : null;
             // Settled in a ruin, the bed stands in the room by itself: they get out of it as out of any bed.
-            if (__state && __state.InRuin)
+            if (__state && __state.Camp?.HasRoom == true)
                 __state = null;
         }
 

@@ -58,6 +58,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartPortal));
             _harmony.PatchAll(typeof(CartRescue));
             _harmony.PatchAll(typeof(CartRuin));
+            _harmony.PatchAll(typeof(CampRules));
             _harmony.PatchAll(typeof(DevButtons));
             _harmony.PatchAll(typeof(DevForest));
             // Hot reloaded into a running world: the carts already there were woken before our patch existed.
@@ -81,6 +82,7 @@ namespace Cartheim.Plugin
             CartGarden.Update();
             CartRuinSurvey.Update();
             DevBuildings.Update();
+            CampRules.Update();
             DevButtons.Update();
             TarpTuning.Update();
         }

@@ -289,7 +289,7 @@ namespace Cartheim.Plugin
                 return;
             if (InRuin)
             {
-                player.Message(MessageHud.MessageType.Center, "The cart is settled in a ruin: its tent is the tarp over it");
+                player.Message(MessageHud.MessageType.Center, Camp.HasTarp ? "The cart is settled in a ruin: its tent is the tarp over it" : "The cart is settled at a camp: its tent stays packed");
                 return;
             }
             if (TentUp)
@@ -608,7 +608,7 @@ namespace Cartheim.Plugin
             }
             // Settled in a ruin: held still, the tent's cloth over the ruin as a tarp if the cart has a tent.
             var camp = on ? Camp : null;
-            var wantTarp = camp != null && HasTent;
+            var wantTarp = camp != null && camp.HasTarp && HasTent;
             if (wantTarp && !_tarp)
                 _tarp = TentAssets.Tarp(RuinAt, RuinTurn, TarpTuning.BoxFor(camp));
             else if (!wantTarp && _tarp)
@@ -618,9 +618,11 @@ namespace Cartheim.Plugin
             }
             Freeze(wantTent || camp != null);
             // Settled, the room: its rug laid on the floor and its bed standing on it; the cart's own bed look not shown.
-            if (camp != null && !_room)
-                _room = Room(camp);
-            else if (camp == null && _room)
+            // A recorded camp has no room: the cart keeps its rug and bed.
+            var room = camp != null && camp.HasRoom ? camp : null;
+            if (room != null && !_room)
+                _room = Room(room);
+            else if (room == null && _room)
             {
                 Destroy(_room);
                 _room = null;
@@ -628,11 +630,11 @@ namespace Cartheim.Plugin
                 CartRuin.Grassless(this, null);
             }
             // A bronze shield on its stand above the bed, while the player or the cart has a shield.
-            if (camp != null)
+            if (room != null)
                 CartRuin.HangShield(this, HasShield());
             var bedLook = GamePieces.Beds.Select(AnchorFor).FirstOrDefault(a => a);
-            if (bedLook && bedLook.gameObject.activeSelf != (camp == null))
-                bedLook.gameObject.SetActive(camp == null);
+            if (bedLook && bedLook.gameObject.activeSelf != (room == null))
+                bedLook.gameObject.SetActive(room == null);
             BurnCoal(on);
             _assist = on ? SteamEngine.Assist(Upgrades.Level(SteamEngine.Engine), Coal) : 0f;
             // A hearth built before the steam engine replaced it still burns; the engine burns while it has coal.
@@ -970,6 +972,8 @@ namespace Cartheim.Plugin
             if (!_nview.IsOwner())
                 _nview.ClaimOwnership();
             KeepSpawnWithBed();
+            // The building's bees stay calm a minute more.
+            CampRules.CalmAfterPacking(RuinAt, Camp.Area + 2f);
             CartRuin.TearDown(Uid());
             _nview.GetZDO().Set(RuinKey, "");
             SetDown(at, facing);
