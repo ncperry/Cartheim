@@ -26,6 +26,7 @@ namespace Cartheim.Plugin
             yield return new KeyValuePair<string, Action>("Tear down", CartRaft.BeginTearDown);
             yield return new KeyValuePair<string, Action>("Clear forest", CartRaft.BeginClearForest);
             yield return new KeyValuePair<string, Action>("Clear round buildings", CartRaft.ClearRoundBuildings);
+            yield return new KeyValuePair<string, Action>("Put buildings on the ground", DevBuildings.PutBackOnGround);
         }
 
         // In the dev world, a key for placing a building (opens the biome panel; again, closes it).

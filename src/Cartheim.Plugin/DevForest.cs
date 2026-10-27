@@ -15,6 +15,9 @@ namespace Cartheim.Plugin
             AccessTools.FieldRefAccess<ZDOMan, Dictionary<ZDOID, ZDO>>("m_objectsByID");
         private static readonly System.Reflection.MethodInfo FindObjects = AccessTools.Method(typeof(ZDOMan), "FindObjects");
 
+        // Every record in the world, loaded near the player or not.
+        public static List<ZDO> Records() => Objects(ZDOMan.instance).Values.ToList();
+
         // Each building's middle, and how far round it's cleared: its own reach and a margin.
         private static List<(Vector3 at, float reach)> Buildings(IEnumerable<ZDO> records)
         {

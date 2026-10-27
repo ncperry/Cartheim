@@ -169,6 +169,64 @@ namespace Cartheim.Plugin
             return true;
         }
 
+
+        // Every building in the dev world standing well above or below the ground the world was made with (placed before
+        // the ground was known that far out) taken down and put back on it: the same building, where it was and turned as
+        // it was. Only its own parts go (those its template spawns); then the trees round it are cleared.
+        public static void PutBackOnGround()
+        {
+            InventoryGui.instance?.Hide();
+            var player = Player.m_localPlayer;
+            if (!player || !ZoneSystem.instance || !DevButtons.InDevWorld)
+                return;
+            var proxy = ZoneSystem.instance.m_locationProxyPrefab.name.GetStableHashCode();
+            var byHash = Locations().GroupBy(l => l.m_prefab.Name.GetStableHashCode()).ToDictionary(g => g.Key, g => g.First());
+            var records = DevForest.Records();
+            var me = ZDOMan.GetSessionID();
+            var mended = new List<string>();
+            foreach (var building in records.Where(z => z.IsValid() && z.GetPrefab() == proxy).ToList())
+            {
+                if (!byHash.TryGetValue(building.GetInt(ZDOVars.s_location), out var location))
+                    continue;
+                // Not those the game sets off the ground on purpose (afloat, sunk), nor any far away.
+                if (location.m_snapToWater || location.m_prefab.Name.Contains("_sunk")
+                    || Vector3.Distance(building.GetPosition(), player.transform.position) > 1000f)
+                    continue;
+                var at = building.GetPosition();
+                var ground = WorldGenerator.instance.GetHeight(at.x, at.z);
+                if (!Cartheim.Core.DevWorld.OffTheGround(at.y, ground))
+                    continue;
+                var turn = building.GetRotation();
+                var reach = Mathf.Max(location.m_exteriorRadius, location.m_interiorRadius);
+                var parts = PartsOf(location);
+                var gone = 0;
+                foreach (var part in records.Where(z => z.IsValid() && parts.Contains(z.GetPrefab())
+                                                       && new Vector2(z.GetPosition().x - at.x, z.GetPosition().z - at.z).magnitude <= reach).ToList()
+                             .Append(building))
+                {
+                    var loaded = ZNetScene.instance.FindInstance(part);
+                    part.SetOwner(me);
+                    if (loaded)
+                        ZNetScene.instance.Destroy(loaded.gameObject);
+                    else
+                        ZDOMan.instance.DestroyZDO(part);
+                    gone++;
+                }
+                Place(location.m_prefab.Name, new Vector3(at.x, ground, at.z), turn);
+                mended.Add($"{location.m_prefab.Name} ({at.y - ground:+0.0;-0.0} m, {gone} parts)");
+            }
+            var trees = DevForest.ClearRoundBuildings(player.transform.position, 1000f, out _);
+            Debug.Log($"[Cartheim] Dev: put back on the ground: {string.Join(", ", mended)}; {trees} trees cleared");
+            player.Message(MessageHud.MessageType.Center, mended.Count == 0 ? "Every building stands on the ground" : $"Put {mended.Count} buildings back on the ground");
+        }
+
+        // The kinds of thing a building's template spawns (as the world's records name them).
+        private static HashSet<int> PartsOf(ZoneSystem.ZoneLocation location)
+        {
+            location.m_prefab.Load();
+            return new HashSet<int>(location.m_prefab.Asset.GetComponentsInChildren<ZNetView>(true)
+                .Select(v => Utils.GetPrefabName(v.gameObject.name).GetStableHashCode()));
+        }
         private static readonly System.Reflection.MethodInfo SpawnLocation = AccessTools.Method(typeof(ZoneSystem), "SpawnLocation");
 
         // Spawned as the game spawns its own ruins (kept in the world, not marked as cheated).
