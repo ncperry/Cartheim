@@ -83,6 +83,20 @@ namespace Cartheim.Core.Tests
         }
 
         [Fact]
+        public void The_first_wood_house_camp_is_the_seconds_with_its_shelter_a_metre_lower_to_meet_its_lower_back_wall()
+        {
+            var first = RuinCamp.For("WoodHouse1");
+            var second = RuinCamp.For("WoodHouse2");
+            float Top(RuinCamp camp, string prefab) => camp.Recorded.First(p => p.Prefab == prefab).Y;
+            Assert.Equal(Top(second, "wood_roof_top_45") - 1f, Top(first, "wood_roof_top_45"), 3);
+            Assert.Equal(Top(second, "wood_beam") - 1f, Top(first, "wood_beam"), 3);
+            Assert.DoesNotContain(first.Recorded, p => p.Prefab == "wood_pole");
+            Assert.Equal(second.Recorded.Count(p => p.Prefab == "piece_table"), first.Recorded.Count(p => p.Prefab == "piece_table"));
+            Assert.NotNull(first.BedSpot);
+            Assert.NotNull(first.RugSpot);
+        }
+
+        [Fact]
         public void The_wood_house_camp_ships_with_the_mod_with_its_table_set_but_not_to_be_eaten_from_but_the_berries()
         {
             var camp = RuinCamp.For("WoodHouse3(Clone)");
