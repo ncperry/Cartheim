@@ -960,6 +960,7 @@ namespace Cartheim.Plugin
         private Cartheim.Core.RecordedPiece _bedTook;
 
         private const float RugAboveGround = 0.02f;
+        private const float RugFeelStep = 0.25f;
 
         private GameObject RecordedRoom(RuinCamp camp)
         {
@@ -974,8 +975,11 @@ namespace Cartheim.Plugin
             if (camp.RugSpot != null)
             {
                 var size = CartGarden.Measure(GamePieces.Prefab(camp.RugSpot.Prefab)).Box;
-                var highest = new[] { new Vector3(size.min.x, 0f, size.min.z), new Vector3(size.min.x, 0f, size.max.z), new Vector3(size.max.x, 0f, size.min.z), new Vector3(size.max.x, 0f, size.max.z), size.center }
-                    .Select(c => CartGarden.Ground(roomAt + roomTurn * new Vector3(c.x, 0f, c.z))).Max();
+                // Felt for all over it: the ground between its corners can rise above them.
+                var highest = float.MinValue;
+                for (var x = size.min.x; x <= size.max.x + 0.01f; x += RugFeelStep)
+                    for (var z = size.min.z; z <= size.max.z + 0.01f; z += RugFeelStep)
+                        highest = Mathf.Max(highest, CartGarden.Ground(roomAt + roomTurn * new Vector3(x, 0f, z)));
                 Debug.Log($"[Cartheim] The {camp.Name}'s rug: the building's floor there at {roomAt.y:0.00}, the highest ground under it at {highest:0.00} (its size {size.size})");
                 roomAt.y = Mathf.Max(roomAt.y, highest + RugAboveGround);
             }

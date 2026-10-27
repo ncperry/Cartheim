@@ -466,6 +466,8 @@ namespace Cartheim.Plugin
             var placed = new Dictionary<Cartheim.Core.RecordedPiece, Vector3>();
             var moved = new Dictionary<Cartheim.Core.RecordedPiece, (Vector3 by, float ground)>();
             var notes = new List<string>();
+            // How far each piece of the camp's structure went up or down from as built, for what's built onto it.
+            var shifted = new Dictionary<Cartheim.Core.RecordedPiece, float>();
             var standing = camp.Recorded.Where(p => p.Y <= OnTheGround).ToList();
             foreach (var piece in standing)
             {
@@ -476,12 +478,13 @@ namespace Cartheim.Plugin
                 var facing = Turn(ruin, piece.Yaw);
                 if (Structural(piece.Prefab))
                 {
-                    var height = Rigid(ruin, piece);
+                    // Built on the ground (a fence): on the lowest ground under it, never in the air; else as built.
+                    var height = piece.OnTheGround ? Lowest(recordedAt, facing, kind.Box) : Rigid(ruin, piece);
+                    shifted[piece] = height - Rigid(ruin, piece);
                     moved[piece] = (Vector3.zero, height - piece.Y);
                     placed[piece] = new Vector3(recordedAt.x, height, recordedAt.z);
-                    var off = height - (Highest(recordedAt, facing, kind.Box) + piece.Y);
-                    if (Mathf.Abs(off) > 0.25f)
-                        notes.Add($"{piece.Prefab} at {piece.X:0.0},{piece.Z:0.0} kept {off:+0.00;-0.00} m off the ground here, to meet the rest");
+                    if (Mathf.Abs(shifted[piece]) > 0.25f)
+                        notes.Add($"{piece.Prefab} at {piece.X:0.0},{piece.Z:0.0} {shifted[piece]:+0.00;-0.00} m from as built, on the ground here");
                     continue;
                 }
                 var nudges = Nudges();
@@ -513,8 +516,10 @@ namespace Cartheim.Plugin
                     // With what it rests on: left out with it, moved with it.
                     if (!moved.TryGetValue(under, out var with))
                         continue;
-                    // Built onto the camp's structure: as high as it was built, to meet it.
-                    var height = Structural(piece.Prefab) || Structural(under.Prefab) ? Rigid(ruin, piece) : with.ground + piece.Y;
+                    // Built onto the camp's structure: as high as it was built over what it's built on, to meet it.
+                    var height = Structural(piece.Prefab) || Structural(under.Prefab)
+                        ? Rigid(ruin, piece) + (shifted.TryGetValue(under, out var shift) ? shift : 0f)
+                        : with.ground + piece.Y;
                     placed[piece] = new Vector3(at.x + with.by.x, height, at.z + with.by.z);
                 }
                 else
@@ -540,6 +545,13 @@ namespace Cartheim.Plugin
                     tries.Add(new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * ring);
                 }
             return tries.ToArray();
+        }
+
+        // The lowest ground anywhere under a piece's footprint.
+        private static float Lowest(Vector3 at, Quaternion facing, Bounds box)
+        {
+            var corners = new[] { new Vector3(box.min.x, 0f, box.min.z), new Vector3(box.min.x, 0f, box.max.z), new Vector3(box.max.x, 0f, box.min.z), new Vector3(box.max.x, 0f, box.max.z), Vector3.zero };
+            return corners.Select(c => CartGarden.Ground(at + facing * c)).Min();
         }
 
         // The highest ground anywhere under a piece's footprint: the land, or a floor of the building's over it (looked for

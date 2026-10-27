@@ -54,6 +54,8 @@ namespace Cartheim.Core.Tests
             Assert.Equal(new[] { 0.12f, 0.73f, 0f }, camp.Recorded.Select(p => (float)System.Math.Round(p.Y, 2)));
             // And as high as it stood in the building's own space, for what's built to meet the rest.
             Assert.Equal(new[] { 0.77f, 0.63f, 0f }, camp.Recorded.Select(p => p.InBuilding));
+            // Recorded on the ground (not up on something), where the ground under it was recorded.
+            Assert.Equal(new[] { true, false, false }, camp.Recorded.Select(p => p.OnTheGround));
         }
 
         [Fact]

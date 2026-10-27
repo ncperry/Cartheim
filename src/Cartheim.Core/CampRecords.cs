@@ -13,6 +13,8 @@ namespace Cartheim.Core
         public float X, Y, Z, Yaw;
         // Its height in the building's own space, as recorded (Y is above the ground under it, where that was recorded).
         public float InBuilding;
+        // Recorded standing on the ground (its foot no higher than the ground under it), where that ground was recorded.
+        public bool OnTheGround;
         // What an armour stand wears, slot by slot.
         public List<(int slot, string item)> Wears = new List<(int, string)>();
     }
@@ -62,7 +64,10 @@ namespace Cartheim.Core
                 // Its height above what it stood on, where that was recorded (else above the building's own ground).
                 var under = parts.Length > 7 ? Regex.Match(parts[7], @"(?:^|; )ground (-?[0-9.]+)") : Match.Empty;
                 if (under.Success)
+                {
                     piece.Y -= Number(under.Groups[1].Value);
+                    piece.OnTheGround = piece.Y <= OnTheGroundWithin;
+                }
                 if (parts.Length > 7)
                     foreach (Match worn in Regex.Matches(Regex.Match(parts[7], @"wears ([^;]*)").Groups[1].Value, @"(\d+):(\w+)"))
                         piece.Wears.Add((int.Parse(worn.Groups[1].Value, CultureInfo.InvariantCulture), worn.Groups[2].Value));
@@ -98,6 +103,7 @@ namespace Cartheim.Core
             return camp;
         }
 
+        private const float OnTheGroundWithin = 0.15f;
         private const string Rug = "rug_";
         private const string Cultivated = "cultivated";
         private const string Bed = "_bed";
