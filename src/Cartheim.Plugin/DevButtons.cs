@@ -98,12 +98,30 @@ namespace Cartheim.Plugin
             return tier;
         }
 
+        // The serving tray's feasts, every one (any biome's), as well.
+        private const string ServingTray = "Feaster";
+        private static HashSet<string> _feasts;
+
+        private static bool OnTheServingTray(Piece piece)
+        {
+            if (_feasts == null)
+            {
+                var table = GamePieces.Item(ServingTray)?.m_itemData.m_shared.m_buildPieces;
+                // Not yet loaded: asked again next time.
+                if (!table)
+                    return false;
+                _feasts = new HashSet<string>(table.m_pieces.Where(p => p).Select(p => p.name));
+                Debug.Log($"[Cartheim] Dev: the serving tray's pieces: {string.Join(", ", _feasts)}");
+            }
+            return _feasts.Contains(piece.name);
+        }
+
         [HarmonyPatch(typeof(Player), nameof(Player.HaveRequirements), typeof(Piece), typeof(Player.RequirementMode)), HarmonyPrefix]
         private static bool UpToThePlains(Player __instance, Piece piece, Player.RequirementMode mode, ref bool __result)
         {
             if (!InDevWorld || __instance != Player.m_localPlayer || !piece)
                 return true;
-            __result = TierOf(piece) <= Biome.Plains &&
+            __result = (TierOf(piece) <= Biome.Plains || OnTheServingTray(piece)) &&
                        (mode != Player.RequirementMode.CanBuild || !piece.m_craftingStation ||
                         CraftingStation.HaveBuildStationInRange(piece.m_craftingStation.m_name, __instance.transform.position) ||
                         ZoneSystem.instance.GetGlobalKey(GlobalKeys.NoWorkbench));
