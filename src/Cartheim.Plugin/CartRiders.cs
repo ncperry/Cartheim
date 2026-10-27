@@ -64,7 +64,11 @@ namespace Cartheim.Plugin
             if (wear)
                 Object.Destroy(wear);
             foreach (var fire in piece.GetComponentsInChildren<Fireplace>(true))
+            {
                 fire.m_infiniteFuel = !NeedsFuel.Contains(Utils.GetPrefabName(piece));
+                // Riding under the cart's roof and its tent, smoke trapped there: still lit (while it has fuel).
+                fire.m_disableCoverCheck = true;
+            }
             // A beehive's bees still show, buzzing about the cart.
             var hive = piece.GetComponent<Beehive>();
             // A light's flame (a sconce's) still burns, on the piece's model on the cart.
