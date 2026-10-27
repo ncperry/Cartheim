@@ -258,6 +258,9 @@ namespace Cartheim.Plugin
             var copy = Object.Instantiate(prefab, ghost.transform, false);
             copy.transform.localPosition = Vector3.zero;
             copy.transform.localRotation = Quaternion.identity;
+            // The game keeps a building's parts switched off in it, switching each on as it spawns it: all on, to be seen.
+            foreach (var part in copy.GetComponentsInChildren<Transform>(true))
+                part.gameObject.SetActive(true);
             // A few times over: a part another needs can only go once that one has.
             for (var pass = 0; pass < 4; pass++)
                 foreach (var behaviour in copy.GetComponentsInChildren<MonoBehaviour>(true))
@@ -289,7 +292,7 @@ namespace Cartheim.Plugin
             _said = null;
             _red = false;
             _inventoryGone = false;
-            Debug.Log($"[Cartheim] Placing the building {name}");
+            Debug.Log($"[Cartheim] Placing the building {name}: its ghost shows {ghost.GetComponentsInChildren<Renderer>().Length} parts");
         }
 
         private static void PlaceBuilding()

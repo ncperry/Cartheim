@@ -124,7 +124,9 @@ namespace Cartheim.Plugin
             var radii = family.Select(n => Location(n)).Select(l => Mathf.Max(l.m_exteriorRadius, l.m_interiorRadius)).ToList();
             var along = Cartheim.Core.BuildingFamily.Spacing(radii, LineStart, LineGap);
             var start = player.transform.position;
-            var forward = Vector3.ProjectOnPlane(player.transform.forward, Vector3.up).normalized;
+            // Where the player looks (the camera), not where their body happens to face.
+            var look = GameCamera.instance ? GameCamera.instance.transform.forward : player.transform.forward;
+            var forward = Vector3.ProjectOnPlane(look, Vector3.up).normalized;
             var facing = Quaternion.LookRotation(-forward, Vector3.up);
             for (var i = 0; i < family.Count; i++)
             {
