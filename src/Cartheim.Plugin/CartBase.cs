@@ -108,6 +108,7 @@ namespace Cartheim.Plugin
                 CartRuin.Grassless(_tentGrass, null);
             if (_room)
                 Destroy(_room);
+                ShowHiddenBeds();
             if (_tarp)
                 Destroy(_tarp);
             Freeze(false);
@@ -635,10 +636,14 @@ namespace Cartheim.Plugin
             else if (room == null && _room)
             {
                 Destroy(_room);
+                ShowHiddenBeds();
                 _room = null;
                 _bedSpot = null;
                 CartRuin.Grassless(this, null);
             }
+            // The building's own bed hidden where the cart's stands, once it's loaded (it may come after the cart).
+            if (room?.BedSpot != null && _bedSpot && _hiddenBeds.Count == 0)
+                HideBed(room.BedSpot.Prefab, RuinAt + RuinTurn * new Vector3(room.BedSpot.X, room.BedSpot.Y, room.BedSpot.Z));
             // A bronze shield on its stand above the bed, while the player or the cart has a shield.
             if (room != null)
                 CartRuin.HangShield(this, HasShield());
@@ -912,6 +917,8 @@ namespace Cartheim.Plugin
 
         private GameObject Room(RuinCamp camp)
         {
+            if (camp.Recorded != null)
+                return RecordedRoom(camp);
             var turn = RuinTurn;
             Vector3 At(float x, float z)
             {
@@ -942,6 +949,68 @@ namespace Cartheim.Plugin
             }
             Debug.Log($"[Cartheim] Cart {Uid()}'s room in the {camp.Name}: rug {rug ?? "none"}, bed {bed ?? "none"}");
             return room;
+        }
+
+        // A recorded camp's room, inside its building: the cart's rug where the record laid one (its own size and turn), and
+        // the cart's bed in place of the building's own bed (which is hidden meanwhile), lengthwise along it and centred on it.
+        // Heights are the building's, as recorded (its floor), not the ground's.
+        private readonly List<GameObject> _hiddenBeds = new List<GameObject>();
+
+        private GameObject RecordedRoom(RuinCamp camp)
+        {
+            var turn = RuinTurn;
+            Vector3 At(Cartheim.Core.RecordedPiece spot) => RuinAt + turn * new Vector3(spot.X, spot.Y, spot.Z);
+            var anchor = camp.RugSpot ?? camp.BedSpot;
+            var room = new GameObject("Cartheim room");
+            room.transform.SetPositionAndRotation(At(anchor), turn * Quaternion.Euler(0f, anchor.Yaw, 0f));
+            var rug = camp.RugSpot != null ? GamePieces.Rugs.FirstOrDefault(Upgrades.Has) : null;
+            if (rug != null)
+            {
+                var laid = CartGarden.Measure(GamePieces.Prefab(camp.RugSpot.Prefab)).Box;
+                CartLooks.Rug(room.transform, rug, new Bounds(new Vector3(laid.center.x, 0f, laid.center.z), new Vector3(laid.size.x, 0f, laid.size.z)));
+            }
+            var bed = camp.BedSpot != null ? GamePieces.Beds.FirstOrDefault(Upgrades.Has) : null;
+            if (bed != null)
+            {
+                var theirs = CartGarden.Measure(GamePieces.Prefab(camp.BedSpot.Prefab));
+                var ours = CartGarden.Measure(GamePieces.Prefab(bed));
+                var theirTurn = turn * Quaternion.Euler(0f, camp.BedSpot.Yaw, 0f);
+                var middle = At(camp.BedSpot) + theirTurn * new Vector3(theirs.Box.center.x, 0f, theirs.Box.center.z);
+                // Its length the way theirs runs.
+                var ourTurn = theirTurn * Quaternion.Euler(0f, theirs.Turn - ours.Turn, 0f);
+                _bedSpot = new GameObject("bed spot").transform;
+                _bedSpot.SetParent(room.transform, false);
+                _bedSpot.SetPositionAndRotation(middle - ourTurn * new Vector3(ours.Box.center.x, 0f, ours.Box.center.z), ourTurn);
+                HideBed(camp.BedSpot.Prefab, At(camp.BedSpot));
+            }
+            Debug.Log($"[Cartheim] Cart {Uid()}'s room in the {camp.Name}: rug {rug ?? "none"}, bed {bed ?? "none"}{(bed != null ? " in place of its " + camp.BedSpot.Prefab : "")}");
+            return room;
+        }
+
+        // The building's own bed where the cart's stands: not seen, not in the way, until the room goes.
+        private void HideBed(string prefab, Vector3 at)
+        {
+            foreach (var view in FindObjectsByType<ZNetView>(FindObjectsSortMode.None)
+                         .Where(v => v && Utils.GetPrefabName(v.gameObject) == prefab && Vector3.Distance(v.transform.position, at) < 0.6f))
+            {
+                foreach (var renderer in view.GetComponentsInChildren<Renderer>(true))
+                    renderer.enabled = false;
+                foreach (var collider in view.GetComponentsInChildren<Collider>(true))
+                    collider.enabled = false;
+                _hiddenBeds.Add(view.gameObject);
+            }
+        }
+
+        private void ShowHiddenBeds()
+        {
+            foreach (var bed in _hiddenBeds.Where(b => b))
+            {
+                foreach (var renderer in bed.GetComponentsInChildren<Renderer>(true))
+                    renderer.enabled = true;
+                foreach (var collider in bed.GetComponentsInChildren<Collider>(true))
+                    collider.enabled = true;
+            }
+            _hiddenBeds.Clear();
         }
         private Vector3 RuinAt => _nview.GetZDO().GetVec3(RuinAtKey, Vector3.zero);
         private Quaternion RuinTurn => Quaternion.Euler(0f, _nview.GetZDO().GetFloat(RuinTurnKey, 0f), 0f);

@@ -536,6 +536,10 @@ namespace Cartheim.Plugin
             {
                 _campOf = 0;
             }
+            // Everything built there made good, for good: cosier.
+            var mended = Object.FindObjectsByType<WearNTear>(FindObjectsSortMode.None)
+                .Count(w => w && new Vector2(w.transform.position.x - ruin.transform.position.x, w.transform.position.z - ruin.transform.position.z).magnitude <= camp.Area + 2f && w.Repair());
+            Debug.Log($"[Cartheim] Settling into the {camp.Name}: {mended} pieces repaired");
             player.Message(MessageHud.MessageType.Center, "The cart is settled into the ruin");
         }
 

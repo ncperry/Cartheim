@@ -63,7 +63,10 @@ namespace Cartheim.Core
         // A hand-made camp has the cart's tent as a tarp over it, and a room with the rug and bed; a recorded one only what was
         // recorded.
         public bool HasTarp => Recorded == null;
-        public bool HasRoom => Recorded == null;
+        // In a recorded camp: where the cart's rug lies (where one was laid), and the building's own bed the cart's bed takes
+        // the place of (its first), each if there's one; with either, it has a room.
+        public RecordedPiece RugSpot, BedSpot;
+        public bool HasRoom => Recorded == null || RugSpot != null || BedSpot != null;
         // A recorded camp that pitches the cart's tent beside it (if the cart has one).
         public bool PitchesTent;
 

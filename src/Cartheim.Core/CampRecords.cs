@@ -53,12 +53,24 @@ namespace Cartheim.Core
                     camp.CartZ = piece.Z;
                     camp.CartYaw = piece.Yaw;
                 }
-                // What the player built there, less what rides in the cart (its own upgrades, wherever it goes).
+                // What the player built there, less what rides in the cart (its own upgrades, wherever it goes); a rug laid
+                // there marks where the cart's own rug lies.
                 else if (parts[0] == "player" && !parts[6].Split(',').Contains("CartRider"))
-                    camp.Recorded.Add(piece);
+                {
+                    if (piece.Prefab.StartsWith(Rug))
+                        camp.RugSpot = camp.RugSpot ?? piece;
+                    else
+                        camp.Recorded.Add(piece);
+                }
+                // The building's own first bed: where the cart's bed goes, in its place.
+                else if (parts[0] == "building" && piece.Prefab.EndsWith(Bed))
+                    camp.BedSpot = camp.BedSpot ?? piece;
             }
             return camp;
         }
+
+        private const string Rug = "rug_";
+        private const string Bed = "_bed";
 
         private static float Number(string text) => float.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
 

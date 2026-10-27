@@ -42,7 +42,44 @@ namespace Cartheim.Core.Tests
             Assert.True(RuinCamp.For("StoneHouse4").HasTarp);
         }
 
-[Fact]        public void The_wood_house_camp_pitches_the_carts_tent_and_its_outer_chair_faces_the_table()        {            var camp = RuinCamp.For("WoodHouse3");            Assert.True(camp.PitchesTent);            Assert.False(CampRecords.Parse("Other", "").PitchesTent);            var outer = camp.Recorded.Where(p => p.Prefab == "piece_chair").OrderByDescending(p => p.X * p.X + p.Z * p.Z).First();            Assert.Equal(149f, outer.Yaw);        }
+        [Fact]
+        public void The_wood_house_camp_pitches_the_carts_tent_and_its_outer_chair_faces_the_table()
+        {
+            var camp = RuinCamp.For("WoodHouse3");
+            Assert.True(camp.PitchesTent);
+            Assert.False(CampRecords.Parse("Other", "").PitchesTent);
+            var outer = camp.Recorded.Where(p => p.Prefab == "piece_chair").OrderByDescending(p => p.X * p.X + p.Z * p.Z).First();
+            Assert.Equal(149f, outer.Yaw);
+        }
+
+        [Fact]
+        public void A_rug_laid_in_a_recorded_camp_marks_where_the_carts_rug_goes_and_the_buildings_first_bed_where_the_carts_bed_goes()
+        {
+            var record = "# Camp at X: reaching 8.0 m\n" +
+                         "player | rug_deer | -0.06 | 0.10 | -0.79 | 180 | MaterialManNotifier | made of 4 DeerHide\n" +
+                         "player | rug_deer | -6.42 | 0.56 | 3.40 | 29 | CartRider,CartRider | made of 4 DeerHide\n" +
+                         "building | goblin_bed | -1.67 | 0.00 | -2.19 | -1 | RandomSpawn | \n" +
+                         "building | goblin_bed | 1.58 | 0.00 | -2.19 | 3 | RandomSpawn | \n";
+            var camp = CampRecords.Parse("X", record);
+            Assert.Empty(camp.Recorded);
+            Assert.Equal((-0.06f, 0.10f, -0.79f, 180f), (camp.RugSpot.X, camp.RugSpot.Y, camp.RugSpot.Z, camp.RugSpot.Yaw));
+            Assert.Equal("rug_deer", camp.RugSpot.Prefab);
+            Assert.Equal("goblin_bed", camp.BedSpot.Prefab);
+            Assert.Equal(-1.67f, camp.BedSpot.X);
+            Assert.True(camp.HasRoom);
+            Assert.False(CampRecords.Parse("Y", "").HasRoom);
+        }
+
+        [Fact]
+        public void The_second_wood_house_camp_ships_with_its_shelter_and_its_room()
+        {
+            var camp = RuinCamp.For("WoodHouse2");
+            Assert.Contains(camp.Recorded, p => p.Prefab == "wood_wall_roof_top_45");
+            Assert.DoesNotContain(camp.Recorded, p => p.Prefab.StartsWith("rug_"));
+            Assert.NotNull(camp.RugSpot);
+            Assert.NotNull(camp.BedSpot);
+        }
+
         [Fact]
         public void The_wood_house_camp_ships_with_the_mod_with_its_table_set_but_not_to_be_eaten_from_but_the_berries()
         {
