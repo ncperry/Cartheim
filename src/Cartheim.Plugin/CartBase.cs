@@ -51,6 +51,8 @@ namespace Cartheim.Plugin
         private float _assist;
         // The tent pitched beside the cart, and how each of the cart's bodies was held before the tent held it still.
         private GameObject _tent;
+        // What the tent's rug is kept clear of grass by.
+        private readonly object _tentGrass = new object();
         private string _tentRug;
         private readonly Dictionary<Rigidbody, RigidbodyConstraints> _unfrozen = new Dictionary<Rigidbody, RigidbodyConstraints>();
 
@@ -103,6 +105,7 @@ namespace Cartheim.Plugin
                 _nview.Unregister(TentRpc);
             if (_tent)
                 Destroy(_tent);
+                CartRuin.Grassless(_tentGrass, null);
             if (_room)
                 Destroy(_room);
             if (_tarp)
@@ -593,6 +596,7 @@ namespace Cartheim.Plugin
             if (_tent && rug != _tentRug)
             {
                 Destroy(_tent);
+                CartRuin.Grassless(_tentGrass, null);
                 _tent = null;
             }
             // Stood upright first, so the tent meets its posts square.
@@ -601,11 +605,15 @@ namespace Cartheim.Plugin
             if (wantTent && !_tent && _vagon && TentAssets.Spot(transform, CartLooks.BedOf(_vagon), out var tentAt, out var tentFacing, out _))
             {
                 _tent = TentAssets.Pitch(tentAt, tentFacing, CartLooks.BedOf(_vagon), rug);
+                // No grass through the rug laid in it.
+                if (_tent && _tent.GetComponent<TentShape>() is TentShape shape && shape.RugHalf > 0f)
+                    CartRuin.Grassless(_tentGrass, (_tent.transform.TransformPoint(shape.RugAt), _tent.transform.rotation, shape.RugHalf));
                 _tentRug = rug;
             }
             else if (!wantTent && _tent)
             {
                 Destroy(_tent);
+                CartRuin.Grassless(_tentGrass, null);
                 _tent = null;
             }
             // Settled in a ruin: held still, the tent's cloth over the ruin as a tarp if the cart has a tent.

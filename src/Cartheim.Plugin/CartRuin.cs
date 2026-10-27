@@ -18,6 +18,10 @@ namespace Cartheim.Plugin
         private const string CampOfKey = "cartheim_camp_of";
         // Set out to look at, not to eat or take (food on a camp's table).
         private const string UntouchableKey = "cartheim_untouchable";
+        // Set out to be taken (berries on the table): which of the camp's pieces it is (counted from 1); and, kept by the
+        // building, those taken there, not set out again.
+        private const string SetOutKey = "cartheim_set_out";
+        private const string TakenKey = "cartheim_camp_taken";
         private const string DoorName = "$piece_wooddoor";
         private const string FenceName = "$piece_woodfence";
 
@@ -49,17 +53,26 @@ namespace Cartheim.Plugin
             {
                 var turn = Turn(ruin, 0f);
                 var bases = GroundBases(ruin, camp);
-                foreach (var recorded in camp.Recorded)
+                var taken = Taken(ruin);
+                for (var index = 0; index < camp.Recorded.Count; index++)
                 {
+                    var recorded = camp.Recorded[index];
+                    // Set out to be taken (berries), and taken here before: not set out again.
+                    if (taken.Contains(index))
+                        continue;
                     var kind = CartGarden.Measure(GamePieces.Prefab(recorded.Prefab));
                     if (!kind.Prefab)
                         continue;
                     kind.Lift = 0f;
                     var untouchable = camp.Untouchable.Contains(recorded.Prefab);
+                    var takeable = !untouchable && kind.Prefab.GetComponent<ItemDrop>();
+                    var number = index;
                     var at = ruin.transform.position + turn * new Vector3(recorded.X, 0f, recorded.Z);
                     at.y = bases[recorded] + recorded.Y;
                     yield return (kind, at, Turn(ruin, recorded.Yaw),
-                        untouchable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(UntouchableKey, true)) : null);
+                        untouchable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(UntouchableKey, true))
+                        : takeable ? (System.Action<GameObject>)(built => built.GetComponent<ZNetView>()?.GetZDO()?.Set(SetOutKey, number + 1))
+                        : (System.Action<GameObject>)null);
                 }
                 yield break;
             }
@@ -170,15 +183,16 @@ namespace Cartheim.Plugin
                 Show(stand, shield ? RuinCamp.Shield : null);
         }
 
-        // Where a settled cart's rug lies (its middle, how it's turned, half its size), no grass grows up through it.
-        private static readonly Dictionary<CartBase, (Vector3 at, Quaternion turn, float half)> Rugs = new Dictionary<CartBase, (Vector3, Quaternion, float)>();
+        // Where a cart's rug lies (in a ruin's room, or in its pitched tent: its middle, how it's turned, half its size), no grass
+        // grows up through it. Kept by what it's in.
+        private static readonly Dictionary<object, (Vector3 at, Quaternion turn, float half)> Rugs = new Dictionary<object, (Vector3, Quaternion, float)>();
 
-        public static void Grassless(CartBase cart, (Vector3 at, Quaternion turn, float half)? rug)
+        public static void Grassless(object owner, (Vector3 at, Quaternion turn, float half)? rug)
         {
-            Rugs.TryGetValue(cart, out var was);
+            Rugs.TryGetValue(owner, out var was);
             if (rug is (Vector3, Quaternion, float) lies)
-                Rugs[cart] = lies;
-            else if (!Rugs.Remove(cart))
+                Rugs[owner] = lies;
+            else if (!Rugs.Remove(owner))
                 return;
             var where = rug ?? was;
             if (ClutterSystem.instance)
@@ -256,6 +270,37 @@ namespace Cartheim.Plugin
             return false;
         }
 
+
+        // The building's own record (it lasts as long as the building does).
+        private static ZDO BuildingRecord(Component building) =>
+            building ? building.GetComponentInParent<LocationProxy>()?.GetComponent<ZNetView>()?.GetZDO() : null;
+
+        private static HashSet<int> Taken(Location ruin) =>
+            new HashSet<int>((BuildingRecord(ruin)?.GetString(TakenKey, "") ?? "").Split(',')
+                .Select(s => int.TryParse(s, out var n) ? n : -1).Where(n => n >= 0));
+
+        // Something set out at a camp, taken: the building remembers it, so it's not set out there again.
+        [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.Pickup)), HarmonyPrefix]
+        private static void Taking(GameObject go, out (int piece, Vector3 at) __state)
+        {
+            var number = go ? go.GetComponent<ZNetView>()?.GetZDO()?.GetInt(SetOutKey) ?? 0 : 0;
+            __state = (number - 1, go ? go.transform.position : Vector3.zero);
+        }
+
+        [HarmonyPatch(typeof(Humanoid), nameof(Humanoid.Pickup)), HarmonyPostfix]
+        private static void Taken(bool __result, (int piece, Vector3 at) __state)
+        {
+            if (!__result || __state.piece < 0)
+                return;
+            var building = Location.GetLocation(__state.at, checkDungeons: false);
+            var record = BuildingRecord(building);
+            if (record == null)
+                return;
+            var taken = Taken(building);
+            taken.Add(__state.piece);
+            record.Set(TakenKey, string.Join(",", taken.OrderBy(n => n)));
+            Debug.Log($"[Cartheim] Camp piece {__state.piece} taken at {building.name}: not set out there again");
+        }
         // What each recorded piece's height is measured from, here: for one standing on the ground (recorded at about the
         // building's ground), the highest ground anywhere under it, so none of it's buried on a slope; for one resting on
         // another (food on the table, a pole on a pole), the same as the ground piece it's over, so it stays on it.

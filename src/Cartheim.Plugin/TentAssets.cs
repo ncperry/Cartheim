@@ -146,6 +146,8 @@ namespace Cartheim.Plugin
                 CartLooks.Rug(root.transform, rug, new Bounds(onRug, new Vector3(RugSize, 0f, RugSize)));
                 // On the rug, out of the way of a campfire in the middle of the tent.
                 shape.WakeAt = onRug;
+                shape.RugAt = onRug;
+                shape.RugHalf = RugSize / 2f;
             }
             Debug.Log($"[Cartheim] Tent pitched at {position}, covering {footprint.min} to {footprint.max} from the middle of the cart's left side");
             return root;
@@ -288,5 +290,8 @@ namespace Cartheim.Plugin
     {
         public Bounds Footprint;
         public Vector3 WakeAt;
+        // The rug laid in it, if there is one: its middle, and half its size (0 for none).
+        public Vector3 RugAt;
+        public float RugHalf;
     }
 }
