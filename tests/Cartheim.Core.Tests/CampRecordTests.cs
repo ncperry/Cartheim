@@ -66,6 +66,8 @@ namespace Cartheim.Core.Tests
             Assert.Equal("rug_deer", camp.RugSpot.Prefab);
             Assert.Equal("goblin_bed", camp.BedSpot.Prefab);
             Assert.Equal(-1.67f, camp.BedSpot.X);
+            // The second: a spare, made a real bed for good.
+            Assert.Equal(1.58f, camp.SpareBedSpot.X);
             Assert.True(camp.HasRoom);
             Assert.False(CampRecords.Parse("Y", "").HasRoom);
         }

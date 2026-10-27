@@ -62,9 +62,14 @@ namespace Cartheim.Core
                     else
                         camp.Recorded.Add(piece);
                 }
-                // The building's own first bed: where the cart's bed goes, in its place.
+                // The building's own first bed: where the cart's bed goes, in its place; its second, a spare.
                 else if (parts[0] == "building" && piece.Prefab.EndsWith(Bed))
-                    camp.BedSpot = camp.BedSpot ?? piece;
+                {
+                    if (camp.BedSpot == null)
+                        camp.BedSpot = piece;
+                    else
+                        camp.SpareBedSpot = camp.SpareBedSpot ?? piece;
+                }
             }
             return camp;
         }

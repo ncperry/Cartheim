@@ -301,6 +301,43 @@ namespace Cartheim.Plugin
             record.Set(TakenKey, string.Join(",", taken.OrderBy(n => n)));
             Debug.Log($"[Cartheim] Camp piece {__state.piece} taken at {building.name}: not set out there again");
         }
+
+        // A bed of ours set where one of the building's own stands: centred on it, its length the way the other's runs.
+        internal static (Vector3 at, Quaternion facing) BedInPlaceOf(Vector3 ruinAt, Quaternion turn, Cartheim.Core.RecordedPiece spot, string ours)
+        {
+            var theirs = CartGarden.Measure(GamePieces.Prefab(spot.Prefab));
+            var mine = CartGarden.Measure(GamePieces.Prefab(ours));
+            var theirTurn = turn * Quaternion.Euler(0f, spot.Yaw, 0f);
+            var middle = ruinAt + turn * new Vector3(spot.X, spot.Y, spot.Z) + theirTurn * new Vector3(theirs.Box.center.x, 0f, theirs.Box.center.z);
+            var facing = theirTurn * Quaternion.Euler(0f, theirs.Turn - mine.Turn, 0f);
+            return (middle - facing * new Vector3(mine.Box.center.x, 0f, mine.Box.center.z), facing);
+        }
+
+        // The building's spare bed made a real one, for good: not the camp's (it stays when the camp's packed up), anyone's
+        // to claim. Not again where it's been made one already.
+        private const string SpareBed = "bed";
+
+        private static void MakeSpareBed(Location ruin, RuinCamp camp)
+        {
+            if (camp.SpareBedSpot == null)
+                return;
+            var turn = Turn(ruin, 0f);
+            var spot = ruin.transform.position + turn * new Vector3(camp.SpareBedSpot.X, camp.SpareBedSpot.Y, camp.SpareBedSpot.Z);
+            var (at, facing) = BedInPlaceOf(ruin.transform.position, turn, camp.SpareBedSpot, SpareBed);
+            var near = Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None)
+                .Where(v => v && v.IsValid() && Vector3.Distance(v.transform.position, spot) < 1.5f).ToList();
+            if (near.Any(v => v.GetComponent<Bed>() && !IsCamp(v)))
+                return;
+            foreach (var old in near.Where(v => Utils.GetPrefabName(v.gameObject) == camp.SpareBedSpot.Prefab && Vector3.Distance(v.transform.position, spot) < 0.6f))
+            {
+                old.ClaimOwnership();
+                ZNetScene.instance.Destroy(old.gameObject);
+            }
+            var prefab = GamePieces.Prefab(SpareBed);
+            if (prefab)
+                Object.Instantiate(prefab, at, facing);
+            Debug.Log($"[Cartheim] The {camp.Name}'s spare {camp.SpareBedSpot.Prefab} made a real bed, for good");
+        }
         // What each recorded piece's height is measured from, here: for one standing on the ground (recorded at about the
         // building's ground), the highest ground anywhere under it, so none of it's buried on a slope; for one resting on
         // another (food on the table, a pole on a pole), the same as the ground piece it's over, so it stays on it.
@@ -536,6 +573,7 @@ namespace Cartheim.Plugin
             {
                 _campOf = 0;
             }
+            MakeSpareBed(ruin, camp);
             // Everything built there made good, for good: cosier.
             var mended = Object.FindObjectsByType<WearNTear>(FindObjectsSortMode.None)
                 .Count(w => w && new Vector2(w.transform.position.x - ruin.transform.position.x, w.transform.position.z - ruin.transform.position.z).magnitude <= camp.Area + 2f && w.Repair());
