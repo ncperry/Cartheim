@@ -984,6 +984,8 @@ namespace Cartheim.Plugin
             {
                 var laid = CartGarden.Measure(GamePieces.Prefab(camp.RugSpot.Prefab)).Box;
                 CartLooks.Rug(room.transform, rug, new Bounds(new Vector3(laid.center.x, 0f, laid.center.z), new Vector3(laid.size.x, 0f, laid.size.z)));
+                // No grass growing up through it, out of doors.
+                CartRuin.Grassless(this, (room.transform.TransformPoint(new Vector3(laid.center.x, 0f, laid.center.z)), room.transform.rotation, Mathf.Max(laid.size.x, laid.size.z) / 2f));
             }
             var bed = camp.BedSpot != null ? GamePieces.Beds.FirstOrDefault(Upgrades.Has) : null;
             // In place of whichever of the building's beds a bed fits at (none: it stays in the cart).

@@ -56,19 +56,24 @@ namespace Cartheim.Plugin
                     touched = true;
                 }
                 var painted = PaintChanged(comp);
+                var unpainted = new System.Collections.Generic.List<int>();
                 for (var j = 0; painted != null && j < painted.Length; j++)
                 {
                     if (!painted[j] || Flat(map.VertexMaskToWorld(j % pitch, j / pitch) - here) > reach)
                         continue;
                     painted[j] = false;
-                    Paint(comp)[j] = Color.clear;
+                    unpainted.Add(j);
                     paints++;
                     touched = true;
                 }
                 if (!touched)
                     continue;
-                Save.Invoke(comp, new object[] { false });
+                // Redrawn as the world made it, then each mark taken back to that (all of it: a cultivated mark keeps what else
+                // the ground had there, so a cleared one would never show as soil again).
                 map.Poke();
+                foreach (var j in unpainted)
+                    Paint(comp)[j] = map.GetPaintMask(j % pitch, j / pitch);
+                Save.Invoke(comp, new object[] { false });
             }
             ClutterSystem.instance?.ResetGrass(here, reach);
             Debug.Log($"[Cartheim] Dev: the ground within {reach:0} m of {here} put back: {heights} heights, {paints} paint marks");
