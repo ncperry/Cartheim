@@ -41,7 +41,8 @@ if [ -n "$dry_run" ]; then
     exit 0
 fi
 
-git commit -q -am "Release v$version" && git tag "v$version"
+git diff --quiet || git commit -q -am "Release v$version"
+git tag "v$version"
 git push -q origin HEAD "v$version"
 
 # Git Credential Manager already holds a GitHub token from pushing; the release API takes the same one.
