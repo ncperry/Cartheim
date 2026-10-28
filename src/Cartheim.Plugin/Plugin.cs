@@ -64,6 +64,7 @@ namespace Cartheim.Plugin
             _harmony.PatchAll(typeof(CartPortal));
             _harmony.PatchAll(typeof(CartRescue));
             _harmony.PatchAll(typeof(CartRuin));
+            _harmony.PatchAll(typeof(CartSpawn));
             _harmony.PatchAll(typeof(CampRules));
             _harmony.PatchAll(typeof(DevButtons));
             _harmony.PatchAll(typeof(DevForest));

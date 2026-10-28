@@ -9,20 +9,10 @@ namespace Cartheim.Plugin
     // by the end of that biome (see BiomeCart), built in as the Cart tab builds it, at no cost.
     internal static class DevCarts
     {
-        private const string CartPrefab = "Cart";
-
         public static void Spawn(Biome biome)
         {
             var player = Player.m_localPlayer;
-            var prefab = GamePieces.Prefab(CartPrefab);
-            if (!player || !prefab)
-                return;
-            InventoryGui.instance?.Hide();
-            var at = player.transform.position + player.transform.forward * 5f;
-            at.y = ZoneSystem.instance ? ZoneSystem.instance.GetGroundHeight(at) + 0.3f : at.y;
-            // Side on to the player, its handle to their left.
-            var built = Object.Instantiate(prefab, at, Quaternion.Euler(0f, player.transform.eulerAngles.y + 90f, 0f));
-            var cart = built.GetComponent<CartBase>();
+            var cart = CartSpawn.Place(player);
             if (cart)
                 cart.StartCoroutine(BuildOut(cart, biome, player));
         }
