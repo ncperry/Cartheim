@@ -33,8 +33,10 @@ if not defined DLL (
 rem Configs the player already has are kept: robocopy skips existing files when told to exclude changed, newer and older ones.
 robocopy "%PAYLOAD%" "%GAME%" /E /XD "%PAYLOAD%\BepInEx\config" /NFL /NDL /NJH /NJS /NP >nul
 if errorlevel 8 goto copy_failed
-robocopy "%PAYLOAD%\BepInEx\config" "%GAME%\BepInEx\config" /E /XC /XN /XO /NFL /NDL /NJH /NJS /NP >nul
-if errorlevel 8 goto copy_failed
+if exist "%PAYLOAD%\BepInEx\config\" (
+    robocopy "%PAYLOAD%\BepInEx\config" "%GAME%\BepInEx\config" /E /XC /XN /XO /NFL /NDL /NJH /NJS /NP >nul
+    if errorlevel 8 goto copy_failed
+)
 if not exist "%GAME%\BepInEx\plugins\Cartheim" mkdir "%GAME%\BepInEx\plugins\Cartheim"
 copy /y "%DLL%" "%GAME%\BepInEx\plugins\Cartheim\Cartheim.dll" >nul || goto copy_failed
 echo Cartheim installed in %GAME%

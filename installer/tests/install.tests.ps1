@@ -78,6 +78,13 @@ try {
     & $bat '""' $dll | Out-Null
     Check 'installs into the library that has the game' ((Read "$found\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
 
+    Write-Host 'Bundle without configs'
+    # The real bundle has none: BepInEx and Jotunn write theirs on first launch.
+    Remove-Item "$payload\BepInEx\config" -Recurse -Force
+    $fresh = New-Game (New-TempDir)
+    & $bat $fresh $dll | Out-Null
+    Check 'still installs' ((Read "$fresh\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
+
     Write-Host 'No Valheim anywhere'
     $env:CARTHEIM_STEAM = New-TempDir
     '' | & $bat '""' $dll | Out-Null
