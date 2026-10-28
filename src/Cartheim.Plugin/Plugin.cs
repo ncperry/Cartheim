@@ -16,7 +16,7 @@ namespace Cartheim.Plugin
         public const string Guid = "nate.cartheim";
 
         // Set by release.sh.
-        public const string Version = "0.1.1";
+        public const string Version = "0.1.2";
 
         // Read whenever cart behavior would act, so switching it off takes effect at once.
         public static ConfigEntry<bool> Enabled;
