@@ -2,15 +2,21 @@ using BepInEx;
 using BepInEx.Configuration;
 using Cartheim.Core;
 using HarmonyLib;
+using Jotunn.Utils;
 
 namespace Cartheim.Plugin
 {
-    [BepInPlugin(Guid, "Cartheim", "0.1.0")]
+    [BepInPlugin(Guid, "Cartheim", Version)]
     [BepInDependency(Jotunn.Main.ModGuid)]
+    // Everyone in a game (server included) must run the same build, or Jotunn refuses the join and says why.
+    [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Patch)]
     public class Plugin : BaseUnityPlugin
     {
         // nate.* puts the [Mods] switch in ValheimInventory's Mods tab.
         public const string Guid = "nate.cartheim";
+
+        // Set by release.sh.
+        public const string Version = "0.1.0";
 
         // Read whenever cart behavior would act, so switching it off takes effect at once.
         public static ConfigEntry<bool> Enabled;
