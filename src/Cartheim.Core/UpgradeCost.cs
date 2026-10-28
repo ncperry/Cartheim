@@ -16,9 +16,18 @@ namespace Cartheim.Core
 
         private const int Nails = 5;
 
-        // Freyr's Blessing isn't nailed on: it costs just its own materials.
-        public static IReadOnlyList<ItemCount> For(string piece, IEnumerable<ItemCount> recipe) =>
-            piece == FreyrsBlessing.Piece ? recipe.ToList() : For(recipe);
+        // Freyr's Blessing isn't nailed on: it costs just its own materials. Nor are the workbench and its extensions
+        // while they're meadows work (no bronze or later in their recipe), so a cart can start out before the forge.
+        public static IReadOnlyList<ItemCount> For(string piece, IEnumerable<ItemCount> recipe)
+        {
+            var items = recipe.ToList();
+            return piece == FreyrsBlessing.Piece || IsWorkbench(piece) && items.All(i => IsMeadows(i.Prefab)) ? items : For(items);
+        }
+
+        private static bool IsWorkbench(string piece) => piece == "piece_workbench" || piece.StartsWith("piece_workbench_ext");
+
+        private static bool IsMeadows(string material) =>
+            BlackForestOrEarlier.Contains(material) && material != "Bronze" && material != "BronzeNails";
 
         public static IReadOnlyList<ItemCount> For(IEnumerable<ItemCount> recipe)
         {

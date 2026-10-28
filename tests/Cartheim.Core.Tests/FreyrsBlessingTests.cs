@@ -25,7 +25,7 @@ namespace Cartheim.Core.Tests
         {
             var recipe = new[] { new ItemCount("Honey", 20), new ItemCount("Barley", 10) };
             Assert.Equal(recipe, UpgradeCost.For(FreyrsBlessing.Piece, recipe));
-            Assert.Contains(UpgradeCost.For("piece_workbench", new[] { new ItemCount("Wood", 10) }), c => c.Prefab == "BronzeNails");
+            Assert.Contains(UpgradeCost.For("bed", new[] { new ItemCount("Wood", 8) }), c => c.Prefab == "BronzeNails");
         }
 
         [Fact]
