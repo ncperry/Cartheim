@@ -29,6 +29,7 @@ function Read([string]$path) { if (Test-Path $path) { Get-Content $path } }
 if (Test-Path $payload) { Remove-Item $payload -Recurse -Force }
 New-Item -ItemType Directory "$payload\BepInEx\core", "$payload\BepInEx\plugins", "$payload\BepInEx\config" | Out-Null
 Set-Content "$payload\winhttp.dll" 'doorstop'
+Set-Content "$payload\doorstop_config.ini" 'doorstop settings'
 Set-Content "$payload\BepInEx\core\BepInEx.dll" 'bepinex'
 Set-Content "$payload\BepInEx\plugins\Jotunn.dll" 'jotunn'
 Set-Content "$payload\BepInEx\config\BepInEx.cfg" 'bundled config'
@@ -84,6 +85,24 @@ try {
     $fresh = New-Game (New-TempDir)
     & $bat $fresh $dll | Out-Null
     Check 'still installs' ((Read "$fresh\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
+
+    Write-Host 'Uninstalling'
+    $uninstall = Join-Path $PSScriptRoot '..\Uninstall.bat'
+    Set-Content "$game\BepInEx\plugins\TheirMod.dll" 'theirs'
+    & $uninstall $game | Out-Null
+    Check 'succeeds' ($LASTEXITCODE -eq 0)
+    Check 'removes the mod loader, so the game starts unmodded' (!(Test-Path "$game\winhttp.dll"))
+    Check 'removes the loader settings' (!(Test-Path "$game\doorstop_config.ini"))
+    Check 'removes BepInEx' (!(Test-Path "$game\BepInEx\core"))
+    Check 'removes Jotunn' (!(Test-Path "$game\BepInEx\plugins\Jotunn.dll"))
+    Check 'removes Cartheim' (!(Test-Path "$game\BepInEx\plugins\Cartheim"))
+    Check 'keeps their configs for a reinstall' ((Read "$game\BepInEx\config\BepInEx.cfg") -eq 'their config')
+    Check "keeps mods it didn't install" ((Read "$game\BepInEx\plugins\TheirMod.dll") -eq 'theirs')
+    Check 'leaves the game alone' (Test-Path "$game\valheim.exe")
+    & $uninstall $game | Out-Null
+    Check 'running again is harmless' ($LASTEXITCODE -eq 0)
+    & $bat $game $dll | Out-Null
+    Check 'installing again brings it back' ((Read "$game\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
 
     Write-Host 'No Valheim anywhere'
     $env:CARTHEIM_STEAM = New-TempDir

@@ -2,7 +2,10 @@
 rem Installs or updates Cartheim: copies the bundled BepInEx + Jotunn into Valheim, then the newest Cartheim.dll from GitHub.
 rem Double-click to run; run again to update. Plain batch rather than PowerShell, so Windows needs no script settings changed.
 rem   Install.bat [Valheim or dedicated server folder] [local Cartheim.dll instead of downloading]
+rem   Install.bat --uninstall [folder]   what Uninstall.bat runs: takes the mods back out, leaving configs
 setlocal
+set "MODE=install"
+if /i "%~1"=="--uninstall" set "MODE=uninstall" & shift
 set "GAME=%~1"
 set "DLL=%~2"
 set "PAYLOAD=%~dp0payload"
@@ -25,6 +28,7 @@ tasklist /fi "imagename eq valheim.exe" 2>nul | findstr /i "valheim.exe" >nul &&
     echo Valheim is running. Close it first.
     pause
 )
+if "%MODE%"=="uninstall" goto uninstall
 if not defined DLL (
     echo Downloading the latest Cartheim...
     curl.exe -fsSL -o "%TEMP%\Cartheim.dll" "%URL%" || goto download_failed
@@ -43,6 +47,17 @@ echo Cartheim installed in %GAME%
 call :done
 exit /b 0
 
+rem Without winhttp.dll nothing loads BepInEx, so the game starts unmodded. Configs and mods we didn't add stay.
+:uninstall
+del /f /q "%GAME%\winhttp.dll" "%GAME%\doorstop_config.ini" "%GAME%\.doorstop_version" 2>nul
+if exist "%GAME%\BepInEx\core" rmdir /s /q "%GAME%\BepInEx\core"
+if exist "%GAME%\BepInEx\plugins\Cartheim" rmdir /s /q "%GAME%\BepInEx\plugins\Cartheim"
+del /f /q "%GAME%\BepInEx\plugins\Jotunn.dll" 2>nul
+if exist "%GAME%\winhttp.dll" goto copy_failed
+echo Mods removed from %GAME%. Valheim will start unmodded; run Install.bat to bring them back.
+call :done
+exit /b 0
+
 :nothing_installed
 echo Nothing installed.
 call :done
@@ -54,7 +69,7 @@ call :done
 exit /b 1
 
 :copy_failed
-echo Couldn't copy the files into %GAME%. Is Valheim still running?
+echo Couldn't change the files in %GAME%. Is Valheim still running?
 call :done
 exit /b 1
 

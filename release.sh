@@ -28,7 +28,7 @@ dll=src/Cartheim.Plugin/bin/Release/netstandard2.1/Cartheim.dll
 out=$(mktemp -d)
 stage="$out/Cartheim-Installer"
 mkdir -p "$stage/payload/BepInEx/core" "$stage/payload/BepInEx/plugins"
-cp installer/Install.bat "$stage/"
+cp installer/Install.bat installer/Uninstall.bat "$stage/"
 cp "$valheim/winhttp.dll" "$valheim/doorstop_config.ini" "$valheim/.doorstop_version" "$stage/payload/"
 cp "$valheim/BepInEx/core/"* "$stage/payload/BepInEx/core/"
 cp "$valheim/BepInEx/plugins/Jotunn.dll" "$stage/payload/BepInEx/plugins/"
