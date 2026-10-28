@@ -34,15 +34,17 @@ Set-Content "$payload\BepInEx\core\BepInEx.dll" 'bepinex'
 Set-Content "$payload\BepInEx\plugins\Jotunn.dll" 'jotunn'
 Set-Content "$payload\BepInEx\config\BepInEx.cfg" 'bundled config'
 Set-Content "$payload\BepInEx\config\Jotunn.cfg" 'bundled jotunn config'
-$dll = Join-Path (New-TempDir) 'Cartheim.dll'
+# A release's DLLs, as Install.bat would download them.
+$release = New-TempDir
+Set-Content "$release\ValheimInventory.dll" 'inventory v1'
 
 try {
     Write-Host 'Installing into a given folder'
     $game = New-Game (New-TempDir 'Steam Library')
     New-Item -ItemType Directory "$game\BepInEx\config" | Out-Null
     Set-Content "$game\BepInEx\config\BepInEx.cfg" 'their config'
-    Set-Content $dll 'cartheim v2'
-    & $bat $game $dll | Out-Null
+    Set-Content "$release\Cartheim.dll" 'cartheim v2'
+    & $bat $game $release | Out-Null
     Check 'succeeds' ($LASTEXITCODE -eq 0)
     Check 'copies the mod loader' ((Read "$game\winhttp.dll") -eq 'doorstop')
     Check 'copies BepInEx' ((Read "$game\BepInEx\core\BepInEx.dll") -eq 'bepinex')
@@ -51,9 +53,13 @@ try {
     Check 'adds a config they lack' ((Read "$game\BepInEx\config\Jotunn.cfg") -eq 'bundled jotunn config')
     Check 'puts Cartheim in its plugins folder' ((Read "$game\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v2')
 
-    Set-Content $dll 'cartheim v3'
-    & $bat $game $dll | Out-Null
+    Check 'puts ValheimInventory in its plugins folder' ((Read "$game\BepInEx\plugins\ValheimInventory\ValheimInventory.dll") -eq 'inventory v1')
+
+    Set-Content "$release\Cartheim.dll" 'cartheim v3'
+    Set-Content "$release\ValheimInventory.dll" 'inventory v2'
+    & $bat $game $release | Out-Null
     Check 'running again updates Cartheim' ((Read "$game\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
+    Check 'running again updates ValheimInventory' ((Read "$game\BepInEx\plugins\ValheimInventory\ValheimInventory.dll") -eq 'inventory v2')
 
     Write-Host 'Finding Valheim through Steam'
     $steam = New-TempDir 'Steam'
@@ -76,14 +82,14 @@ try {
 }
 "@
     $env:CARTHEIM_STEAM = $steam
-    & $bat '""' $dll | Out-Null
+    & $bat '""' $release | Out-Null
     Check 'installs into the library that has the game' ((Read "$found\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
 
     Write-Host 'Bundle without configs'
     # The real bundle has none: BepInEx and Jotunn write theirs on first launch.
     Remove-Item "$payload\BepInEx\config" -Recurse -Force
     $fresh = New-Game (New-TempDir)
-    & $bat $fresh $dll | Out-Null
+    & $bat $fresh $release | Out-Null
     Check 'still installs' ((Read "$fresh\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
 
     Write-Host 'Uninstalling'
@@ -96,17 +102,18 @@ try {
     Check 'removes BepInEx' (!(Test-Path "$game\BepInEx\core"))
     Check 'removes Jotunn' (!(Test-Path "$game\BepInEx\plugins\Jotunn.dll"))
     Check 'removes Cartheim' (!(Test-Path "$game\BepInEx\plugins\Cartheim"))
+    Check 'removes ValheimInventory' (!(Test-Path "$game\BepInEx\plugins\ValheimInventory"))
     Check 'keeps their configs for a reinstall' ((Read "$game\BepInEx\config\BepInEx.cfg") -eq 'their config')
     Check "keeps mods it didn't install" ((Read "$game\BepInEx\plugins\TheirMod.dll") -eq 'theirs')
     Check 'leaves the game alone' (Test-Path "$game\valheim.exe")
     & $uninstall $game | Out-Null
     Check 'running again is harmless' ($LASTEXITCODE -eq 0)
-    & $bat $game $dll | Out-Null
+    & $bat $game $release | Out-Null
     Check 'installing again brings it back' ((Read "$game\BepInEx\plugins\Cartheim\Cartheim.dll") -eq 'cartheim v3')
 
     Write-Host 'No Valheim anywhere'
     $env:CARTHEIM_STEAM = New-TempDir
-    '' | & $bat '""' $dll | Out-Null
+    '' | & $bat '""' $release | Out-Null
     Check 'gives up when no folder is given' ($LASTEXITCODE -ne 0)
 }
 finally {

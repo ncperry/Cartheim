@@ -1,15 +1,16 @@
 @echo off
-rem Installs or updates Cartheim: copies the bundled BepInEx + Jotunn into Valheim, then the newest Cartheim.dll from GitHub.
+rem Installs or updates Cartheim: copies the bundled BepInEx + Jotunn into Valheim, then the newest Cartheim and
+rem ValheimInventory (its sorted crates, Fetch materials and Mods tab) from the latest GitHub release.
 rem Double-click to run; run again to update. Plain batch rather than PowerShell, so Windows needs no script settings changed.
-rem   Install.bat [Valheim or dedicated server folder] [local Cartheim.dll instead of downloading]
+rem   Install.bat [Valheim or dedicated server folder] [local folder holding the release's DLLs instead of downloading]
 rem   Install.bat --uninstall [folder]   what Uninstall.bat runs: takes the mods back out, leaving configs
 setlocal
 set "MODE=install"
 if /i "%~1"=="--uninstall" set "MODE=uninstall" & shift
 set "GAME=%~1"
-set "DLL=%~2"
+set "RELEASE=%~2"
 set "PAYLOAD=%~dp0payload"
-set "URL=https://github.com/ncperry/Cartheim/releases/latest/download/Cartheim.dll"
+set "URL=https://github.com/ncperry/Cartheim/releases/latest/download"
 
 if not defined GAME call :find_valheim
 :check_game
@@ -29,10 +30,12 @@ tasklist /fi "imagename eq valheim.exe" 2>nul | findstr /i "valheim.exe" >nul &&
     pause
 )
 if "%MODE%"=="uninstall" goto uninstall
-if not defined DLL (
-    echo Downloading the latest Cartheim...
-    curl.exe -fsSL -o "%TEMP%\Cartheim.dll" "%URL%" || goto download_failed
-    set "DLL=%TEMP%\Cartheim.dll"
+if not defined RELEASE (
+    echo Downloading the latest Cartheim and ValheimInventory...
+    if not exist "%TEMP%\Cartheim-release" mkdir "%TEMP%\Cartheim-release"
+    curl.exe -fsSL -o "%TEMP%\Cartheim-release\Cartheim.dll" "%URL%/Cartheim.dll" || goto download_failed
+    curl.exe -fsSL -o "%TEMP%\Cartheim-release\ValheimInventory.dll" "%URL%/ValheimInventory.dll" || goto download_failed
+    set "RELEASE=%TEMP%\Cartheim-release"
 )
 rem Configs the player already has are kept: robocopy skips existing files when told to exclude changed, newer and older ones.
 robocopy "%PAYLOAD%" "%GAME%" /E /XD "%PAYLOAD%\BepInEx\config" /NFL /NDL /NJH /NJS /NP >nul
@@ -41,9 +44,9 @@ if exist "%PAYLOAD%\BepInEx\config\" (
     robocopy "%PAYLOAD%\BepInEx\config" "%GAME%\BepInEx\config" /E /XC /XN /XO /NFL /NDL /NJH /NJS /NP >nul
     if errorlevel 8 goto copy_failed
 )
-if not exist "%GAME%\BepInEx\plugins\Cartheim" mkdir "%GAME%\BepInEx\plugins\Cartheim"
-copy /y "%DLL%" "%GAME%\BepInEx\plugins\Cartheim\Cartheim.dll" >nul || goto copy_failed
-echo Cartheim installed in %GAME%
+call :install_plugin Cartheim || goto copy_failed
+call :install_plugin ValheimInventory || goto copy_failed
+echo Cartheim and ValheimInventory installed in %GAME%
 call :done
 exit /b 0
 
@@ -52,11 +55,18 @@ rem Without winhttp.dll nothing loads BepInEx, so the game starts unmodded. Conf
 del /f /q "%GAME%\winhttp.dll" "%GAME%\doorstop_config.ini" "%GAME%\.doorstop_version" 2>nul
 if exist "%GAME%\BepInEx\core" rmdir /s /q "%GAME%\BepInEx\core"
 if exist "%GAME%\BepInEx\plugins\Cartheim" rmdir /s /q "%GAME%\BepInEx\plugins\Cartheim"
+if exist "%GAME%\BepInEx\plugins\ValheimInventory" rmdir /s /q "%GAME%\BepInEx\plugins\ValheimInventory"
 del /f /q "%GAME%\BepInEx\plugins\Jotunn.dll" 2>nul
 if exist "%GAME%\winhttp.dll" goto copy_failed
 echo Mods removed from %GAME%. Valheim will start unmodded; run Install.bat to bring them back.
 call :done
 exit /b 0
+
+rem Puts <name>.dll from the release in its own plugins folder, replacing an older build.
+:install_plugin
+if not exist "%GAME%\BepInEx\plugins\%1" mkdir "%GAME%\BepInEx\plugins\%1"
+copy /y "%RELEASE%\%1.dll" "%GAME%\BepInEx\plugins\%1\%1.dll" >nul
+exit /b
 
 :nothing_installed
 echo Nothing installed.
